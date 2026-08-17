@@ -1,0 +1,1 @@
+"""Initialise le paquet applicatif du simulateur CMU."""

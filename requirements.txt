@@ -1,0 +1,14 @@
+
+# Dépendances de la couche de persistance et des migrations.
+SQLAlchemy[asyncio]==2.0.43
+alembic==1.16.4
+asyncpg==0.30.0
+psycopg[binary]==3.2.9
+Faker==37.5.3
+# Transport temps réel ASGI et serveur standalone de test.
+python-socketio[asyncio_client]==5.13.0
+uvicorn[standard]==0.35.0
+
+# API REST, validation Pydantic et paramètres de configuration.
+fastapi==0.116.1
+pydantic-settings==2.10.1
