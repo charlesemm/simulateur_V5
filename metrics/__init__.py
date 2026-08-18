@@ -1,0 +1,1 @@
+"""Métriques techniques du simulateur (hors périmètre métier)."""

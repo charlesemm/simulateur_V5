@@ -24,7 +24,10 @@ class AuditMixin:
         "UTILISATEUR_ID_CREATION", String(100)
     )
     date_modification: Mapped[datetime | None] = mapped_column(
-        "DATE_MODIFICATION", DateTime(timezone=True)
+        "DATE_MODIFICATION",
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
     )
     utilisateur_id_modification: Mapped[str | None] = mapped_column(
         "UTILISATEUR_ID_MODIFICATION", String(100)

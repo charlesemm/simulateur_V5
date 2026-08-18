@@ -12,3 +12,13 @@ uvicorn[standard]==0.35.0
 # API REST, validation Pydantic et paramètres de configuration.
 fastapi==0.116.1
 pydantic-settings==2.10.1
+
+# Hachage de mot de passe et jetons JWT pour l'authentification.
+bcrypt==4.2.0
+PyJWT==2.9.0
+email-validator==2.2.0
+
+# Rapports automatiques : PDF, export Excel, planification.
+fpdf2==2.8.1
+openpyxl==3.1.5
+APScheduler==3.10.4

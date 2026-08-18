@@ -3,6 +3,7 @@
 import socketio
 from events import event_bus
 from kpi import KpiConsumer, KpiService
+from metrics.registry import registry as metrics_registry
 
 sio = socketio.AsyncServer(async_mode="asgi", cors_allowed_origins=[])
 socket_app = socketio.ASGIApp(sio)
@@ -11,7 +12,7 @@ kpi_consumer = KpiConsumer(event_bus, sio)
 @sio.event(namespace="/kpi")
 async def connect(sid, environ, auth) -> None:
     """Accepte le client et lui envoie immédiatement un état complet."""
-
+    metrics_registry.enregistrer_connexion_socketio()
     del environ, auth
     snapshot = await KpiService().calculate_snapshot()
     await sio.emit("kpi:snapshot", snapshot, to=sid, namespace="/kpi")
@@ -37,3 +38,9 @@ async def shutdown_event_pipeline() -> None:
     """Arrête le consommateur lors de l'extinction ASGI."""
 
     await kpi_consumer.stop()
+
+@sio.event(namespace="/kpi")
+async def disconnect(sid) -> None:
+    """Suit les déconnexions pour le rapport technique quotidien."""
+
+    metrics_registry.enregistrer_deconnexion_socketio()

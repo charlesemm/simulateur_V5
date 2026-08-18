@@ -5,7 +5,8 @@ import asyncio
 import logging
 from events import EventBus
 from kpi.service import KpiService
-
+import time
+from metrics.registry import registry as metrics_registry
 logger = logging.getLogger(__name__)
 
 class KpiConsumer:
@@ -46,7 +47,9 @@ class KpiConsumer:
                 await asyncio.sleep(self.debounce_seconds)
                 while not queue.empty():
                     changed.add(queue.get_nowait().event_type)
+                debut_calcul = time.perf_counter()
                 snapshot = await self.service.calculate_snapshot()
+                metrics_registry.enregistrer_recalcul_kpi(time.perf_counter() - debut_calcul)
                 payload = {"changed": sorted(changed), "data": snapshot}
                 await self.socket_server.emit("kpi:update", payload, namespace="/kpi")
                 logger.info("Snapshot KPI diffusé après %s type(s) d'événement.", len(changed))

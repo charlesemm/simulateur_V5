@@ -6,6 +6,7 @@ import random
 from uuid import UUID
 
 from sqlalchemy import select
+from metrics.registry import registry as metrics_registry
 from app.database import async_session_factory
 from app.models import InsuredPerson
 from simulation.events import EventCallback, default_event_callback
@@ -45,6 +46,7 @@ class SimulationEngine:
                 raise RuntimeError("Aucun assuré disponible pour un nouveau passage.")
             insured_id = self._random.choice(available)
             self._insured_in_progress.add(insured_id)
+            metrics_registry.enregistrer_pic(len(self._insured_in_progress))
             return insured_id
 
     async def _run_one(self, insured_id: UUID, sequence: int) -> None:
@@ -57,6 +59,9 @@ class SimulationEngine:
                 ).run()
         except Exception:
             logger.exception("Le passage %s a échoué.", sequence)
+            metrics_registry.enregistrer_passage(succes=False)
+        else:
+            metrics_registry.enregistrer_passage(succes=True)
         finally:
             async with self._lock:
                 self._insured_in_progress.discard(insured_id)

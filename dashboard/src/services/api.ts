@@ -2,35 +2,106 @@
 
 import type { HealthCenterList, KpiHistory, KpiSnapshot, SimulationStatus } from "../types";
 
-export const API_URL = import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000";
+export const API_URL = (import.meta.env.VITE_API_URL as string) ?? "http://127.0.0.1:8000";
 
-async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_URL}${path}`, {
-    ...options,
-    headers: { "Content-Type": "application/json", ...options?.headers },
-  });
+function authHeaders(token: string | null): HeadersInit {
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+async function parseOrThrow<T>(response: Response): Promise<T> {
   if (!response.ok) {
-    const body = await response.json().catch(() => ({ detail: "Réponse non lisible." }));
-    throw new Error(body.detail ?? `Erreur HTTP ${response.status}.`);
+    const detail = await response.json().catch(() => null);
+    throw new Error(detail?.detail ?? `Erreur HTTP ${response.status}`);
   }
-  return response.json() as Promise<T>;
+  return (await response.json()) as T;
 }
 
 export const api = {
-  getSnapshot: (signal?: AbortSignal) => request<KpiSnapshot>("/kpi/snapshot", { signal }),
-  getPassageHistory: (signal?: AbortSignal) => {
-    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-    return request<KpiHistory>(`/kpi/passages/history?since=${encodeURIComponent(since)}&granularite=heure`, { signal });
+  /** KPI – lecture seule, endpoint public */
+  async getSnapshot(signal?: AbortSignal): Promise<KpiSnapshot> {
+    const response = await fetch(`${API_URL}/kpi/snapshot`, { signal });
+    return parseOrThrow<KpiSnapshot>(response);
   },
-  getCenters: (signal?: AbortSignal) => request<HealthCenterList>("/centres-sante", { signal }),
-  getSimulationStatus: () => request<SimulationStatus>("/simulation/status"),
-  startSimulation: (vitesse: number, maximum = 20) => request<SimulationStatus>("/simulation/start", {
-    method: "POST", body: JSON.stringify({ vitesse, nombre_passages_simultanes_max: maximum }),
-  }),
-  stopSimulation: () => request<{ message: string }>("/simulation/stop", { method: "POST" }),
-  setSpeed: (vitesse: number) => request<SimulationStatus>("/simulation/speed", {
-    method: "POST", body: JSON.stringify({ vitesse }),
-  }),
+
+  async getPassageHistory(signal?: AbortSignal): Promise<KpiHistory> {
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const response = await fetch(
+      `${API_URL}/kpi/passages/history?since=${encodeURIComponent(since)}&granularite=heure`,
+      { signal }
+    );
+    return parseOrThrow<KpiHistory>(response);
+  },
+
+  /** Centres de santé – lecture seule, endpoint public */
+  async getCenters(signal?: AbortSignal): Promise<HealthCenterList> {
+    const response = await fetch(`${API_URL}/centres-sante`, { signal });
+    return parseOrThrow<HealthCenterList>(response);
+  },
+
+  /** Simulation – lecture seule, endpoint public */
+  async getSimulationStatus(): Promise<SimulationStatus> {
+    const response = await fetch(`${API_URL}/simulation/status`);
+    return parseOrThrow<SimulationStatus>(response);
+  },
+
+  /** Simulation – endpoints protégés (nécessitent un token JWT) */
+  async startSimulation(
+    vitesse: number,
+    nombrePassagesSimultanesMax: number = 20,
+    token: string | null = null
+  ): Promise<SimulationStatus> {
+    const response = await fetch(`${API_URL}/simulation/start`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders(token) },
+      body: JSON.stringify({ vitesse, nombre_passages_simultanes_max: nombrePassagesSimultanesMax }),
+    });
+    return parseOrThrow<SimulationStatus>(response);
+  },
+
+  async stopSimulation(token: string | null = null): Promise<{ message: string }> {
+    const response = await fetch(`${API_URL}/simulation/stop`, {
+      method: "POST",
+      headers: authHeaders(token),
+    });
+    return parseOrThrow<{ message: string }>(response);
+  },
+
+  async setSpeed(vitesse: number, token: string | null = null): Promise<SimulationStatus> {
+    const response = await fetch(`${API_URL}/simulation/speed`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders(token) },
+      body: JSON.stringify({ vitesse }),
+    });
+    return parseOrThrow<SimulationStatus>(response);
+  },
+
+  /** Rapports – endpoints protégés (opérateur minimum) */
+  async listReports(token: string | null): Promise<string[]> {
+    const response = await fetch(`${API_URL}/reports`, {
+      headers: authHeaders(token),
+    });
+    return parseOrThrow<string[]>(response);
+  },
+
+  async generateReport(token: string | null): Promise<{ pdf: string; excel: string }> {
+    const response = await fetch(`${API_URL}/reports/generate`, {
+      method: "POST",
+      headers: authHeaders(token),
+    });
+    return parseOrThrow<{ pdf: string; excel: string }>(response);
+  },
+
+  async downloadReport(nomFichier: string, token: string | null): Promise<void> {
+    const response = await fetch(`${API_URL}/reports/${nomFichier}`, {
+      headers: authHeaders(token),
+    });
+    if (!response.ok) throw new Error("Téléchargement impossible.");
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const lien = document.createElement("a");
+    lien.href = url;
+    lien.download = nomFichier;
+    lien.click();
+    window.URL.revokeObjectURL(url);
+  },
 };
-
-
