@@ -29,6 +29,7 @@ class SimulationEngine:
         self._lock = asyncio.Lock()
         self._semaphore = asyncio.Semaphore(config.max_concurrent_passages)
         self._random = random.Random(config.random_seed)
+        self._pause_task: asyncio.Task | None = None
 
     def set_speed(self, speed: float) -> None:
         """Change immédiatement le rapport temps simulé / temps réel."""
@@ -78,7 +79,13 @@ class SimulationEngine:
             task.add_done_callback(self._tasks.discard)
             if number_of_passages is None or sequence < number_of_passages:
                 delay = self._random.expovariate(1 / self.config.passage_arrival_mean_seconds)
-                await asyncio.sleep(delay / self._speed)
+                self._pause_task = asyncio.create_task(asyncio.sleep(delay / self._speed))
+                try:
+                    await self._pause_task
+                except asyncio.CancelledError:
+                    break
+                finally:
+                    self._pause_task = None
         if self._tasks:
             await asyncio.gather(*tuple(self._tasks))
         self._running = False
@@ -86,6 +93,10 @@ class SimulationEngine:
     async def stop(self) -> None:
         """Arrête la création et annule proprement les tâches restantes."""
         self._running = False
+        if self._pause_task and not self._pause_task.done():
+            self._pause_task.cancel()
         for task in tuple(self._tasks):
             task.cancel()
+        if self._pause_task:
+            await asyncio.gather(self._pause_task, return_exceptions=True)
         await asyncio.gather(*tuple(self._tasks), return_exceptions=True)

@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { API_URL } from "../services/api";
 
 type Role = "administrateur" | "operateur" | "observateur";
 
@@ -16,7 +17,6 @@ interface AuthContextValue extends AuthState {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 const STORAGE_KEY = "cmu_dashboard_auth";
-const API_URL = import.meta.env.VITE_API_URL as string;
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>(() => {

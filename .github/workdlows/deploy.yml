@@ -1,0 +1,93 @@
+# .github/workflows/deploy.yml
+# Build les images, les pousse sur GitHub Container Registry, déploie sur le serveur.
+
+name: CD — Déploiement Production
+
+on:
+  push:
+    branches: [main]
+
+env:
+  REGISTRY: ghcr.io
+  API_IMAGE_NAME: ${{ github.repository }}-api
+  DASHBOARD_IMAGE_NAME: ${{ github.repository }}-dashboard
+
+jobs:
+
+  build-and-push:
+    name: Build & Push images Docker
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Connexion au registre GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & push image API
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.API_IMAGE_NAME }}:latest
+            ${{ env.REGISTRY }}/${{ env.API_IMAGE_NAME }}:${{ github.sha }}
+
+      - name: Build & push image Dashboard
+        uses: docker/build-push-action@v6
+        with:
+          context: ./dashboard
+          file: ./dashboard/Dockerfile
+          push: true
+          build-args: |
+            VITE_API_URL=${{ secrets.VITE_API_URL_PROD }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.DASHBOARD_IMAGE_NAME }}:latest
+            ${{ env.REGISTRY }}/${{ env.DASHBOARD_IMAGE_NAME }}:${{ github.sha }}
+
+  deploy:
+    name: Déployer sur le serveur de production
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    # Décommente la ligne suivante si tu utilises un runner self-hosted sur le réseau interne :
+    # runs-on: self-hosted
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Déployer via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            set -e
+            cd ${{ secrets.DEPLOY_PATH }}
+
+            # Mettre à jour le fichier compose et l'env
+            git pull origin main
+
+            # Pull des nouvelles images
+            echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            export API_IMAGE="${{ env.REGISTRY }}/${{ env.API_IMAGE_NAME }}:latest"
+            export DASHBOARD_IMAGE="${{ env.REGISTRY }}/${{ env.DASHBOARD_IMAGE_NAME }}:latest"
+            docker compose -f docker-compose.prod.yml pull
+
+            # Redémarrage sans coupure longue
+            docker compose -f docker-compose.prod.yml up -d --remove-orphans
+
+            # Migrations (idempotent — ne refait que ce qui manque)
+            docker compose -f docker-compose.prod.yml exec -T api python -m alembic upgrade head
+
+            # Nettoyage des anciennes images
+            docker image prune -f
+
+            echo "✅ Déploiement terminé."

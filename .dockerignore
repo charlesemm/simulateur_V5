@@ -1,0 +1,38 @@
+# Environnements Python locaux
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# Secrets — JAMAIS dans l'image
+.env
+.env.*
+!.env.example
+
+# IDE et git
+.idea/
+.git/
+.gitignore
+
+# Frontend — build séparé dans dashboard/Dockerfile
+dashboard/node_modules/
+dashboard/dist/
+
+# Rapports générés localement
+reports/output/*.pdf
+reports/output/*.xlsx
+
+# Documentation et guides (inutiles en prod)
+*.md
+!README.md
+
+# Fichiers temporaires OS
+.DS_Store
+Thumbs.db
+
+node_modules/
+dist/
+.env.local

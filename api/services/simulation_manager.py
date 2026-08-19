@@ -42,18 +42,18 @@ class SimulationManager:
     def set_speed(self, speed: float) -> None:
         """Ajuste la vitesse ou signale que le moteur est arrêté."""
 
-        if self._engine is None or not self._engine.is_running:
+        if self._engine is None or not self._engine._running:
             raise RuntimeError("Le simulateur est arrêté.")
         self._engine.set_speed(speed)
 
     def status(self) -> dict:
         """Construit l'état courant consommé par le schéma Pydantic."""
 
-        running = bool(self._engine and self._engine.is_running)
+        running = bool(self._engine and self._engine._running)
         return {
             "etat": "en_cours" if running else "arrete",
-            "vitesse": self._engine.speed if self._engine else DEFAULT_CONFIG.default_speed,
-            "passages_actifs": self._engine.active_passages if self._engine else 0,
+            "vitesse": self._engine._speed if self._engine else DEFAULT_CONFIG.default_speed,
+            "passages_actifs": len(self._engine._insured_in_progress) if self._engine else 0,
             "passages_simultanes_max": self._maximum,
         }
 simulation_manager = SimulationManager()

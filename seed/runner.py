@@ -26,6 +26,7 @@ from seed.constants import (
     IVORIAN_FIRST_NAMES, IVORIAN_LAST_NAMES, MEDICAL_ACTS,
     MEDICAL_SPECIALTIES, MEDICATION_SEEDS, PATHOLOGY_LABELS,
 )
+from seed.anomalies import anomalies_config, apply_anomalies_to_row
 
 ## initialisation du logger
 logging.basicConfig(level=logging.INFO, format="%(levelname)s - %(message)s")
@@ -157,7 +158,9 @@ def build_agents() -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
         agent_code = f"AG{index + 1:03d}"
         agent_type = "accueil" if index < 50 else "medecin_conseil"
         email_root = normalize_text(f"{first_name}.{last_name}").lower().replace("'", "")
-        agents.append({
+        
+        # Créer le dict de l'agent
+        agent_row = {
             "agent_code": agent_code,
             "agent_code_gestion": f"GEST{index + 1:04d}",
             "agent_prenoms": first_name,
@@ -165,7 +168,14 @@ def build_agents() -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
             "agent_email": f"{email_root}.{index + 1}@cmu.demo.ci",
             "agent_type_code": agent_type,
             **audit_values(),
-        })
+        }
+        
+        # Appliquer les anomalies
+        agent_row = apply_anomalies_to_row(agent_row, anomalies_config, "agent")
+        
+        # Ajouter à la liste
+        agents.append(agent_row)
+        
         # Les médecins conseils appartiennent au niveau central et ne reçoivent
         # donc volontairement aucune affectation géographique.
         if agent_type == "accueil":
@@ -184,7 +194,7 @@ def build_insured_people() -> list[dict[str, Any]]:
     rows = []
     for index in range(100000):
         last_name, first_name = synthetic_identity(index + 100)
-        rows.append({
+        insured_row = {
             "personne_uuid": uuid5(NAMESPACE_URL, f"cmu-demo-assure-{index + 1}"),
             "numero_recepisse": f"REC-{2026}-{index + 1:06d}",
             "assure_numero_identifiant": f"CMU{index + 1:010d}",
@@ -193,7 +203,11 @@ def build_insured_people() -> list[dict[str, Any]]:
             "assure_nom": last_name,
             "assure_nom_patronymique": last_name if index % 5 else f"{last_name}-{first_name}",
             **audit_values(),
-        })
+        }
+        
+        # Appliquer les anomalies
+        insured_row = apply_anomalies_to_row(insured_row, anomalies_config, "insured")
+        rows.append(insured_row)
     return rows
 
 def build_professionals() -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:

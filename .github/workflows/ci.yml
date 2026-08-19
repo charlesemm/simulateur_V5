@@ -1,0 +1,118 @@
+# .github/workflows/ci.yml
+# Vérifie que le code compile, que le frontend build, et que l'API démarre.
+
+name: CI — Tests & Build
+
+on:
+  push:
+    branches: [main, develop, "feature/**"]
+  pull_request:
+    branches: [main, develop]
+
+env:
+  POSTGRES_USER: postgres
+  POSTGRES_PASSWORD: ci_test_password
+  POSTGRES_DB: cmu_simulator_test
+  JWT_SECRET_KEY: ci-jwt-secret-not-for-production
+  DATABASE_URL: postgresql+asyncpg://postgres:ci_test_password@localhost:5432/cmu_simulator_test
+  CORS_ORIGINS: http://localhost:5173
+
+jobs:
+
+  backend:
+    name: Backend — compile, migrations, smoke test
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci_test_password
+          POSTGRES_DB: cmu_simulator_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Installer les dépendances Python
+        run: pip install -r requirements.txt
+
+      - name: Vérifier la syntaxe Python
+        run: python -m compileall app api auth events kpi metrics realtime reports seed simulation
+
+      - name: Appliquer les migrations Alembic
+        run: python -m alembic upgrade head
+
+      - name: Smoke test — l'API démarre et répond /health
+        run: |
+          uvicorn api.main:app --host 127.0.0.1 --port 8765 &
+          SERVER_PID=$!
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:8765/health; then
+              echo "✅ API OK"
+              kill $SERVER_PID
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "❌ L'API n'a pas répondu à temps"
+          kill $SERVER_PID || true
+          exit 1
+
+  frontend:
+    name: Frontend — lint & build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: dashboard/package-lock.json
+
+      - name: Installer les dépendances npm
+        working-directory: dashboard
+        run: npm ci
+
+      - name: Lint
+        working-directory: dashboard
+        run: npm run lint
+
+      - name: Build production
+        working-directory: dashboard
+        env:
+          VITE_API_URL: http://127.0.0.1:8000
+        run: npm run build
+
+  docker-build:
+    name: Docker — build des images
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image API
+        run: docker build -t simulateur-v5-api:ci .
+
+      - name: Build image Dashboard
+        run: |
+          docker build \
+            --build-arg VITE_API_URL=http://127.0.0.1:8000 \
+            -t simulateur-v5-dashboard:ci \
+            -f dashboard/Dockerfile \
+            ./dashboard

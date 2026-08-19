@@ -17,6 +17,7 @@ from app.models import (
     MedicalAct, Medication, Pathology, PriorAuthorization,
     PriorAuthorizationMedicalAct, PriorAuthorizationStatus,
 )
+from metrics.registry import registry as metrics_registry
 from simulation.events import EventCallback, SimulationEvent
 from simulation_config import SimulationConfig
 
@@ -43,6 +44,7 @@ class PassageSimulation:
 
     async def emit(self, event_type: str, **payload) -> None:
         """Appelle le hook après validation de l'écriture correspondante."""
+        metrics_registry.enregistrer_evenement()
         result = self.callback(SimulationEvent(
             event_type, self.passage_id, self.simulated_at, payload
         ))

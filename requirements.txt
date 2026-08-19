@@ -1,24 +1,24 @@
-
 # Dépendances de la couche de persistance et des migrations.
-SQLAlchemy[asyncio]==2.0.43
-alembic==1.16.4
-asyncpg==0.30.0
-psycopg[binary]==3.2.9
-Faker==37.5.3
+SQLAlchemy[asyncio]>=2.0.30
+alembic>=1.13.0
+asyncpg>=0.29.0
+psycopg[binary]>=3.1.0
+Faker>=30.0.0
+
 # Transport temps réel ASGI et serveur standalone de test.
-python-socketio[asyncio_client]==5.13.0
-uvicorn[standard]==0.35.0
+python-socketio[asyncio_client]>=5.11.0
+uvicorn[standard]>=0.30.0
 
 # API REST, validation Pydantic et paramètres de configuration.
-fastapi==0.116.1
-pydantic-settings==2.10.1
+fastapi>=0.110.0
+pydantic-settings>=2.2.0
 
 # Hachage de mot de passe et jetons JWT pour l'authentification.
-bcrypt==4.2.0
-PyJWT==2.9.0
-email-validator==2.2.0
+bcrypt>=4.1.0
+PyJWT>=2.8.0
+email-validator>=2.1.0
 
 # Rapports automatiques : PDF, export Excel, planification.
-fpdf2==2.8.1
-openpyxl==3.1.5
-APScheduler==3.10.4
+fpdf2>=2.7.0
+openpyxl>=3.1.0
+APScheduler>=3.10.0

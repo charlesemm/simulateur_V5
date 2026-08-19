@@ -38,3 +38,32 @@ export interface HealthCenter {
 }
 
 export interface HealthCenterList { total: number; centres: HealthCenter[] }
+
+export interface TechnicalMetricsSnapshot {
+  demarre_depuis: string;
+  uptime_secondes: number;
+  passages_reussis: number;
+  passages_echoues: number;
+  passages_total: number;
+  taux_echec_pourcent: number;
+  taux_succes_pourcent: number;
+  debit_passages_par_sec: number;
+  pic_passages_simultanes: number;
+  evenements_totaux: number;
+  debit_evenements_par_sec: number;
+  recalculs_kpi: number;
+  temps_moyen_recalcul_kpi_ms: number;
+  derniere_duree_recalcul_kpi_ms: number;
+  connexions_socketio_total: number;
+  deconnexions_socketio_total: number;
+  clients_socketio_actifs: number;
+  requetes_api_total: number;
+  temps_moyen_reponse_api_ms: number;
+  derniere_latence_api_ms: number;
+  debit_requetes_par_sec: number;
+  memoire_rss_mo: number;
+  moteur_etat: "en_cours" | "arrete";
+  moteur_vitesse: number;
+  passages_actifs: number;
+  passages_simultanes_max: number;
+}

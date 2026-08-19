@@ -11,7 +11,15 @@ function authHeaders(token: string | null): HeadersInit {
 async function parseOrThrow<T>(response: Response): Promise<T> {
   if (!response.ok) {
     const detail = await response.json().catch(() => null);
-    throw new Error(detail?.detail ?? `Erreur HTTP ${response.status}`);
+    const message = detail?.detail ?? `Erreur HTTP ${response.status}`;
+    if (response.status === 401) {
+      throw new Error(
+        typeof message === "string" && message !== "Not authenticated"
+          ? message
+          : "Session expirée ou non authentifiée — reconnectez-vous."
+      );
+    }
+    throw new Error(typeof message === "string" ? message : `Erreur HTTP ${response.status}`);
   }
   return (await response.json()) as T;
 }
@@ -61,7 +69,7 @@ export const api = {
   async stopSimulation(token: string | null = null): Promise<{ message: string }> {
     const response = await fetch(`${API_URL}/simulation/stop`, {
       method: "POST",
-      headers: authHeaders(token),
+      headers: { "Content-Type": "application/json", ...authHeaders(token) },
     });
     return parseOrThrow<{ message: string }>(response);
   },
@@ -103,5 +111,16 @@ export const api = {
     lien.download = nomFichier;
     lien.click();
     window.URL.revokeObjectURL(url);
+  },
+
+  /** Métriques Techniques SRE & Performance */
+  async getTechnicalMetrics(signal?: AbortSignal): Promise<import("../types").TechnicalMetricsSnapshot> {
+    const response = await fetch(`${API_URL}/metrics/technical`, { signal });
+    return parseOrThrow<import("../types").TechnicalMetricsSnapshot>(response);
+  },
+
+  async resetTechnicalMetrics(): Promise<{ message: string }> {
+    const response = await fetch(`${API_URL}/metrics/technical/reset`, { method: "POST" });
+    return parseOrThrow<{ message: string }>(response);
   },
 };
