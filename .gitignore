@@ -1,0 +1,39 @@
+# ── Secrets & configuration locale ──────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+
+# ── Python ──────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+dist/
+build/
+
+# ── Node / Frontend ─────────────────────────────────────────────────────────
+node_modules/
+dashboard/dist/
+dashboard/.vite/
+npm-debug.log*
+yarn-error.log*
+
+# ── IDE ─────────────────────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+
+# ── Rapports générés à l'exécution ──────────────────────────────────────────
+reports/output/
+
+# ── Système ─────────────────────────────────────────────────────────────────
+Thumbs.db
+desktop.ini
+.DS_Store

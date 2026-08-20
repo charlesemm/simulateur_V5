@@ -7,10 +7,12 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 
 # La valeur locale reste surchargeable pour les autres environnements.
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql+asyncpg://postgres:azerty2001@localhost:5432/cmu_simulator",
-)
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    raise RuntimeError(
+        "La variable d'environnement DATABASE_URL est obligatoire. "
+        "Exemple : postgresql+asyncpg://postgres:<mot_de_passe>@localhost:5432/cmu_simulator"
+    )
 
 # Le pré-ping empêche la réutilisation d'une connexion PostgreSQL périmée.
 engine = create_async_engine(DATABASE_URL, pool_pre_ping=True)

@@ -9,7 +9,7 @@ DB_HOST="${POSTGRES_HOST:-localhost}"
 DB_PORT="${POSTGRES_PORT:-5432}"
 DB_NAME="${POSTGRES_DB:-cmu_simulator}"
 DB_USER="${POSTGRES_USER:-postgres}"
-DB_PASSWORD="${POSTGRES_PASSWORD:-azerty2001}"
+DB_PASSWORD="${POSTGRES_PASSWORD:?POSTGRES_PASSWORD est obligatoire}"
 export PGPASSWORD="${DB_PASSWORD}"
 
 # La vérification rend le script rejouable sans écraser une base existante.

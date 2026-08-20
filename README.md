@@ -9,7 +9,7 @@ Plateforme de simulation haute performance du parcours de soins CMU (Caisse Nati
 ### 1. Cloner et configurer l'environnement
 ```powershell
 # Copier le fichier d'exemple
-copy .env.example .env
+copy .env.exemple .env
 ```
 
 ### 2. Lancer toute l'infrastructure (Base, API, Dashboard)
@@ -38,7 +38,7 @@ docker compose exec api python -m seed
 ### 1. Base de données & Migrations
 ```powershell
 .\.venv\Scripts\Activate.ps1
-$env:DATABASE_URL = "postgresql+asyncpg://postgres:azerty2001@localhost:5432/cmu_simulator"
+$env:DATABASE_URL = "postgresql+asyncpg://postgres:VOTRE_MOT_DE_PASSE@localhost:5432/cmu_simulator"
 python -m alembic upgrade head
 python -m auth.bootstrap
 python -m seed

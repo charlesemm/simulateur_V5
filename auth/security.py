@@ -9,7 +9,12 @@ import jwt
 
 # En production, définir JWT_SECRET_KEY comme variable d'environnement --
 # ne jamais garder la valeur par défaut ci-dessous hors développement local.
-SECRET_KEY = os.environ.get("JWT_SECRET_KEY", "dev-secret-change-me-en-production")
+SECRET_KEY = os.environ.get("JWT_SECRET_KEY")
+if not SECRET_KEY:
+    raise RuntimeError(
+        "La variable d'environnement JWT_SECRET_KEY est obligatoire. "
+        "Génère-la avec : python -c \"import secrets; print(secrets.token_hex(32))\""
+    )
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_HOURS = 8
 
