@@ -3,8 +3,12 @@
 import os
 from collections.abc import AsyncIterator
 
+from dotenv import load_dotenv
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+# Charge le fichier .env local s'il existe. Les variables déjà définies dans
+# l'environnement gardent la priorité : Docker et la CI ne sont pas affectés.
+load_dotenv()
 
 # La valeur locale reste surchargeable pour les autres environnements.
 DATABASE_URL = os.getenv("DATABASE_URL")

@@ -12,7 +12,7 @@ from sqlalchemy import func, select
 
 from app.database import async_session_factory
 from app.models import (
-    Agent, HealthCenter, HealthProfessional, InsuredPerson, Invoice,
+    Agent, HealthCenter, HealthProfessional, Invoice,
     InvoicePathology, InvoicePrescription, InvoiceProvision, InvoiceStatus,
     MedicalAct, Medication, Pathology, PriorAuthorization,
     PriorAuthorizationMedicalAct, PriorAuthorizationStatus,

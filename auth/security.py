@@ -7,6 +7,10 @@ from datetime import datetime, timedelta, timezone
 import bcrypt
 import jwt
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 # En production, définir JWT_SECRET_KEY comme variable d'environnement --
 # ne jamais garder la valeur par défaut ci-dessous hors développement local.
 SECRET_KEY = os.environ.get("JWT_SECRET_KEY")

@@ -38,7 +38,7 @@ async def _create_admin(email: str, mot_de_passe: str, nom_complet: str) -> None
 def main() -> None:
     email = input("Email de l'administrateur : ").strip()
     nom_complet = input("Nom complet : ").strip()
-    mot_de_passe = input("Mot de passe (8 caractères minimum) : ")
+    mot_de_passe = getpass.getpass("Mot de passe (8 caractères minimum) : ")
     if len(mot_de_passe) < 8:
         print("Mot de passe trop court, opération annulée.")
         return

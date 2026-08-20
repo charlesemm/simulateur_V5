@@ -32,16 +32,6 @@ async def run() -> None:
     except KeyboardInterrupt:
         await engine.stop()
 
-async def run() -> None:
-    """Configure et attend la fin du moteur."""
-    arguments = parse_arguments()
-    engine = SimulationEngine(event_callback=log_event)
-    engine.set_speed(arguments.vitesse)
-    try:
-        await engine.start(arguments.nombre_passages)
-    except KeyboardInterrupt:
-        await engine.stop()
-
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(name)s | %(message)s")
     asyncio.run(run())

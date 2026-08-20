@@ -7,7 +7,7 @@ fonctionnement du simulateur lui-même (charge, fiabilité, latence, ressources)
 from __future__ import annotations
 
 import ctypes
-import os
+
 import sys
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -149,4 +149,4 @@ class TechnicalMetricsRegistry:
 
 
 # Instance unique partagée par tout le processus (moteur, KPI, Socket.IO, API).
-registry = TechnicalMetricsRegistry()
+registry = TechnicalMetricsRegistry()
