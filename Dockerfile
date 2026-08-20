@@ -15,7 +15,8 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir --default-timeout=120 --retries=10 -r requirements.txt
 
 # Code applicatif
-COPY alembic.ini alembic/ ./
+COPY alembic.ini ./
+COPY alembic/ ./alembic/
 COPY app/ app/
 COPY api/ api/
 COPY auth/ auth/

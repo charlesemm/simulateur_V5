@@ -44,9 +44,8 @@ fastapi_app = FastAPI(
 
 _cors_raw = os.getenv(
     "CORS_ORIGINS",
-    "http://localhost:5173,http://127.0.0.1:5173",
+    "http://localhost:5173,http://127.0.0.1:5173"
 )
-
 _cors_origins = [origin.strip() for origin in _cors_raw.split(",") if origin.strip()]
 
 @fastapi_app.middleware("http")

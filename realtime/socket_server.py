@@ -1,11 +1,23 @@
 """Configure le serveur Socket.IO ASGI et le namespace KPI."""
 
+"""Configure le serveur Socket.IO ASGI et le namespace KPI."""
+
+import os
+
 import socketio
 from events import event_bus
 from kpi import KpiConsumer, KpiService
 from metrics.registry import registry as metrics_registry
 
-sio = socketio.AsyncServer(async_mode="asgi", cors_allowed_origins=[])
+# Mêmes origines que le middleware CORS de FastAPI (api/main.py), pour qu'une
+# seule variable d'environnement pilote REST et temps réel.
+_cors_raw = os.getenv(
+    "CORS_ORIGINS",
+    "http://localhost:5173,http://127.0.0.1:5173",
+)
+_cors_origins = [origin.strip() for origin in _cors_raw.split(",") if origin.strip()]
+
+sio = socketio.AsyncServer(async_mode="asgi", cors_allowed_origins=_cors_origins)
 socket_app = socketio.ASGIApp(sio)
 kpi_consumer = KpiConsumer(event_bus, sio)
 
