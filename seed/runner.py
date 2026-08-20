@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import random
-from datetime import date
+from datetime import date, timedelta
 import unicodedata
 from decimal import Decimal
 from typing import Any
@@ -37,6 +37,7 @@ RANDOM_SEED = 225
 VALID_FROM = date(2026,8, 17)
 random_generator = random.Random(RANDOM_SEED)
 fake = Faker("fr_FR")
+Faker.seed(RANDOM_SEED)
 
 """ fonction pour creer une chaine ascii utilisable dasn courriel synthetique """
 def normalize_text(value: str) -> str:
@@ -188,23 +189,61 @@ def build_agents() -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
             })
     return agents, assignments
 
+# Le multiplicateur est impair et non divisible par cinq : il n'a donc aucun
+# diviseur commun avec le modulo, ce qui fait de la transformation une
+# bijection. Deux assurés ne peuvent mathématiquement pas partager un numéro.
+SECU_MULTIPLICATEUR = 3_141_592_653
+SECU_DECALAGE = 2_718_281_829
+SECU_MODULO = 10 ** 10
+
+
+def numero_securite_sociale(index: int) -> str:
+    """Produit un numéro de treize caractères commençant par 384.
+
+    Les dix chiffres suivants paraissent tirés au hasard mais restent uniques
+    et stables : un même index redonne toujours le même numéro, et augmenter
+    le nombre d'assurés ne redistribue pas ceux qui existent déjà.
+    """
+
+    suffixe = (SECU_MULTIPLICATEUR * index + SECU_DECALAGE) % SECU_MODULO
+    return f"384{suffixe:010d}"
+
+def insured_profile(index: int) -> tuple[date, str]:
+    """Tire la date de naissance et le régime d'un assuré, de façon stable.
+
+    Chaque assuré possède son propre générateur dérivé de son index : ses
+    attributs ne dépendent donc pas de l'ordre de la boucle, et un futur
+    changement dans la génération ne redistribuera pas les régimes.
+    """
+
+    generator = random.Random(RANDOM_SEED + index)
+    age_en_jours = generator.randint(365, 95 * 365)
+    date_naissance = VALID_FROM - timedelta(days=age_en_jours)
+    # 65 % de régime général de base (70 %), 35 % de régime à 100 %.
+    regime = "RGB" if generator.random() < 0.65 else "RAM"
+    return date_naissance, regime
+
 def build_insured_people() -> list[dict[str, Any]]:
-    """Crée deux mille assurés aux identifiants stables et non séquentiels."""
+    """Crée cent mille assurés aux identifiants stables et non séquentiels."""
 
     rows = []
     for index in range(100000):
         last_name, first_name = synthetic_identity(index + 100)
+        date_naissance, regime = insured_profile(index)
         insured_row = {
             "personne_uuid": uuid5(NAMESPACE_URL, f"cmu-demo-assure-{index + 1}"),
             "numero_recepisse": f"REC-{2026}-{index + 1:06d}",
             "assure_numero_identifiant": f"CMU{index + 1:010d}",
-            "numero_secu": f"{index + 1:013d}",
+            "numero_secu": numero_securite_sociale(index),
             "civilite_code": "MME" if index % 2 == 0 else "M",
             "assure_nom": last_name,
+            "assure_prenoms": first_name,
             "assure_nom_patronymique": last_name if index % 5 else f"{last_name}-{first_name}",
+            "assure_date_naissance": date_naissance,
+            "regime_code": regime,
             **audit_values(),
         }
-        
+
         # Appliquer les anomalies
         insured_row = apply_anomalies_to_row(insured_row, anomalies_config, "insured")
         rows.append(insured_row)

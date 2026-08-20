@@ -44,6 +44,13 @@ class InsuredPerson(AuditMixin, Base):
     assure_nom_patronymique: Mapped[str | None] = mapped_column(
         "ASSURE_NOM_PATRONYMIQUE", String(150)
     )
+    assure_prenoms: Mapped[str | None] = mapped_column(
+        "ASSURE_PRENOMS", String(150)
+    )
+    assure_date_naissance: Mapped[date | None] = mapped_column(
+        "ASSURE_DATE_NAISSANCE", Date
+    )
+    regime_code: Mapped[str | None] = mapped_column("REGIME_CODE", String(10))
 
     invoices: Mapped[list[Invoice]] = relationship(back_populates="insured_person")
     prior_authorizations: Mapped[list[PriorAuthorization]] = relationship(
@@ -386,8 +393,8 @@ class Invoice(AuditMixin, Base):
     facture_date_soins: Mapped[date] = mapped_column(
         "FACTURE_DATE_SOINS", Date, nullable=False
     )
-    dossier_numero: Mapped[str] = mapped_column(
-        "DOSSIER_NUMERO", String(50), nullable=False
+    dossier_numero: Mapped[str | None] = mapped_column(
+        "DOSSIER_NUMERO", String(50)
     )
     centre_sante_code: Mapped[str] = mapped_column(
         "CENTRE_SANTE_CODE",
@@ -624,8 +631,8 @@ class PriorAuthorization(AuditMixin, Base):
     personne_uuid: Mapped[UUID] = mapped_column(
         "PERSONNE_UUID", ForeignKey("TB_REF_ASSURES.PERSONNE_UUID"), nullable=False
     )
-    dossier_numero: Mapped[str] = mapped_column(
-        "DOSSIER_NUMERO", String(50), nullable=False
+    dossier_numero: Mapped[str | None] = mapped_column(
+        "DOSSIER_NUMERO", String(50)
     )
     entente_prealable_date_debut: Mapped[date] = mapped_column(
         "ENTENTE_PREALABLE_DATE_DEBUT", Date, nullable=False
