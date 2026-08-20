@@ -1,12 +1,17 @@
 """Expose le snapshot et les séries historiques de KPI."""
 
 from datetime import datetime, timedelta, timezone
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
 from api.schema import Granularity, KpiHistoryResponse, KpiName, KpiSnapshotResponse
 from api.services.history import calculate_history
+from auth.dependencies import require_role
 from kpi import KpiService
 
-router = APIRouter(prefix="/kpi", tags=["KPI"])
+router = APIRouter(
+    prefix="/kpi",
+    tags=["KPI"],
+    dependencies=[Depends(require_role("observateur"))],
+)
 
 @router.get("/snapshot", response_model=KpiSnapshotResponse)
 async def get_snapshot() -> KpiSnapshotResponse:

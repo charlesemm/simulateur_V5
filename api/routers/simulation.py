@@ -37,7 +37,8 @@ async def change_speed(request: SimulationSpeedRequest) -> SimulationStatusRespo
         raise HTTPException(status_code=409, detail=str(error)) from error
     return SimulationStatusResponse.model_validate(simulation_manager.status())
 
-@router.get("/status", response_model=SimulationStatusResponse)
+@router.get("/status", response_model=SimulationStatusResponse,
+            dependencies=[Depends(require_role("observateur"))])
 async def get_status() -> SimulationStatusResponse:
     """Retourne l'état courant du moteur."""
 

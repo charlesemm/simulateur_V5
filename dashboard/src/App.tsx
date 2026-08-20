@@ -17,7 +17,7 @@ import { api } from "./services/api";
 import type { TechnicalMetricsSnapshot } from "./types";
 
 function DashboardShell() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, token } = useAuth();
   const [ongletActif, setOngletActif] = useState<"dashboard" | "utilisateurs" | "rapports">("dashboard");
   const [metrics, setMetrics] = useState<TechnicalMetricsSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
@@ -28,7 +28,7 @@ function DashboardShell() {
 
     async function fetchTechMetrics() {
       try {
-        const data = await api.getTechnicalMetrics();
+        const data = await api.getTechnicalMetrics(token);
         if (!cancelled) {
           setMetrics(data);
           setLoading(false);
@@ -44,7 +44,7 @@ function DashboardShell() {
       cancelled = true;
       clearInterval(interval);
     };
-  }, [isAuthenticated]);
+  }, [isAuthenticated, token]);
 
   if (!isAuthenticated) return <LoginPage />;
 

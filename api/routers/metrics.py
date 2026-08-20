@@ -1,11 +1,17 @@
 """Expose les métriques d'observabilité et de performance système du simulateur."""
 from __future__ import annotations
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from metrics.registry import registry as metrics_registry
 from api.services.simulation_manager import simulation_manager
+from auth.dependencies import require_role
 
-router = APIRouter(prefix="/metrics", tags=["Métriques Techniques"])
+# Lecture : tout compte authentifié. La remise à zéro exige « operateur ».
+router = APIRouter(
+    prefix="/metrics",
+    tags=["Métriques Techniques"],
+    dependencies=[Depends(require_role("observateur"))],
+)
 
 
 @router.get("/technical")
@@ -20,7 +26,7 @@ async def get_technical_metrics() -> dict:
     return snapshot
 
 
-@router.post("/technical/reset")
+@router.post("/technical/reset", dependencies=[Depends(require_role("operateur"))])
 async def reset_technical_metrics() -> dict[str, str]:
     """Réinitialise les compteurs de métriques techniques."""
     metrics_registry.passages_reussis = 0

@@ -1,10 +1,14 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from app.database import async_session_factory
 from app.models import HealthCenter
 from api.schema import HealthCenterListResponse, HealthCenterSchema
+from auth.dependencies import require_role
 
-router = APIRouter(tags=["Centres de santé"])
+router = APIRouter(
+    tags=["Centres de santé"],
+    dependencies=[Depends(require_role("observateur"))],
+)
 
 @router.get("/centres-sante", response_model=HealthCenterListResponse)
 async def list_health_centers() -> HealthCenterListResponse:

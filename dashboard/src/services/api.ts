@@ -26,29 +26,37 @@ async function parseOrThrow<T>(response: Response): Promise<T> {
 
 export const api = {
   /** KPI – lecture seule, endpoint public */
-  async getSnapshot(signal?: AbortSignal): Promise<KpiSnapshot> {
-    const response = await fetch(`${API_URL}/kpi/snapshot`, { signal });
+  async getSnapshot(token: string | null, signal?: AbortSignal): Promise<KpiSnapshot> {
+    const response = await fetch(`${API_URL}/kpi/snapshot`, {
+      headers: authHeaders(token),
+      signal,
+    });
     return parseOrThrow<KpiSnapshot>(response);
   },
 
-  async getPassageHistory(signal?: AbortSignal): Promise<KpiHistory> {
+   async getPassageHistory(token: string | null, signal?: AbortSignal): Promise<KpiHistory> {
     const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     const response = await fetch(
       `${API_URL}/kpi/passages/history?since=${encodeURIComponent(since)}&granularite=heure`,
-      { signal }
+      { headers: authHeaders(token), signal }
     );
     return parseOrThrow<KpiHistory>(response);
   },
 
   /** Centres de santé – lecture seule, endpoint public */
-  async getCenters(signal?: AbortSignal): Promise<HealthCenterList> {
-    const response = await fetch(`${API_URL}/centres-sante`, { signal });
+   async getCenters(token: string | null, signal?: AbortSignal): Promise<HealthCenterList> {
+    const response = await fetch(`${API_URL}/centres-sante`, {
+      headers: authHeaders(token),
+      signal,
+    });
     return parseOrThrow<HealthCenterList>(response);
   },
 
   /** Simulation – lecture seule, endpoint public */
-  async getSimulationStatus(): Promise<SimulationStatus> {
-    const response = await fetch(`${API_URL}/simulation/status`);
+  async getSimulationStatus(token: string | null = null): Promise<SimulationStatus> {
+    const response = await fetch(`${API_URL}/simulation/status`, {
+      headers: authHeaders(token),
+    });
     return parseOrThrow<SimulationStatus>(response);
   },
 
@@ -114,13 +122,22 @@ export const api = {
   },
 
   /** Métriques Techniques SRE & Performance */
-  async getTechnicalMetrics(signal?: AbortSignal): Promise<import("../types").TechnicalMetricsSnapshot> {
-    const response = await fetch(`${API_URL}/metrics/technical`, { signal });
+  async getTechnicalMetrics(
+    token: string | null,
+    signal?: AbortSignal
+  ): Promise<import("../types").TechnicalMetricsSnapshot> {
+    const response = await fetch(`${API_URL}/metrics/technical`, {
+      headers: authHeaders(token),
+      signal,
+    });
     return parseOrThrow<import("../types").TechnicalMetricsSnapshot>(response);
   },
 
-  async resetTechnicalMetrics(): Promise<{ message: string }> {
-    const response = await fetch(`${API_URL}/metrics/technical/reset`, { method: "POST" });
+  async resetTechnicalMetrics(token: string | null = null): Promise<{ message: string }> {
+    const response = await fetch(`${API_URL}/metrics/technical/reset`, {
+      method: "POST",
+      headers: authHeaders(token),
+    });
     return parseOrThrow<{ message: string }>(response);
   },
 };

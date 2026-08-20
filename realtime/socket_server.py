@@ -1,10 +1,10 @@
 """Configure le serveur Socket.IO ASGI et le namespace KPI."""
 
-"""Configure le serveur Socket.IO ASGI et le namespace KPI."""
-
 import os
 
+import jwt
 import socketio
+from auth.security import decode_access_token
 from events import event_bus
 from kpi import KpiConsumer, KpiService
 from metrics.registry import registry as metrics_registry
@@ -23,9 +23,26 @@ kpi_consumer = KpiConsumer(event_bus, sio)
 
 @sio.event(namespace="/kpi")
 async def connect(sid, environ, auth) -> None:
-    """Accepte le client et lui envoie immédiatement un état complet."""
+    """Vérifie le jeton JWT du client avant de lui ouvrir le flux KPI.
+
+    Le CORS ne protège que le navigateur : sans ce contrôle, n'importe quel
+    client Socket.IO recevrait le snapshot complet et toutes les diffusions.
+    """
+
+    del environ
+    jeton = (auth or {}).get("token")
+    if not jeton:
+        raise socketio.exceptions.ConnectionRefusedError(
+            "Jeton d'authentification absent."
+        )
+    try:
+        decode_access_token(jeton)
+    except jwt.PyJWTError as exc:
+        raise socketio.exceptions.ConnectionRefusedError(
+            "Jeton invalide ou expiré."
+        ) from exc
+
     metrics_registry.enregistrer_connexion_socketio()
-    del environ, auth
     snapshot = await KpiService().calculate_snapshot()
     await sio.emit("kpi:snapshot", snapshot, to=sid, namespace="/kpi")
 

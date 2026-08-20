@@ -30,7 +30,7 @@ export function Header({ ongletActif }: TopbarProps) {
 
     async function refreshStatus() {
       try {
-        const value = await api.getSimulationStatus();
+        const value = await api.getSimulationStatus(token);
         if (cancelled) return;
         setStatus(value);
         setSpeed(value.vitesse);
@@ -52,7 +52,7 @@ export function Header({ ongletActif }: TopbarProps) {
       cancelled = true;
       clearInterval(interval);
     };
-  }, []);
+  }, [token]);
 
   async function handleDemarrer() {
     setStarting(true);
@@ -71,7 +71,7 @@ export function Header({ ongletActif }: TopbarProps) {
     setError(null);
     try {
       await api.stopSimulation(token);
-      setStatus(await api.getSimulationStatus());
+      setStatus(await api.getSimulationStatus(token));
     } catch (reason) {
       setError((reason as Error).message);
     } finally {

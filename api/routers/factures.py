@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from app.database import async_session_factory
@@ -7,8 +7,14 @@ from api.schema import (
     InvoiceDetailResponse, InvoicePathologySchema, InvoicePrescriptionSchema,
     InvoiceProvisionSchema, InvoiceStatusSchema,
 )
+from auth.dependencies import require_role
 
-router = APIRouter(prefix="/factures", tags=["Factures"])
+# Les factures portent des données de santé : aucun accès anonyme.
+router = APIRouter(
+    prefix="/factures",
+    tags=["Factures"],
+    dependencies=[Depends(require_role("observateur"))],
+)
 
 @router.get("/{facture_numero}", response_model=InvoiceDetailResponse)
 async def get_invoice(facture_numero: str) -> InvoiceDetailResponse:

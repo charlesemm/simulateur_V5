@@ -1,6 +1,7 @@
 // Fournit une connexion Socket.IO unique et un fallback REST immédiat.
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { io, type Socket } from "socket.io-client";
+import { useAuth } from "../auth/AuthContext";
 import { API_URL, api } from "../services/api";
 import type { ConnectionStatus, HistoryPoint, KpiSnapshot, KpiUpdate } from "../types";
 
@@ -15,6 +16,7 @@ interface KpiContextValue {
 const KpiContext = createContext<KpiContextValue | null>(null);
 
 export function KpiSocketProvider({ children }: { children: ReactNode }) {
+  const { token } = useAuth();
   const [snapshot, setSnapshot] = useState<KpiSnapshot | null>(null);
   const [history, setHistory] = useState<HistoryPoint[]>([]);
   const [loading, setLoading] = useState(true);
@@ -27,8 +29,8 @@ export function KpiSocketProvider({ children }: { children: ReactNode }) {
 
 // REST et Socket.IO démarrent en parallèle pour réduire le premier affichage.
     Promise.all([
-      api.getSnapshot(controller.signal),
-      api.getPassageHistory(controller.signal),
+      api.getSnapshot(token, controller.signal),
+      api.getPassageHistory(token, controller.signal),
     ]).then(([initialSnapshot, initialHistory]) => {
       setSnapshot(initialSnapshot);
       setHistory(initialHistory.points);
@@ -39,6 +41,7 @@ export function KpiSocketProvider({ children }: { children: ReactNode }) {
 
     socket = io(`${API_URL}/kpi`, {
       path: "/socket.io",
+      auth: { token },
       transports: ["websocket", "polling"],
       reconnection: true,
       reconnectionAttempts: Infinity,
@@ -71,7 +74,7 @@ export function KpiSocketProvider({ children }: { children: ReactNode }) {
       socket?.removeAllListeners();
       socket?.disconnect();
     };
-  }, []);
+  }, [token]);
 
   const value = useMemo(() => ({ snapshot, history, loading, error, connectionStatus }),
     [snapshot, history, loading, error, connectionStatus]);
