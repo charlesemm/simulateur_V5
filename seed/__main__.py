@@ -1,7 +1,7 @@
 """Permet d'exécuter le seed avec la commande python -m seed."""
 
 import os
-from seed.anomalies import anomalies_config
+from anomalies import anomalies_config
 from seed.runner import main
 
 

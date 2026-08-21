@@ -4,8 +4,9 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
+from anomalies import anomalies_config
+from anomalies.repository import sauvegarder_configuration
 from auth.dependencies import require_role
-from seed.anomalies import anomalies_config
 
 router = APIRouter(
     prefix="/anomalies",
@@ -50,6 +51,8 @@ async def update_anomalies_config(payload: AnomaliesConfigRequest) -> AnomaliesC
     if payload.severity is not None:
         anomalies_config.severity = payload.severity
 
+    await sauvegarder_configuration()
+
     return AnomaliesConfigResponse(
         enabled=anomalies_config.enabled,
         rate=anomalies_config.rate,
@@ -62,4 +65,5 @@ async def update_anomalies_config(payload: AnomaliesConfigRequest) -> AnomaliesC
 async def reset_anomalies_count() -> dict[str, str]:
     """Réinitialise le compteur d'anomalies injectées."""
     anomalies_config.injected_count = 0
+    await sauvegarder_configuration()
     return {"message": "Compteur d'anomalies réinitialisé."}

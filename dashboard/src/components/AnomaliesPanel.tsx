@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
+import { API_URL } from "../services/api";
 
 interface AnomaliesConfig {
   enabled: boolean;
@@ -7,8 +8,6 @@ interface AnomaliesConfig {
   severity: "soft" | "hard";
   injected_count: number;
 }
-
-const API_URL = import.meta.env.VITE_API_URL as string;
 
 export function AnomaliesPanel() {
   const { token } = useAuth();
@@ -54,6 +53,15 @@ export function AnomaliesPanel() {
   }
 
   if (!config) {
+    // Sans ce cas, une erreur de chargement laissait le panneau bloqué sur
+    // « Chargement... » : l'affichage de l'erreur se trouve après ce retour.
+    if (error) {
+      return (
+        <div className="chart-card chart-empty">
+          Configuration des anomalies indisponible : {error}
+        </div>
+      );
+    }
     return <div className="chart-card chart-empty">Chargement de la configuration des anomalies...</div>;
   }
 
