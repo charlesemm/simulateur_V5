@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 # Charge le fichier .env local s'il existe. Les variables déjà définies dans
-# l'environnement gardent la priorité : Docker et la CI ne sont pas affectés.
+# l'environnement gardent la priorité : la CI n'est pas affectée.
 load_dotenv()
 
 # La valeur locale reste surchargeable pour les autres environnements.
