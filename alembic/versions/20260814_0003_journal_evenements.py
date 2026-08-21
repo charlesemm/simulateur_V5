@@ -3,6 +3,7 @@
 from collections.abc import Sequence
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy import inspect
 from sqlalchemy.dialects import postgresql
 
 revision: str = "20260814_0003"
@@ -11,8 +12,22 @@ branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
 
+def _table_existe(nom: str) -> bool:
+    """Indique si la table est déjà présente sur la base.
+
+    La révision 0001 appelle Base.metadata.create_all() : sur une base neuve,
+    elle a déjà créé cette table telle que le modèle la déclare aujourd'hui.
+    La création ci-dessous est donc conditionnée à son absence réelle, pour
+    que la chaîne rejoue aussi bien depuis zéro que sur une base ancienne.
+    """
+
+    return nom in set(inspect(op.get_bind()).get_table_names())
+
 def upgrade() -> None:
     """Crée le journal et ses index de recherche temporelle."""
+    if _table_existe("TB_EVENEMENTS_METIER"):
+        return
+
 
     op.create_table(
         "TB_EVENEMENTS_METIER",
