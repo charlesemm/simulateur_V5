@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import secrets
 from datetime import datetime, timedelta, timezone
 
 import bcrypt
@@ -21,6 +22,25 @@ if not SECRET_KEY:
     )
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_HOURS = 8
+
+# Alphabet sans caractères ambigus : ni I/l/1, ni O/0. Un mot de passe
+# temporaire se lit à voix haute ou se recopie d'un écran à l'autre.
+ALPHABET_TEMPORAIRE = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789"
+LONGUEUR_MOT_DE_PASSE_TEMPORAIRE = 12
+
+
+def generer_mot_de_passe_temporaire() -> str:
+    """Tire un mot de passe temporaire lisible, de force cryptographique.
+
+    Douze caractères pris dans un alphabet de 55 signes valent environ
+    69 bits d'entropie : hors de portée d'une attaque par recherche, tout en
+    restant dictable au téléphone.
+    """
+
+    return "".join(
+        secrets.choice(ALPHABET_TEMPORAIRE)
+        for _ in range(LONGUEUR_MOT_DE_PASSE_TEMPORAIRE)
+    )
 
 
 def hash_password(mot_de_passe: str) -> str:

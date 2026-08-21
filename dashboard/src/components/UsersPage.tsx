@@ -1,23 +1,28 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useAuth } from "../auth/AuthContext";
+import { API_URL } from "../services/api";
 
 interface UserRow {
   utilisateur_uuid: string;
   email: string;
+  nom_utilisateur: string | null;
   nom_complet: string;
   role: string;
   statut_actif: boolean;
+  doit_changer_mot_de_passe: boolean;
 }
 
-const API_URL = import.meta.env.VITE_API_URL as string;
 const ROLES = ["administrateur", "operateur", "observateur"] as const;
 
 export function UsersPage() {
   const { token } = useAuth();
   const [users, setUsers] = useState<UserRow[]>([]);
   const [email, setEmail] = useState("");
+  const [nomUtilisateur, setNomUtilisateur] = useState("");
   const [nomComplet, setNomComplet] = useState("");
-  const [motDePasse, setMotDePasse] = useState("");
+  // Le mot de passe temporaire n'est lisible qu'une fois, dans la reponse de
+  // creation : il n'existe nulle part ailleurs en clair.
+  const [motDePasseTemporaire, setMotDePasseTemporaire] = useState<string | null>(null);
   const [role, setRole] = useState<(typeof ROLES)[number]>("operateur");
   const [erreur, setErreur] = useState<string | null>(null);
   const [succes, setSucces] = useState<string | null>(null);
@@ -38,13 +43,19 @@ export function UsersPage() {
     event.preventDefault();
     setErreur(null);
     setSucces(null);
+    setMotDePasseTemporaire(null);
     setCreating(true);
 
     try {
       const response = await fetch(`${API_URL}/users`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ email, mot_de_passe: motDePasse, nom_complet: nomComplet, role }),
+        body: JSON.stringify({
+          email,
+          nom_utilisateur: nomUtilisateur,
+          nom_complet: nomComplet,
+          role,
+        }),
       });
 
       if (!response.ok) {
@@ -53,10 +64,12 @@ export function UsersPage() {
         return;
       }
 
+      const cree = await response.json();
       setEmail("");
+      setNomUtilisateur("");
       setNomComplet("");
-      setMotDePasse("");
-      setSucces("Compte créé avec succès !");
+      setMotDePasseTemporaire(cree.mot_de_passe_temporaire);
+      setSucces(`Compte créé. Transmettez ce mot de passe à ${cree.utilisateur.nom_complet} :`);
       await refresh();
     } catch (err) {
       setErreur((err as Error).message);
@@ -71,6 +84,24 @@ export function UsersPage() {
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({ statut_actif: !user.statut_actif }),
     });
+    await refresh();
+  }
+
+  async function reinitialiser(user: UserRow) {
+    setErreur(null);
+    setSucces(null);
+    setMotDePasseTemporaire(null);
+    const response = await fetch(
+      `${API_URL}/users/${user.utilisateur_uuid}/reinitialiser-mot-de-passe`,
+      { method: "POST", headers: { Authorization: `Bearer ${token}` } },
+    );
+    if (!response.ok) {
+      setErreur("La réinitialisation a échoué.");
+      return;
+    }
+    const resultat = await response.json();
+    setMotDePasseTemporaire(resultat.mot_de_passe_temporaire);
+    setSucces(`Mot de passe réinitialisé pour ${user.nom_complet} :`);
     await refresh();
   }
 
@@ -123,7 +154,10 @@ export function UsersPage() {
                         </div>
                         <div className="user-text">
                           <strong className="user-name">{u.nom_complet}</strong>
-                          <span className="user-email">{u.email}</span>
+                          <span className="user-email">
+                            {u.nom_utilisateur ? `${u.nom_utilisateur} · ` : ""}
+                            {u.email}
+                          </span>
                         </div>
                       </div>
                     </td>
@@ -136,6 +170,11 @@ export function UsersPage() {
                       <span className={`status-pill ${u.statut_actif ? "pill-active" : "pill-inactive"}`}>
                         {u.statut_actif ? "Actif" : "Désactivé"}
                       </span>
+                      {u.doit_changer_mot_de_passe && (
+                        <span className="status-pill pill-inactive">
+                          Mot de passe temporaire
+                        </span>
+                      )}
                     </td>
                     <td>
                       <button
@@ -143,6 +182,12 @@ export function UsersPage() {
                         onClick={() => toggleActif(u)}
                       >
                         {u.statut_actif ? "Désactiver" : "Réactiver"}
+                      </button>
+                      <button
+                        className="btn-action-toggle btn-enable"
+                        onClick={() => reinitialiser(u)}
+                      >
+                        Réinitialiser
                       </button>
                     </td>
                   </tr>
@@ -163,11 +208,22 @@ export function UsersPage() {
         <section className="users-form-card">
           <div className="form-card-header">
             <h2>Créer un utilisateur</h2>
-            <p className="form-card-subtitle">Ajouter un nouveau collaborateur au simulateur</p>
+            <p className="form-card-subtitle">
+              Le mot de passe est généré automatiquement et remis une seule fois
+            </p>
           </div>
 
           {erreur && <div className="alert-box alert-error">{erreur}</div>}
           {succes && <div className="alert-box alert-success">{succes}</div>}
+          {motDePasseTemporaire && (
+            <div className="alert-box alert-success">
+              <code className="temp-password">{motDePasseTemporaire}</code>
+              <span className="temp-password-note">
+                Il ne sera plus affiché : notez-le maintenant. Son remplacement
+                sera exigé à la première connexion.
+              </span>
+            </div>
+          )}
 
           <form className="clean-form" onSubmit={handleCreate}>
             <div className="form-group">
@@ -194,15 +250,15 @@ export function UsersPage() {
             </div>
 
             <div className="form-group">
-              <label className="form-label">Mot de passe</label>
+              <label className="form-label">Nom d'utilisateur</label>
               <input
-                type="password"
                 className="form-input"
-                placeholder="Au moins 8 caractères"
-                value={motDePasse}
-                onChange={(e) => setMotDePasse(e.target.value)}
+                placeholder="Ex: j.kouassi"
+                value={nomUtilisateur}
+                onChange={(e) => setNomUtilisateur(e.target.value)}
                 required
-                minLength={8}
+                minLength={3}
+                maxLength={80}
               />
             </div>
 

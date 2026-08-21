@@ -45,9 +45,19 @@ async def get_current_user(
 
 
 def require_role(minimum_role: str):
-    """Fabrique une dépendance qui exige au moins le rôle indiqué."""
+    """Fabrique une dépendance qui exige au moins le rôle indiqué.
+
+    Elle refuse aussi tout compte encore sous mot de passe temporaire : le
+    jeton est valide, mais il ne donne accès qu'à /auth/change-password tant
+    que le mot de passe initial n'a pas été remplacé.
+    """
 
     async def checker(current_user: User = Depends(get_current_user)) -> User:
+        if current_user.doit_changer_mot_de_passe:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Changez votre mot de passe temporaire avant de continuer.",
+            )
         if ROLE_HIERARCHY[current_user.role] < ROLE_HIERARCHY[minimum_role]:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,

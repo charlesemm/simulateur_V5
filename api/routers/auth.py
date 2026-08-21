@@ -1,16 +1,17 @@
-"""Endpoint de connexion : vérifie les identifiants et émet un jeton JWT."""
+"""Connexion, émission du jeton JWT et changement de mot de passe."""
 from __future__ import annotations
 
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_database_session
+from auth.dependencies import get_current_user
 from auth.models import User
-from auth.schemas import LoginRequest, TokenResponse
-from auth.security import create_access_token, verify_password
+from auth.schemas import ChangePasswordRequest, LoginRequest, TokenResponse
+from auth.security import create_access_token, hash_password, verify_password
 
 router = APIRouter(prefix="/auth", tags=["authentification"])
 
@@ -19,20 +20,69 @@ router = APIRouter(prefix="/auth", tags=["authentification"])
 async def login(
     payload: LoginRequest, session: AsyncSession = Depends(get_database_session)
 ) -> TokenResponse:
-    """Vérifie l'email et le mot de passe, renvoie un jeton JWT si valides."""
+    """Vérifie l'identifiant et le mot de passe, renvoie un jeton JWT si valides.
 
-    result = await session.execute(select(User).where(User.email == payload.email))
+    L'identifiant est accepté sous les deux formes : adresse e-mail ou nom
+    d'utilisateur. La comparaison ignore la casse, personne ne retient si son
+    compte a été créé en majuscules.
+    """
+
+    identifiant = payload.identifiant.strip().lower()
+    result = await session.execute(
+        select(User).where(or_(
+            func.lower(User.email) == identifiant,
+            func.lower(User.nom_utilisateur) == identifiant,
+        ))
+    )
     user = result.scalar_one_or_none()
 
     if user is None or not user.statut_actif or not verify_password(
         payload.mot_de_passe, user.mot_de_passe_hash
     ):
+        # Un message unique : distinguer « compte inconnu » de « mot de passe
+        # faux » révélerait quels comptes existent.
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Email ou mot de passe incorrect."
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Identifiant ou mot de passe incorrect.",
         )
 
     user.derniere_connexion = datetime.now(timezone.utc)
     await session.commit()
 
-    token = create_access_token(email=user.email, role=user.role)
-    return TokenResponse(access_token=token, role=user.role, nom_complet=user.nom_complet)
+    return TokenResponse(
+        access_token=create_access_token(email=user.email, role=user.role),
+        role=user.role,
+        nom_complet=user.nom_complet,
+        nom_utilisateur=user.nom_utilisateur,
+        doit_changer_mot_de_passe=user.doit_changer_mot_de_passe,
+    )
+
+
+@router.post("/change-password", status_code=status.HTTP_204_NO_CONTENT)
+async def change_password(
+    payload: ChangePasswordRequest,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_database_session),
+) -> None:
+    """Remplace le mot de passe de l'utilisateur connecté et lève l'obligation.
+
+    Cette route dépend de `get_current_user` et non de `require_role` : c'est
+    la seule que doit pouvoir appeler un compte encore sous mot de passe
+    temporaire, précisément pour en sortir.
+    """
+
+    if not verify_password(payload.mot_de_passe_actuel, current_user.mot_de_passe_hash):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Le mot de passe actuel est incorrect.",
+        )
+    if payload.nouveau_mot_de_passe == payload.mot_de_passe_actuel:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Le nouveau mot de passe doit être différent de l'ancien.",
+        )
+
+    utilisateur = await session.get(User, current_user.utilisateur_uuid)
+    utilisateur.mot_de_passe_hash = hash_password(payload.nouveau_mot_de_passe)
+    utilisateur.doit_changer_mot_de_passe = False
+    await session.commit()

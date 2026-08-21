@@ -4,7 +4,7 @@ import "./LoginPage.css";
 
 export function LoginPage() {
   const { login } = useAuth();
-  const [email, setEmail] = useState("");
+  const [identifiant, setIdentifiant] = useState("");
   const [motDePasse, setMotDePasse] = useState("");
   const [erreur, setErreur] = useState<string | null>(null);
   const [enCours, setEnCours] = useState(false);
@@ -15,9 +15,9 @@ export function LoginPage() {
     setErreur(null);
     setEnCours(true);
     try {
-      await login(email, motDePasse);
+      await login(identifiant, motDePasse);
     } catch {
-      setErreur("Email ou mot de passe incorrect.");
+      setErreur("Identifiant ou mot de passe incorrect.");
     } finally {
       setEnCours(false);
     }
@@ -87,18 +87,18 @@ export function LoginPage() {
                   <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
                   <polyline points="22,6 12,13 2,6"/>
                 </svg>
-                Adresse e-mail
+                E-mail ou nom d'utilisateur
               </label>
               <div className="lp-input-wrap">
                 <input
                   id="lp-email"
-                  type="email"
+                  type="text"
                   className="lp-input"
-                  placeholder="votre@email.ci"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="votre@email.ci ou n.utilisateur"
+                  value={identifiant}
+                  onChange={(e) => setIdentifiant(e.target.value)}
                   required
-                  autoComplete="email"
+                  autoComplete="username"
                 />
               </div>
             </div>
