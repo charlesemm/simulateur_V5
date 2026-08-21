@@ -993,6 +993,114 @@ svg {
   width: 100%;
 }
 
+/* ── Section Activité Métier (snapshot KPI) ── */
+.dashboard-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.dashboard-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.dashboard-section-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.dashboard-section-meta {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.dashboard-section-error {
+  font-size: 0.75rem;
+  color: var(--cnam-orange);
+  background: var(--cnam-orange-light);
+  border: 1px solid var(--cnam-orange-border);
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+
+.empty-state {
+  display: grid;
+  place-items: center;
+  min-height: 105px;
+  padding: 16px;
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  color: var(--text-light);
+  font-size: 0.8rem;
+  text-align: center;
+}
+
+/* ── Ententes préalables ── */
+.ententes-repartition {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.ententes-ligne {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ententes-ligne-entete {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.ententes-ligne-valeur {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.ententes-jauge {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--border-subtle);
+  overflow: hidden;
+}
+
+.ententes-jauge-remplissage {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.35s ease;
+  background: var(--text-muted);
+}
+
+.jauge-acceptee { background: var(--cnam-green); }
+.jauge-validee_office { background: var(--cnam-blue); }
+.jauge-refusee { background: var(--cnam-orange); }
+
+.ententes-delais {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 4px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.ententes-delai {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
 /* ── Panneau Anomalies Épuré ── */
 .anomalies-controls-grid {
   display: flex;

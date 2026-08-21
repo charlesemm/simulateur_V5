@@ -1,10 +1,11 @@
-// Monte React, le provider KPI unique et les styles globaux.
+// Monte React et les styles globaux.
+// Le provider KPI est monté dans App.tsx, à l'intérieur d'AuthProvider :
+// il lit le jeton pour authentifier la connexion Socket.IO.
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
-import { KpiSocketProvider } from "./hooks/useKpiSocket";
 import "./index.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
-  <React.StrictMode><KpiSocketProvider><App /></KpiSocketProvider></React.StrictMode>,
+  <React.StrictMode><App /></React.StrictMode>,
 );

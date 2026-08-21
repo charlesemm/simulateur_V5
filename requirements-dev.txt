@@ -1,0 +1,11 @@
+# Dépendances de développement : elles ne partent jamais en production.
+# Installation : pip install -r requirements.txt -r requirements-dev.txt
+
+-r requirements.txt
+
+# Exécution des tests, dont les tests asynchrones sans décorateur explicite.
+pytest>=8.0.0
+pytest-asyncio>=0.24.0
+
+# Client HTTP du transport ASGI : il interroge l'API sans ouvrir de port.
+httpx>=0.27.0

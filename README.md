@@ -4,57 +4,43 @@ Plateforme de simulation haute performance du parcours de soins CMU (Caisse Nati
 
 ---
 
-## ⚡ Démarrage Rapide (avec Docker Compose — Recommandé)
+## ⚡ Démarrage Rapide
 
-### 1. Cloner et configurer l'environnement
+Le projet tourne en local, sans conteneur : PostgreSQL installé sur la machine,
+l'API et le dashboard lancés directement.
+
+### 1. Configurer l'environnement
 ```powershell
-# Copier le fichier d'exemple
 copy .env.exemple .env
 ```
 
-### 2. Lancer toute l'infrastructure (Base, API, Dashboard)
-```powershell
-docker compose up --build
-```
+Renseigne `DATABASE_URL` avec ton mot de passe PostgreSQL local :
+`postgresql+asyncpg://postgres:VOTRE_MOT_DE_PASSE@localhost:5432/cmu_simulator`
 
-### 3. Dans un deuxième terminal — Initialiser l'admin et charger les données
-```powershell
-# 1. Créer le compte administrateur
-docker compose exec api python -m auth.bootstrap
-
-# 2. Charger les données référentielles (Centres de santé, affections, assurés)
-docker compose exec api python -m seed
-```
-
-### 4. Accéder aux services 🌐
-* 📊 **Dashboard (Interface React 19)** : [http://localhost:5173](http://localhost:5173)
-* 📡 **API FastAPI & Documentation Swagger** : [http://localhost:8000/docs](http://localhost:8000/docs)
-* 🩺 **Healthcheck** : [http://localhost:8000/health](http://localhost:8000/health)
-
----
-
-## 💻 Démarrage Local Alternatif (sans Docker)
-
-### 1. Base de données & Migrations
+### 2. Base de données, migrations et données
 ```powershell
 .\.venv\Scripts\Activate.ps1
-$env:DATABASE_URL = "postgresql+asyncpg://postgres:VOTRE_MOT_DE_PASSE@localhost:5432/cmu_simulator"
 python -m alembic upgrade head
 python -m auth.bootstrap
 python -m seed
 ```
 
-### 2. Démarrage de l'API & WebSocket
+### 3. Démarrage de l'API & WebSocket
 ```powershell
 uvicorn api.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-### 3. Démarrage du Dashboard Frontend
+### 4. Démarrage du Dashboard Frontend
 ```powershell
 cd dashboard
 npm install
 npm run dev
 ```
+
+### 5. Accéder aux services 🌐
+* 📊 **Dashboard (Interface React 19)** : [http://localhost:5173](http://localhost:5173)
+* 📡 **API FastAPI & Documentation Swagger** : [http://localhost:8000/docs](http://localhost:8000/docs)
+* 🩺 **Healthcheck** : [http://localhost:8000/health](http://localhost:8000/health)
 
 ---
 
@@ -69,8 +55,7 @@ simulateur_v5/
 ├── auth/                    ← Authentification JWT, hash bcrypt & bootstrap admin
 ├── dashboard/               ← Frontend SPA (React 19 + TypeScript + Vite + Tailwind/CSS)
 │   ├── src/                 ← Composants télémétrie, graphiques Recharts & cockpit
-│   ├── Dockerfile           ← Build multi-étapes Node.js + Nginx pour la prod
-│   └── nginx.conf           ← Configuration serveur Nginx & reverse proxy
+│   └── nginx.conf           ← Configuration Nginx conservée pour la mise en production
 ├── events/                  ← Bus d'événements asynchrone interne
 ├── kpi/                     ← Calculateurs d'agrégations et métriques temps réel
 ├── metrics/                 ← Registre de métriques système (Prometheus / SRE)
@@ -79,10 +64,7 @@ simulateur_v5/
 ├── seed/                    ← Scripts d'alimentation des données de santé
 ├── simulation/              ← Moteur de simulation (passages de soins, agents, files)
 ├── alembic/                 ← Migrations de schéma PostgreSQL
-├── Dockerfile               ← Image Docker backend Python 3.12-slim
-├── docker-compose.yml       ← Environnement de développement avec hot reload
-├── docker-compose.prod.yml  ← Environnement de production
-└── .github/workflows/       ← Pipeline CI/CD GitHub Actions (Tests & Déploiement auto)
+└── .github/workflows/       ← Pipeline CI GitHub Actions (tests & build)
 ```
 
 ---
@@ -121,7 +103,7 @@ Le tableau de bord est un **cockpit de supervision et d'observabilité 100% tech
 * **Fiabilité d'Exécution (Donut Recharts)** :
   * Répartition proportionnelle entre les passages réussis (vert) et les éventuelles exceptions système (rouge).
 * **Test de Résilience & Anomalies (Chaos Testing)** :
-  * Panneau de contrôle permettant d'injecter à chaud un pourcentage de données atypiques ou malformées (incohérence de dates, numéros de sécurité sociale tronqués, montants atypiques) afin d'éprouver la robustesse du moteur.
+  * Panneau de contrôle permettant d'injecter à chaud un pourcentage de données atypiques dans le moteur de simulation : montants négatifs ou démesurés, dates de soins antidatées, quantités servies supérieures aux quantités prescrites. Le compteur « Anomalies injectées » monte en direct pendant la simulation. La configuration est persistée en base et survit au redémarrage de l'API.
 
 ---
 
@@ -134,21 +116,14 @@ Le tableau de bord est un **cockpit de supervision et d'observabilité 100% tech
 
 ## 🛑 Arrêt Propre
 1. Cliquer sur **Arrêter** dans la barre supérieure du Dashboard.
-2. Pour arrêter Docker : `Ctrl + C` puis `docker compose down`.
+2. Interrompre `uvicorn` et `npm run dev` avec `Ctrl + C` dans leurs terminaux respectifs.
 
 ---
 
-## 🐳 Déploiement Production, CI/CD & Hébergement Gratuit (0€)
+## 🚀 Déploiement Production
 
-Pour conteneuriser l'application, mettre en place la CI/CD ou l'héberger sans débourser un centime, consulte le guide complet :
+La conteneurisation a été retirée du projet. Un guide de mise en production
+sera écrit à la fin des chantiers de refonte, sur la base de **Podman**.
 
-👉 **[GUIDE_DOCKER_CICD_PRODUCTION.md](./GUIDE_DOCKER_CICD_PRODUCTION.md)**
-
-Ce guide détaille :
-* **Déploiement Serveur Entreprise** : Docker Compose figé, reverse proxy Nginx, CI/CD GitHub Actions vers serveur dédié.
-* **Hébergement 100% Gratuit** :
-  * Backend & WebSockets sur **Koyeb** ou **Render** (0€)
-  * Frontend React sur **Vercel** ou **Cloudflare Pages** (0€)
-  * PostgreSQL managé sur **Neon.tech** ou **Supabase** (0€)
-  * Alternative VPS tout-en-un sur **Oracle Cloud Always Free** (4 CPU ARM, 24 Go RAM gratuits à vie)
-* **Noms de domaine gratuits & SSL HTTPS** : Sous-domaines automatiques avec certificats SSL ou **DuckDNS**.
+En attendant, la CI GitHub Actions (`.github/workflows/ci.yml`) vérifie à
+chaque poussée que le backend démarre et que le frontend compile.

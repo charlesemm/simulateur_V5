@@ -3,6 +3,7 @@ import { Header } from "./components/Header";
 import { Sidebar } from "./components/Sidebar";
 import { AuthProvider, useAuth } from "./auth/AuthContext";
 import { LoginPage } from "./auth/LoginPage";
+import { ChangePasswordPage } from "./auth/ChangePasswordPage";
 import { RequireRole } from "./auth/RequireRole";
 import { UsersPage } from "./components/UsersPage";
 import { KpiSocketProvider } from "./hooks/useKpiSocket";
@@ -13,17 +14,20 @@ import { SystemHealthDonut } from "./components/SystemHealthDonut";
 import { LiveLogTerminal } from "./components/LiveLogTerminal";
 import { ReportsPage } from "./components/ReportsPage";
 import { AnomaliesPanel } from "./components/AnomaliesPanel";
+import { ActiviteMetierSection } from "./components/ActiviteMetierSection";
 import { api } from "./services/api";
 import type { TechnicalMetricsSnapshot } from "./types";
 
 function DashboardShell() {
-  const { isAuthenticated, token } = useAuth();
+  const { isAuthenticated, token, doitChangerMotDePasse } = useAuth();
   const [ongletActif, setOngletActif] = useState<"dashboard" | "utilisateurs" | "rapports">("dashboard");
   const [metrics, setMetrics] = useState<TechnicalMetricsSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!isAuthenticated) return;
+    // Inutile de sonder les métriques tant que l'API refuse les autres
+    // routes : le compte est encore sous mot de passe temporaire.
+    if (!isAuthenticated || doitChangerMotDePasse) return;
     let cancelled = false;
 
     async function fetchTechMetrics() {
@@ -44,9 +48,10 @@ function DashboardShell() {
       cancelled = true;
       clearInterval(interval);
     };
-  }, [isAuthenticated, token]);
+  }, [isAuthenticated, token, doitChangerMotDePasse]);
 
   if (!isAuthenticated) return <LoginPage />;
+  if (doitChangerMotDePasse) return <ChangePasswordPage />;
 
   return (
     <KpiSocketProvider>
@@ -82,6 +87,9 @@ function DashboardShell() {
                 <section className="dashboard-row-4">
                   <LiveLogTerminal metrics={metrics} />
                 </section>
+
+                {/* Rangée 5 : Activité métier issue du snapshot KPI temps réel */}
+                <ActiviteMetierSection />
               </div>
             )}
 

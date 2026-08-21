@@ -17,6 +17,9 @@ class EventJournal(AuditMixin, Base):
         Index("IX_EVENEMENTS_SIMULATED_AT", "SIMULATED_AT"),
         Index("IX_EVENEMENTS_TYPE", "TYPE_EVENEMENT"),
         Index("IX_EVENEMENTS_PASSAGE", "PASSAGE_ID"),
+        # La fenêtre glissante des KPI balaie DATE_CREATION une fois par
+        # seconde : sans index, chaque recalcul relit tout le journal.
+        Index("IX_EVENEMENTS_DATE_CREATION", "DATE_CREATION"),
     )
 
     evenement_id: Mapped[UUID] = mapped_column("EVENEMENT_ID", PostgreSQLUUID(as_uuid=True), primary_key=True)
