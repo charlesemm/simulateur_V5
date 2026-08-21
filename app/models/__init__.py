@@ -1,6 +1,13 @@
 """Expose tous les modèles pour la découverte complète des métadonnées."""
 
 from app.models.base import Base
+from app.models.assures import (
+    InsuredBirthInfo,
+    InsuredIdentifier,
+    InsuredProfession,
+    InsuredRight,
+)
+from app.models.referentiels import Country, Department, Locality, Regime, Region
 from app.models.schema import (
     Agent,
     CenterHealthAgent,

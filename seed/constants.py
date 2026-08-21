@@ -170,3 +170,79 @@ MEDICAL_ACTS = [
     ("URG-ACC", "Accueil et prise en charge aux urgences", "urgence", "AMB,HOS", 15000),
     ("SOI-PAN", "Pansement simple", "soin", "AMB", 3000),
 ]
+
+
+# --------------------------------------------------------------------------
+# Référentiels provisoires -- à remplacer par les valeurs réelles du système
+# CNAM dès qu'elles seront disponibles. Seuls les codes sont provisoires :
+# la structure, elle, est celle des tables d'origine.
+# --------------------------------------------------------------------------
+
+# TYPE_IDENTIFIANT_CODE est un VARCHAR2(6) : aucun code ne peut dépasser
+# six caractères.
+TYPES_IDENTIFIANTS = [
+    ("NNI", "Numéro national d'identification"),
+    ("CNI", "Carte nationale d'identité"),
+    ("RECEP", "Récépissé d'enrôlement"),
+    ("CMU", "Numéro d'assuré CMU"),
+    ("PASSPT", "Passeport"),
+    ("ATTEST", "Attestation d'identité"),
+]
+
+# Le troisième champ porte le régime auquel la profession donne droit :
+# RAM pour l'assistance médicale (100 %), RGB pour le régime général (70 %).
+PROFESSIONS = [
+    ("SALPR", "Salarié du secteur privé", "RGB"),
+    ("SALPU", "Salarié du secteur public", "RGB"),
+    ("FONCT", "Fonctionnaire", "RGB"),
+    ("RETRA", "Retraité", "RGB"),
+    ("INDEP", "Travailleur indépendant", "RGB"),
+    ("COMMR", "Commerçant", "RGB"),
+    ("ARTIS", "Artisan", "RGB"),
+    ("AGRIC", "Agriculteur", "RGB"),
+    ("PECHE", "Pêcheur", "RGB"),
+    ("TRANS", "Transporteur", "RGB"),
+    ("ENSEI", "Enseignant", "RGB"),
+    ("SANTE", "Personnel de santé", "RGB"),
+    ("ETUDI", "Étudiant", "RAM"),
+    ("ELEVE", "Élève", "RAM"),
+    ("ENFAN", "Enfant à charge", "RAM"),
+    ("MENAG", "Personne au foyer", "RAM"),
+    ("APPRE", "Apprenti", "RAM"),
+    ("SANSE", "Sans emploi", "RAM"),
+    ("INDIG", "Personne indigente", "RAM"),
+    ("AUTRE", "Autre situation", "RAM"),
+]
+
+# Le code numérique de la Côte d'Ivoire est 384 -- le même 384 qui préfixe
+# le numéro de sécurité sociale : ce n'est pas une coïncidence.
+# (code, continent, numérique, dénomination, gentilé, indicatif, devise, lat, lon)
+COUNTRIES = [
+    ("CIV", "AF", 384, "Côte d'Ivoire", "Ivoirienne", 225, "XOF", 7.54, -5.55),
+    ("BFA", "AF", 854, "Burkina Faso", "Burkinabè", 226, "XOF", 12.24, -1.56),
+    ("MLI", "AF", 466, "Mali", "Malienne", 223, "XOF", 17.57, -3.99),
+    ("GIN", "AF", 324, "Guinée", "Guinéenne", 224, "GNF", 9.95, -9.70),
+    ("GHA", "AF", 288, "Ghana", "Ghanéenne", 233, "GHS", 7.95, -1.02),
+    ("LBR", "AF", 430, "Liberia", "Libérienne", 231, "LRD", 6.43, -9.43),
+    ("SEN", "AF", 686, "Sénégal", "Sénégalaise", 221, "XOF", 14.50, -14.45),
+    ("FRA", "EU", 250, "France", "Française", 33, "EUR", 46.23, 2.21),
+]
+
+# Les quatorze districts de Côte d'Ivoire, avec leurs coordonnées
+# approximatives : ils serviront de niveau « région ».
+IVORIAN_DISTRICTS = [
+    ("Abidjan", 5.35, -4.02),
+    ("Yamoussoukro", 6.82, -5.28),
+    ("Bas-Sassandra", 5.20, -6.30),
+    ("Comoé", 5.85, -3.20),
+    ("Denguélé", 9.75, -7.55),
+    ("Gôh-Djiboua", 6.15, -5.95),
+    ("Lacs", 6.90, -4.30),
+    ("Lagunes", 5.85, -4.55),
+    ("Montagnes", 7.40, -7.55),
+    ("Sassandra-Marahoué", 6.90, -6.45),
+    ("Savanes", 9.45, -5.63),
+    ("Vallée du Bandama", 7.70, -5.03),
+    ("Woroba", 8.45, -6.60),
+    ("Zanzan", 8.05, -3.20),
+]

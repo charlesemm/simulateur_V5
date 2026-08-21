@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import random
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 import unicodedata
 from decimal import Decimal
 from typing import Any
@@ -15,18 +15,19 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import async_session_factory
 from app.models import (
-    Agent, CenterHealthAgent, HealthCenter, HealthProfessional,
-    HealthProfessionalCenter, HealthProfessionalMedicalSpecialty,
-    InsuredPerson, MedicalAct, MedicalSpecialty, Medication, Pathology,
-    TypeInvoice,
+    Agent, CenterHealthAgent, Country, Department, HealthCenter,
+    HealthProfessional, HealthProfessionalCenter,
+    HealthProfessionalMedicalSpecialty, InsuredBirthInfo, InsuredIdentifier,
+    InsuredPerson, InsuredProfession, InsuredRight, Locality, MedicalAct,
+    MedicalSpecialty, Medication, Pathology, Regime, Region, TypeInvoice,
 )
 
 from seed.constants import (
-    HEALTH_CENTER_TYPES, INVOICE_TYPES, IVORIAN_CITIES,
-    IVORIAN_FIRST_NAMES, IVORIAN_LAST_NAMES, MEDICAL_ACTS,
-    MEDICAL_SPECIALTIES, MEDICATION_SEEDS, PATHOLOGY_LABELS,
+    COUNTRIES, HEALTH_CENTER_TYPES, INVOICE_TYPES, IVORIAN_CITIES,
+    IVORIAN_DISTRICTS, IVORIAN_FIRST_NAMES, IVORIAN_LAST_NAMES, MEDICAL_ACTS,
+    MEDICAL_SPECIALTIES, MEDICATION_SEEDS, PATHOLOGY_LABELS, PROFESSIONS,
 )
-from seed.anomalies import anomalies_config, apply_anomalies_to_row
+from anomalies import anomalies_config, apply_anomalies_to_row
 
 ## initialisation du logger
 logging.basicConfig(level=logging.INFO, format="%(levelname)s - %(message)s")
@@ -35,6 +36,16 @@ logger = logging.getLogger(__name__)
 ## initialialisation du faker
 RANDOM_SEED = 225
 VALID_FROM = date(2026,8, 17)
+
+# Les tables historisées veulent un horodatage, pas une date : on fige le
+# même instant partout pour que le seed reste reproductible.
+VALID_FROM_TS = datetime.combine(VALID_FROM, datetime.min.time(), tzinfo=timezone.utc)
+
+# Part des assurés disposant de droits ouverts. Les volumes réels du système
+# CNAM suggèrent une proportion bien plus faible, mais un simulateur qui
+# rejette presque tous les passages ne démontre rien : ajuste selon le besoin.
+TAUX_COUVERTURE = 0.60
+ANNEE_DROITS = 2026
 random_generator = random.Random(RANDOM_SEED)
 fake = Faker("fr_FR")
 Faker.seed(RANDOM_SEED)
@@ -208,8 +219,25 @@ def numero_securite_sociale(index: int) -> str:
     suffixe = (SECU_MULTIPLICATEUR * index + SECU_DECALAGE) % SECU_MODULO
     return f"384{suffixe:010d}"
 
+# Le régime n'est pas un attribut propre de l'assuré : il découle de ce qu'il
+# fait. Cette table de correspondance est la seule source de vérité, et elle
+# est lue aussi bien par l'assuré que par sa ligne de profession.
+PROFESSION_REGIME = {code: regime for code, _, regime in PROFESSIONS}
+
+
+def insured_profession(index: int) -> str:
+    """Tire la profession d'un assuré, de façon stable et indépendante.
+
+    Son générateur dédié garantit qu'ajouter des assurés ne redistribue pas
+    les professions -- ni, par conséquent, les régimes qui en découlent.
+    """
+
+    generator = random.Random(RANDOM_SEED + 20_000 + index)
+    return generator.choice([code for code, _, _ in PROFESSIONS])
+
+
 def insured_profile(index: int) -> tuple[date, str]:
-    """Tire la date de naissance et le régime d'un assuré, de façon stable.
+    """Tire la date de naissance et déduit le régime de la profession.
 
     Chaque assuré possède son propre générateur dérivé de son index : ses
     attributs ne dépendent donc pas de l'ordre de la boucle, et un futur
@@ -219,9 +247,7 @@ def insured_profile(index: int) -> tuple[date, str]:
     generator = random.Random(RANDOM_SEED + index)
     age_en_jours = generator.randint(365, 95 * 365)
     date_naissance = VALID_FROM - timedelta(days=age_en_jours)
-    # 65 % de régime général de base (70 %), 35 % de régime à 100 %.
-    regime = "RGB" if generator.random() < 0.65 else "RAM"
-    return date_naissance, regime
+    return date_naissance, PROFESSION_REGIME[insured_profession(index)]
 
 def build_insured_people() -> list[dict[str, Any]]:
     """Crée cent mille assurés aux identifiants stables et non séquentiels."""
@@ -354,12 +380,230 @@ def build_medical_acts() -> list[dict[str, Any]]:
     ]
 
 
+def build_regimes() -> list[dict[str, Any]]:
+    """Reprend les deux régimes réels et leurs taux de remboursement."""
+
+    return [
+        {
+            "regime_code": code, "regime_date_debut": VALID_FROM_TS,
+            "regime_code_parent": "RGB", "regime_denomination": libelle,
+            "regime_taux": Decimal(taux), "regime_date_fin": None,
+            "regime_statut": 1, **audit_values(),
+        }
+        for code, libelle, taux in (
+            ("RAM", "RÉGIME D'ASSISTANCE MÉDICALE", 100),
+            ("RGB", "RÉGIME GÉNÉRAL DE BASE", 70),
+        )
+    ]
+
+def build_countries() -> list[dict[str, Any]]:
+    """Crée les pays de naissance plausibles pour une population ivoirienne."""
+
+    return [
+        {
+            "continent_code": continent, "pays_code": code,
+            "pays_date_debut": VALID_FROM_TS, "pays_code_numerique": numerique,
+            "pays_denomination": denomination, "pays_gentile": gentile,
+            "pays_indicatif": indicatif, "pays_drapeau": f"{code.lower()}.svg",
+            "devise_code": devise, "pays_date_fin": None, "pays_statut": 1,
+            "pays_latitude": Decimal(str(latitude)),
+            "pays_longitude": Decimal(str(longitude)),
+            **audit_values(),
+        }
+        for (code, continent, numerique, denomination, gentile, indicatif,
+             devise, latitude, longitude) in COUNTRIES
+    ]
+
+def build_localisation() -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
+    """Décline les districts en départements puis en localités.
+
+    Le code de chaque niveau préfixe celui du niveau suivant, ce qui rend la
+    hiérarchie lisible sans jointure : CIV -> CIV001 -> CIV0011 -> CIV00111.
+    """
+
+    regions, departments, localities = [], [], []
+
+    for district_index, (nom, latitude, longitude) in enumerate(IVORIAN_DISTRICTS):
+        region_code = f"CIV{district_index + 1:03d}"
+        regions.append({
+            "pays_code": "CIV", "region_type": "D", "region_code": region_code,
+            "region_date_debut": VALID_FROM_TS, "region_denomination": nom,
+            "region_date_fin": None, "region_statut": 1,
+            "region_latitude": Decimal(str(latitude)),
+            "region_longitude": Decimal(str(longitude)),
+            **audit_values(),
+        })
+
+        # Chaque district reçoit deux départements, chaque département quatre
+        # localités : cent douze localités au total, de quoi peupler une carte.
+        for department_index in range(2):
+            department_code = f"{region_code}{department_index + 1}"
+            departments.append({
+                "region_code": region_code, "departement_type": "P",
+                "departement_code": department_code,
+                "departement_date_debut": VALID_FROM_TS,
+                "departement_denomination": f"{nom} {department_index + 1}",
+                "departement_date_fin": None, "departement_statut": 1,
+                "departement_latitude": Decimal(str(round(latitude + department_index * 0.25, 6))),
+                "departement_longitude": Decimal(str(round(longitude - department_index * 0.25, 6))),
+                **audit_values(),
+            })
+
+            for locality_index in range(4):
+                localities.append({
+                    "departement_code": department_code, "localite_type": "S",
+                    "localite_code": f"{department_code}{locality_index + 1}",
+                    "localite_date_debut": VALID_FROM_TS,
+                    "localite_denomination": IVORIAN_CITIES[
+                        (district_index * 8 + department_index * 4 + locality_index)
+                        % len(IVORIAN_CITIES)
+                    ],
+                    "localite_date_fin": None, "localite_statut": 1,
+                    "localite_latitude": Decimal(str(round(latitude + locality_index * 0.1, 6))),
+                    "localite_longitude": Decimal(str(round(longitude - locality_index * 0.1, 6))),
+                    **audit_values(),
+                })
+
+    return regions, departments, localities
+
+def build_insured_identifiers(assures: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Historise le numéro de sécurité sociale et, parfois, une pièce d'identité.
+
+    Le numéro déjà porté par l'assuré devient une ligne de type NNI : c'est
+    lui qui restera la référence, les autres types ne font que l'accompagner.
+    """
+
+    rows = []
+    for index, assure in enumerate(assures):
+        generator = random.Random(RANDOM_SEED + 10_000 + index)
+        rows.append({
+            "personne_uuid": assure["personne_uuid"],
+            "type_identifiant_code": "NNI",
+            "identifiant_date_debut": VALID_FROM_TS,
+            "identifiant_numero": assure["numero_secu"],
+            "identifiant_date_fin": None,
+            **audit_values(),
+        })
+        rows.append({
+            "personne_uuid": assure["personne_uuid"],
+            "type_identifiant_code": "RECEP",
+            "identifiant_date_debut": VALID_FROM_TS,
+            "identifiant_numero": assure["numero_recepisse"],
+            "identifiant_date_fin": None,
+            **audit_values(),
+        })
+        # Trois assurés sur dix présentent en plus une pièce d'identité.
+        if generator.random() < 0.30:
+            type_code = generator.choice(["CNI", "PASSPT", "ATTEST"])
+            rows.append({
+                "personne_uuid": assure["personne_uuid"],
+                "type_identifiant_code": type_code,
+                "identifiant_date_debut": VALID_FROM_TS,
+                "identifiant_numero": f"{type_code}{generator.randrange(10 ** 9):09d}",
+                "identifiant_date_fin": None,
+                **audit_values(),
+            })
+    return rows
+
+def build_insured_professions(assures: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Persiste la profession dont l'assuré tire déjà son régime.
+
+    C'est la profession qui commande : `insured_profile` en déduit le régime
+    porté par l'assuré. Les deux lectures ne peuvent donc pas diverger.
+    """
+
+    rows = []
+    for index, assure in enumerate(assures):
+        rows.append({
+            "personne_uuid": assure["personne_uuid"],
+            "profession_code": insured_profession(index),
+            "profession_date_debut": VALID_FROM_TS,
+            "profession_date_fin": None,
+            **audit_values(),
+        })
+    return rows
+
+def build_insured_birth_infos(assures: list[dict[str, Any]],
+                              localities: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Rattache chaque assuré à une localité de naissance.
+
+    Un assuré sur vingt est né hors de Côte d'Ivoire : ses codes régionaux
+    restent nuls, seul le pays est renseigné -- exactement ce que permet la
+    table d'origine.
+    """
+
+    etrangers = [pays[0] for pays in COUNTRIES if pays[0] != "CIV"]
+    rows = []
+    for index, assure in enumerate(assures):
+        generator = random.Random(RANDOM_SEED + 30_000 + index)
+        if generator.random() < 0.05:
+            ligne = {
+                "pays_code": generator.choice(etrangers), "region_code": None,
+                "departement_code": None, "localite_code": None,
+                "code_postal": None, "naissance_lieu": None,
+            }
+        else:
+            localite = localities[generator.randrange(len(localities))]
+            departement_code = localite["departement_code"]
+            ligne = {
+                "pays_code": "CIV",
+                "region_code": departement_code[:6],
+                "departement_code": departement_code,
+                "localite_code": localite["localite_code"],
+                "code_postal": f"{generator.randrange(1000, 99999):05d}",
+                "naissance_lieu": localite["localite_denomination"],
+            }
+        rows.append({
+            "personne_uuid": assure["personne_uuid"],
+            "naissance_date_debut": VALID_FROM_TS,
+            "naissance_date_fin": None,
+            **ligne,
+            **audit_values(),
+        })
+    return rows
+
+def build_insured_rights(assures: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Ouvre les droits mois par mois pour la part couverte de la population.
+
+    Un assuré couvert l'est rarement toute l'année : on ferme quelques mois
+    au hasard, ce qui donnera au moteur de vraies occasions de rejeter une
+    facture pour droits fermés.
+    """
+
+    rows = []
+    for index, assure in enumerate(assures):
+        generator = random.Random(RANDOM_SEED + 40_000 + index)
+        if generator.random() >= TAUX_COUVERTURE:
+            continue
+
+        # Entre zéro et trois mois fermés dans l'année, tirés sans remise.
+        mois_fermes = set(generator.sample(range(1, 13), generator.randint(0, 3)))
+        for mois in range(1, 13):
+            debut = datetime(ANNEE_DROITS, mois, 1, tzinfo=timezone.utc)
+            fin = (
+                datetime(ANNEE_DROITS + 1, 1, 1, tzinfo=timezone.utc)
+                if mois == 12
+                else datetime(ANNEE_DROITS, mois + 1, 1, tzinfo=timezone.utc)
+            )
+            rows.append({
+                "personne_uuid": assure["personne_uuid"],
+                "droits_annee": ANNEE_DROITS,
+                "droits_mois": mois,
+                "droits_id": f"DRT-{ANNEE_DROITS}{mois:02d}-{index + 1:08d}",
+                "droits_statut": 0 if mois in mois_fermes else 1,
+                "droits_date_debut": debut,
+                "droits_date_fin": fin - timedelta(seconds=1),
+                **audit_values(),
+            })
+    return rows
+
 async def seed_database() -> None:
     """Peuple toutes les tables référentielles dans une transaction unique."""
 
     logger.info("Démarrage du peuplement référentiel CMU.")
     agents, agent_assignments = build_agents()
     professionals, professional_specialties, professional_centers = build_professionals()
+    regions, departments, localities = build_localisation()
     datasets = {
         "assures": build_insured_people(), "centres": build_health_centers(),
         "agents": agents, "affectations_agents": agent_assignments,
@@ -382,6 +626,14 @@ async def seed_database() -> None:
 
     async with async_session_factory() as session:
         async with session.begin():
+            # Les référentiels de valeurs d'abord : les satellites de l'assuré
+            # s'y rattachent par leurs codes.
+            await upsert_rows(session, Regime, build_regimes())
+            await upsert_rows(session, Country, build_countries())
+            await upsert_rows(session, Region, regions)
+            await upsert_rows(session, Department, departments)
+            await upsert_rows(session, Locality, localities)
+
             await upsert_rows(session, InsuredPerson, datasets["assures"])
             await upsert_rows(session, HealthCenter, datasets["centres"])
             await upsert_rows(session, Agent, datasets["agents"])
@@ -394,6 +646,14 @@ async def seed_database() -> None:
             await upsert_rows(session, CenterHealthAgent, datasets["affectations_agents"])
             await upsert_rows(session, HealthProfessionalMedicalSpecialty, datasets["specialites_professionnels"])
             await upsert_rows(session, HealthProfessionalCenter, datasets["centres_professionnels"])
+
+            # En dernier : ces quatre tables portent une clé étrangère vers
+            # l'assuré, qui doit donc déjà être inséré.
+            assures = datasets["assures"]
+            await upsert_rows(session, InsuredIdentifier, build_insured_identifiers(assures))
+            await upsert_rows(session, InsuredProfession, build_insured_professions(assures))
+            await upsert_rows(session, InsuredBirthInfo, build_insured_birth_infos(assures, localities))
+            await upsert_rows(session, InsuredRight, build_insured_rights(assures))
     logger.info("Peuplement référentiel terminé avec succès.")
 
 def main() -> None:
