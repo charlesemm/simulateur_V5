@@ -3,12 +3,13 @@ from __future__ import annotations
 import asyncio
 import logging
 import random
+from datetime import datetime, timezone
 from uuid import UUID
 
 from sqlalchemy import select
 from metrics.registry import registry as metrics_registry
 from app.database import async_session_factory
-from app.models import InsuredPerson
+from app.models import InsuredPerson, InsuredRight
 from simulation.events import EventCallback, default_event_callback
 from simulation.passage import PassageSimulation
 from simulation_config import DEFAULT_CONFIG, SimulationConfig
@@ -38,10 +39,27 @@ class SimulationEngine:
         self._speed = speed
 
     async def _reserve_insured(self) -> UUID:
-        """Réserve atomiquement un assuré qui n'est pas déjà en parcours."""
+        """Réserve atomiquement un assuré qui n'est pas déjà en parcours.
+
+        Seuls les assurés dont les droits sont ouverts pour le mois en cours
+        sont éligibles : dans le système réel, les autres ne franchissent pas
+        l'accueil et aucune facture ne s'ouvre pour eux. Le passage revérifie
+        ensuite à la date exacte des soins, qui peut basculer sur le mois
+        suivant pendant le parcours.
+        """
+        aujourdhui = datetime.now(timezone.utc)
         async with self._lock:
             async with async_session_factory() as session:
-                ids = list((await session.execute(select(InsuredPerson.personne_uuid))).scalars())
+                ids = list((await session.execute(
+                    select(InsuredPerson.personne_uuid)
+                    .join(InsuredRight,
+                          InsuredRight.personne_uuid == InsuredPerson.personne_uuid)
+                    .where(
+                        InsuredRight.droits_annee == aujourdhui.year,
+                        InsuredRight.droits_mois == aujourdhui.month,
+                        InsuredRight.droits_statut == 1,
+                    )
+                )).scalars())
             available = [insured_id for insured_id in ids if insured_id not in self._insured_in_progress]
             if not available:
                 raise RuntimeError("Aucun assuré disponible pour un nouveau passage.")

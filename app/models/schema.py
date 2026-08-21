@@ -56,6 +56,16 @@ class InsuredPerson(AuditMixin, Base):
     prior_authorizations: Mapped[list[PriorAuthorization]] = relationship(
         back_populates="insured_person"
     )
+    identifiers: Mapped[list["InsuredIdentifier"]] = relationship(
+        back_populates="insured_person"
+    )
+    professions: Mapped[list["InsuredProfession"]] = relationship(
+        back_populates="insured_person"
+    )
+    birth_info: Mapped[list["InsuredBirthInfo"]] = relationship(
+        back_populates="insured_person"
+    )
+    rights: Mapped[list["InsuredRight"]] = relationship(back_populates="insured_person")
 
 
 class HealthCenter(AuditMixin, Base):
@@ -375,6 +385,14 @@ class Invoice(AuditMixin, Base):
     """Porte la facture centrale d'un parcours de soins."""
 
     __tablename__ = "TB_FACTURES"
+    __table_args__ = (
+        # Seuls RAM et RGB existent dans TB_TV_REGIMES : « CMU » nomme le
+        # dispositif, pas un régime.
+        CheckConstraint(
+            "\"REGIME_CODE\" IS NULL OR \"REGIME_CODE\" IN ('RAM', 'RGB')",
+            name="ck_factures_regime_valide",
+        ),
+    )
 
     facture_numero: Mapped[str] = mapped_column(
         "FACTURE_NUMERO", String(50), primary_key=True

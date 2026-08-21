@@ -19,7 +19,8 @@ class SimulationConfig:
     passage_arrival_mean_seconds: float = 10 * 60
     consultation_min_seconds: float = 15 * 60
     consultation_max_seconds: float = 60 * 60
-    cmu_reimbursement_rate: float = 0.70
+    # Le taux de remboursement n'est plus un paramètre du moteur : il dépend
+    # du régime de l'assuré et se lit dans TB_TV_REGIMES.
     default_speed: float = 60.0
     max_concurrent_passages: int = 20
     random_seed: int = 326

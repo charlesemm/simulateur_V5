@@ -3,12 +3,19 @@
 import argparse
 import asyncio
 import logging
+from events import publish_simulation_event
 from simulation import SimulationEngine, SimulationEvent
 
 async def log_event(event: SimulationEvent) -> None:
-    """Affiche chaque événement en attendant Socket.IO à l'étape 4."""
+    """Affiche l'événement puis le journalise, comme le fait l'API.
+
+    Sans la publication, un passage lancé en ligne de commande produisait une
+    facture sans aucune trace dans TB_EVENEMENTS_METIER : son parcours était
+    donc introuvable, alors que la même facture créée via l'API l'exposait.
+    """
 
     logging.getLogger("evenements").info("%s | %s", event.event_type, event.to_dict())
+    await publish_simulation_event(event)
 
 def parse_arguments() -> argparse.Namespace:
     """Valide les paramètres de lancement standalone."""

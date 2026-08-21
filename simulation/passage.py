@@ -6,22 +6,37 @@ import logging
 import random
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
+from typing import NamedTuple
 from uuid import uuid4
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 
 from app.database import async_session_factory
 from app.models import (
-    Agent, HealthCenter, HealthProfessional, Invoice,
-    InvoicePathology, InvoicePrescription, InvoiceProvision, InvoiceStatus,
-    MedicalAct, Medication, Pathology, PriorAuthorization,
-    PriorAuthorizationMedicalAct, PriorAuthorizationStatus,
+    Agent, HealthCenter, HealthProfessional, InsuredPerson, InsuredRight,
+    Invoice, InvoicePathology, InvoicePrescription, InvoiceProvision,
+    InvoiceStatus, MedicalAct, Medication, Pathology, PriorAuthorization,
+    PriorAuthorizationMedicalAct, PriorAuthorizationStatus, Regime,
 )
+from anomalies import anomalies_config
 from metrics.registry import registry as metrics_registry
 from simulation.events import EventCallback, SimulationEvent
 from simulation_config import SimulationConfig
 
 logger = logging.getLogger(__name__)
+
+# Motif publié quand l'assuré se présente sans droits ouverts : le passage
+# s'arrête à l'accueil, aucune facture n'est ouverte.
+MOTIF_DROITS_FERMES = "droits_fermes"
+
+
+class Coverage(NamedTuple):
+    """Ce que le référentiel dit de l'assuré au jour des soins."""
+
+    regime_code: str
+    taux: Decimal
+    droits_ouverts: bool
+
 
 class PassageSimulation:
     """Fait progresser un assuré réservé dans toutes les étapes du parcours."""
@@ -72,22 +87,79 @@ class PassageSimulation:
             await session.commit()
         await self.emit("facture.statut", facture_numero=invoice_number, statut=code)
 
+    async def load_coverage(self) -> Coverage:
+        """Lit le régime de l'assuré et l'état de ses droits au jour des soins.
+
+        Plus rien n'est codé en dur : le taux vient de TB_TV_REGIMES, en
+        vigueur à la date des soins, et l'ouverture des droits du mois
+        correspondant vient de TB_ASSURES_DROITS.
+        """
+        soins = self.simulated_at.date()
+        async with async_session_factory() as session:
+            regime_code = (await session.execute(
+                select(InsuredPerson.regime_code)
+                .where(InsuredPerson.personne_uuid == self.insured_id)
+            )).scalar_one()
+
+            taux = (await session.execute(
+                select(Regime.regime_taux).where(
+                    Regime.regime_code == regime_code,
+                    Regime.regime_date_debut <= self.simulated_at,
+                    or_(Regime.regime_date_fin.is_(None),
+                        Regime.regime_date_fin > self.simulated_at),
+                ).order_by(Regime.regime_date_debut.desc()).limit(1)
+            )).scalar_one_or_none()
+
+            # Aucune ligne pour ce mois vaut droits fermés : l'assuré n'a
+            # jamais été couvert, ce qui est le cas le plus fréquent.
+            statut = (await session.execute(
+                select(InsuredRight.droits_statut).where(
+                    InsuredRight.personne_uuid == self.insured_id,
+                    InsuredRight.droits_annee == soins.year,
+                    InsuredRight.droits_mois == soins.month,
+                )
+            )).scalar_one_or_none()
+
+        if taux is None:
+            # Un régime sans ligne en vigueur ne peut rien rembourser : on
+            # ferme les droits plutôt que d'inventer un taux de repli.
+            logger.warning("[%s] Régime %s sans ligne en vigueur au %s.",
+                           self.passage_id, regime_code, soins)
+            return Coverage(regime_code or "INCONNU", Decimal("0"), False)
+        return Coverage(regime_code, taux, statut == 1)
+
     async def run(self) -> None:
         """Exécute la state machine jusqu'à la clôture de la facture."""
+        coverage = await self.load_coverage()
+
+        # Contrôle des droits à l'accueil. Dans le système réel, une facture
+        # ne s'ouvre que sur des droits ouverts : sans eux, le passage
+        # s'arrête ici et aucune facture n'est créée.
+        if not coverage.droits_ouverts:
+            logger.info("[%s] Passage refusé à l'accueil : droits fermés au %s.",
+                        self.passage_id, self.simulated_at.date())
+            await self.emit("passage.refuse", motif=MOTIF_DROITS_FERMES,
+                            regime=coverage.regime_code)
+            return
+
         center = await self.choose(HealthCenter)
         professional = await self.choose(HealthProfessional)
         invoice_number = f"FAC-{self.simulated_at:%Y%m%d}-{self.passage_id[:10]}"
         ambulatory = self.random.random() < self.config.ambulatory_probability
         invoice_type = "AMB" if ambulatory else "DEN"
-        logger.info("[%s] Ouverture %s au centre %s.", self.passage_id, invoice_number, center.centre_sante_code)
+        logger.info("[%s] Ouverture %s au centre %s (régime %s à %s %%).",
+                    self.passage_id, invoice_number, center.centre_sante_code,
+                    coverage.regime_code, coverage.taux)
 
         # 1. Création de la facture
         async with async_session_factory() as session:
             session.add(Invoice(
-                facture_numero=invoice_number, produit_code="CMU", regime_code="CMU",
-                regime_taux=Decimal("70"), organisme_code="CNAM-CI",
+                facture_numero=invoice_number, produit_code="CMU",
+                regime_code=coverage.regime_code,
+                regime_taux=coverage.taux, organisme_code="CNAM-CI",
                 assurance_code="CMU", personne_uuid=self.insured_id,
-                type_facture_code=invoice_type, facture_date_soins=self.simulated_at.date(),
+                type_facture_code=invoice_type,
+                facture_date_soins=anomalies_config.injecter_date(self.simulated_at.date()),
                 dossier_numero=f"DOS-{self.passage_id[:12]}",
                 centre_sante_code=center.centre_sante_code,
                 centre_sante_type_code=center.type_etablissement_sanitaire_code,
@@ -119,14 +191,22 @@ class PassageSimulation:
             self.config.consultation_min_seconds, self.config.consultation_max_seconds
         ))
         base_code = "CONS-GEN" if ambulatory else self.random.choice(["DENT-DET", "DENT-EXT", "DENT-CAR"])
+        montant_depense = anomalies_config.injecter_montant(Decimal("10000"))
+        quantite_servie = anomalies_config.injecter_quantite(1, 1)
+        taux = coverage.taux
+        base = Decimal("10000")
+        montant_rq = (base * taux / Decimal("100")).quantize(Decimal("0.01"))
         async with async_session_factory() as session:
             session.add(InvoiceProvision(
                 facture_numero=invoice_number, prestation_code=base_code,
                 professionnel_sante_code=professional.professionnel_sante_code,
-                statut_remboursement="couvert", prestation_base_remboursement=Decimal("10000"),
-                prestation_taux_remboursement=Decimal("70"), prestation_quantite_prescrite=1,
-                prestation_quantite_servie=1, prestation_prix_unitaire=Decimal("10000"),
-                prestation_montant_depense=Decimal("10000"), prestation_montant_assure=Decimal("3000"),
+                statut_remboursement="couvert",
+                prestation_base_remboursement=base,
+                prestation_taux_remboursement=taux, prestation_quantite_prescrite=1,
+                prestation_quantite_servie=quantite_servie, prestation_prix_unitaire=base,
+                prestation_montant_depense=montant_depense,
+                prestation_montant_rq=montant_rq,
+                prestation_montant_assure=base - montant_rq,
                 statut_code="servie", utilisateur_id_creation="simulation",
             ))
             await session.commit()
@@ -153,6 +233,7 @@ class PassageSimulation:
             await self.process_prior_authorization(
                 invoice_number, center.centre_sante_code,
                 professional.professionnel_sante_code, needs_hospital,
+                coverage.taux,
             )
 
         if medications:
@@ -167,8 +248,13 @@ class PassageSimulation:
         logger.info("[%s] Facture %s clôturée.", self.passage_id, invoice_number)
 
     async def process_prior_authorization(self, invoice_number: str, center_code: str,
-                                          professional_code: str, hospital: bool) -> None:
-        """Crée, attend et décide une entente préalable acte par acte."""
+                                          professional_code: str, hospital: bool,
+                                          taux: Decimal) -> None:
+        """Crée, attend et décide une entente préalable acte par acte.
+
+        Le taux reçu est celui du régime de l'assuré : un bénéficiaire du
+        régime d'assistance médicale voit son acte pris en charge à 100 %.
+        """
         if hospital:
             criterion = MedicalAct.acte_medical_code.like("HOS-%")
         else:
@@ -202,8 +288,11 @@ class PassageSimulation:
         accepted = automatic or self.random.random() < self.config.prior_authorization_acceptance_probability
         advisor = None if automatic else await self.choose(Agent, Agent.agent_type_code == "medecin_conseil")
         status = "validee_office" if automatic else ("acceptee" if accepted else "refusee")
-        amount = Decimal("50000") if hospital else Decimal("15000")
-        cmu_amount = amount * Decimal(str(self.config.cmu_reimbursement_rate)) if accepted else Decimal("0")
+        amount = anomalies_config.injecter_montant(
+            Decimal("50000") if hospital else Decimal("15000")
+        )
+        cmu_amount = ((amount * taux / Decimal("100")).quantize(Decimal("0.01"))
+                      if accepted else Decimal("0"))
 
         async with async_session_factory() as session:
             session.add(PriorAuthorizationMedicalAct(
@@ -211,7 +300,7 @@ class PassageSimulation:
                 professionnel_sante_code=professional_code,
                 acte_medical_motif="Prescription issue du parcours simulé.",
                 acte_medical_base_remboursement=amount,
-                acte_medical_taux_remboursement=Decimal("70") if accepted else Decimal("0"),
+                acte_medical_taux_remboursement=taux if accepted else Decimal("0"),
                 acte_medical_montant_cmu=cmu_amount,
                 acte_medical_montant_assure=amount - cmu_amount,
                 acte_medical_statut=status,

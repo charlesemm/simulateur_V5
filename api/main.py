@@ -1,13 +1,15 @@
 """Assemble FastAPI, Socket.IO, CORS et le cycle de vie du simulateur."""
 
 from contextlib import asynccontextmanager
+import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import socketio
 import os
 
 import app
-from api.routers import centres, factures, kpi, simulation
+from anomalies.repository import charger_configuration, sauvegarder_configuration
+from api.routers import centres, factures, kpi, parcours, simulation
 from api.schema import HealthResponse
 from api.routers import anomalies as anomalies_router
 from api.routers import metrics as metrics_router
@@ -26,6 +28,7 @@ async def lifespan(application: FastAPI):
     """Démarre le consommateur KPI puis arrête toutes les tâches à l'extinction."""
 
     del application
+    await charger_configuration()
     await startup_event_pipeline()
     start_scheduler()
     try:
@@ -34,6 +37,15 @@ async def lifespan(application: FastAPI):
         stop_scheduler()
         await simulation_manager.stop()
         await shutdown_event_pipeline()
+        # Le compteur d'injections monte en mémoire : on le fige avant de quitter.
+        # Une base indisponible ne doit pas faire échouer l'arrêt du processus.
+        try:
+            await sauvegarder_configuration()
+        except Exception:
+            logging.getLogger(__name__).warning(
+                "Sauvegarde de la configuration d'anomalies impossible à l'arrêt.",
+                exc_info=True,
+            )
 
 fastapi_app = FastAPI(
     title="API du simulateur CMU",
@@ -70,6 +82,7 @@ fastapi_app.add_middleware(
 fastapi_app.include_router(simulation.router)
 fastapi_app.include_router(kpi.router)
 fastapi_app.include_router(factures.router)
+fastapi_app.include_router(parcours.router)
 fastapi_app.include_router(centres.router)
 fastapi_app.include_router(auth_router.router)
 fastapi_app.include_router(users_router.router)

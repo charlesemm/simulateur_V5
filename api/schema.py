@@ -3,6 +3,7 @@
 from datetime import date, datetime
 from decimal import Decimal
 from enum import Enum
+from typing import Any
 from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -158,8 +159,12 @@ class InvoiceProvisionSchema(ApiModel):
     code: str
     professionnel_sante_code: str
     statut_remboursement: str | None
+    taux_remboursement: Decimal | None
+    quantite_prescrite: Decimal | None
+    quantite_servie: Decimal | None
     prix_unitaire: Decimal | None
     montant_depense: Decimal | None
+    montant_rembourse: Decimal | None
     montant_assure: Decimal | None
 
 
@@ -169,18 +174,132 @@ class InvoiceStatusSchema(ApiModel):
     observations: str | None
 
 
+class InsuredSummarySchema(ApiModel):
+    """L'assuré tel qu'il se présente sur la facture, à la date des soins."""
+
+    personne_uuid: UUID
+    numero_secu: str
+    civilite_code: str | None
+    nom: str
+    prenoms: str | None
+    date_naissance: date | None
+    regime_code: str | None
+    regime_libelle: str | None
+    regime_taux: Decimal | None
+    profession_code: str | None
+    droits_ouverts: bool | None
+    lieu_naissance: str | None
+    pays_naissance_code: str | None
+
+
+class HealthCenterSummarySchema(ApiModel):
+    """Le centre où les soins ont été délivrés."""
+
+    centre_sante_code: str
+    denomination: str | None
+    type_code: str | None
+    type_libelle: str | None
+
+
+class PriorAuthorizationActSchema(ApiModel):
+    acte_medical_code: str
+    professionnel_sante_code: str | None
+    statut: str | None
+    taux_remboursement: Decimal | None
+    montant_cmu: Decimal | None
+    montant_assure: Decimal | None
+    motif_rejet: str | None
+
+
+class PriorAuthorizationSchema(ApiModel):
+    entente_prealable_id: int
+    entente_prealable_numero: str | None
+    type_demande_code: str | None
+    type_hospitalisation_code: str | None
+    date_debut: date | None
+    actes: list[PriorAuthorizationActSchema]
+
+
+class InvoiceTotalsSchema(ApiModel):
+    """Ce que la facture coûte, et qui paie quoi."""
+
+    montant_depense: Decimal
+    montant_rembourse: Decimal
+    montant_assure: Decimal
+    montant_cmu_ententes: Decimal
+
+
 class InvoiceDetailResponse(ApiModel):
     facture_numero: str
     personne_uuid: UUID
     centre_sante_code: str
     type_facture_code: str
     facture_date_soins: date
-    dossier_numero: str
+    dossier_numero: str | None
+    produit_code: str | None
+    regime_code: str | None
+    regime_taux: Decimal | None
+    organisme_code: str | None
     entente_prealable_id: int | None
+    passage_id: str | None
+    statut_courant: str | None
+    assure: InsuredSummarySchema
+    centre: HealthCenterSummarySchema
+    totaux: InvoiceTotalsSchema
+    entente_prealable: PriorAuthorizationSchema | None
     pathologies: list[InvoicePathologySchema]
     prescriptions: list[InvoicePrescriptionSchema]
     prestations: list[InvoiceProvisionSchema]
     statuts: list[InvoiceStatusSchema]
+
+
+class InvoiceListItemSchema(ApiModel):
+    """Une ligne du tableau des factures : l'essentiel du parcours."""
+
+    facture_numero: str
+    facture_date_soins: date
+    type_facture_code: str
+    centre_sante_code: str
+    centre_denomination: str | None
+    personne_uuid: UUID
+    assure_nom_complet: str
+    numero_secu: str
+    regime_code: str | None
+    regime_taux: Decimal | None
+    statut_courant: str | None
+    entente_prealable_id: int | None
+    montant_depense: Decimal
+    montant_rembourse: Decimal
+    montant_assure: Decimal
+
+
+class InvoiceListResponse(ApiModel):
+    total: int
+    limite: int
+    decalage: int
+    factures: list[InvoiceListItemSchema]
+
+
+class ParcoursEtapeSchema(ApiModel):
+    """Une étape franchie par la facture, telle que le journal l'a vue."""
+
+    ordre: int
+    type_evenement: str
+    libelle: str
+    simulated_at: datetime
+    payload: dict[str, Any]
+
+
+class ParcoursResponse(ApiModel):
+    """Le parcours complet d'un passage, reconstitué depuis le journal."""
+
+    passage_id: str
+    facture_numero: str | None
+    debut: datetime
+    fin: datetime
+    duree_simulee_secondes: float
+    nombre_etapes: int
+    etapes: list[ParcoursEtapeSchema]
 
 
 class HealthCenterSchema(ApiModel):
