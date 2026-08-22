@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════
-   LoginPage.css — Design Premium CMU Simulateur
+   LoginPage.css — Page de connexion d'ÉCHO
    Dark two-column layout with glassmorphism card
 ═══════════════════════════════════════════════════════════════ */
 
@@ -91,24 +91,34 @@
   display: inline-block;
 }
 
-.lp-logo-img {
-  width: 120px;
-  height: 120px;
-  border-radius: 28px;
-  object-fit: cover;
-  box-shadow:
-    0 0 0 1px rgba(22, 163, 74, 0.3),
-    0 20px 60px rgba(22, 163, 74, 0.2),
-    0 4px 16px rgba(0,0,0,0.4);
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+.lp-logo-mark {
+  display: block;
+  filter: drop-shadow(0 12px 40px rgba(22, 163, 74, 0.25));
 }
 
-.lp-logo-img:hover {
-  transform: scale(1.04) rotate(-1deg);
-  box-shadow:
-    0 0 0 1px rgba(22, 163, 74, 0.5),
-    0 30px 80px rgba(22, 163, 74, 0.3),
-    0 8px 24px rgba(0,0,0,0.5);
+/* Une onde part de la source et s'efface en s'éloignant : c'est le sens même
+   du nom. Seule cette onde supplémentaire bouge — les trois anneaux de la
+   marque restent tracés, pour que le logo ne s'efface jamais. */
+.lp-logo-mark .echo-pulse {
+  /* fill-box + center : le cercle grandit autour de son propre centre, sans
+     dépendre du système de coordonnées du SVG. */
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: echo-propagation 3.2s ease-out infinite;
+}
+
+@keyframes echo-propagation {
+  0% { transform: scale(0.5); opacity: 0; }
+  15% { opacity: 0.7; }
+  100% { transform: scale(2.1); opacity: 0; }
+}
+
+/* Une animation continue derrière un formulaire de connexion peut gêner :
+   sans mouvement demandé, la marque reste immobile. */
+@media (prefers-reduced-motion: reduce) {
+  .lp-logo-mark .echo-pulse {
+    animation: none;
+  }
 }
 
 .lp-brand-title {
@@ -118,6 +128,22 @@
   line-height: 1.2;
   letter-spacing: -0.03em;
   margin-bottom: 16px;
+}
+
+/* Le nom porte l'identité : plus grand que le reste du titre, et espacé. */
+.lp-brand-name {
+  font-size: 3.4rem;
+  letter-spacing: 0.06em;
+  line-height: 1.05;
+}
+
+/* L'organisation reste en second plan, sous le nom du produit. */
+.lp-brand-org {
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: #64748b;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
 }
 
 .lp-brand-highlight {
@@ -441,6 +467,14 @@
 
   .lp-brand-title {
     font-size: 1.6rem;
+  }
+
+  .lp-brand-name {
+    font-size: 2.2rem;
+  }
+
+  .lp-brand-org {
+    font-size: 0.9rem;
   }
 
   .lp-brand-desc {

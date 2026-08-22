@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { EchoLogo } from "../components/EchoLogo";
 import { useAuth } from "./AuthContext";
 import "./LoginPage.css";
 
@@ -37,30 +38,30 @@ export function LoginPage() {
       <div className="lp-brand">
         <div className="lp-brand-content">
           <div className="lp-logo-wrap">
-            <img src="/logo.jpg" alt="CMU Simulateur" className="lp-logo-img" />
+            <EchoLogo size={120} className="lp-logo-mark" id="lp" />
           </div>
           <h1 className="lp-brand-title">
-            Cockpit de Supervision<br />
-            <span className="lp-brand-highlight">CMU · CNAM-CI</span>
+            <span className="lp-brand-name lp-brand-highlight">ÉCHO</span><br />
+            <span className="lp-brand-org">CNAM-CI</span>
           </h1>
           <p className="lp-brand-desc">
-            Plateforme SRE de télémétrie et d'observabilité en temps réel
-            du moteur de simulation du parcours assuré.
+            Le système réel parle, ÉCHO en renvoie l'écho : générateur de jeux
+            de données du parcours assuré CMU, destinés aux outils du service.
           </p>
           <div className="lp-stats">
             <div className="lp-stat">
-              <span className="lp-stat-value">99.9%</span>
-              <span className="lp-stat-label">Disponibilité</span>
+              <span className="lp-stat-value">MDM</span>
+              <span className="lp-stat-label">Référentiel</span>
             </div>
             <div className="lp-stat-divider" />
             <div className="lp-stat">
-              <span className="lp-stat-value">&#60;12ms</span>
-              <span className="lp-stat-label">Latence API</span>
+              <span className="lp-stat-value">Entrepôt</span>
+              <span className="lp-stat-label">Données</span>
             </div>
             <div className="lp-stat-divider" />
             <div className="lp-stat">
-              <span className="lp-stat-value">Live</span>
-              <span className="lp-stat-label">WebSocket</span>
+              <span className="lp-stat-value">Qualité</span>
+              <span className="lp-stat-label">Gouvernance</span>
             </div>
           </div>
         </div>
@@ -76,7 +77,7 @@ export function LoginPage() {
               Système opérationnel
             </div>
             <h2 className="lp-card-title">Connexion</h2>
-            <p className="lp-card-sub">Accédez à votre espace de supervision</p>
+            <p className="lp-card-sub">Accédez à votre espace ÉCHO</p>
           </div>
 
           {/* Champs */}
@@ -172,7 +173,7 @@ export function LoginPage() {
                   <polyline points="10 17 15 12 10 7"/>
                   <line x1="15" y1="12" x2="3" y2="12"/>
                 </svg>
-                Accéder au cockpit
+                Accéder à ÉCHO
               </>
             )}
           </button>
@@ -180,7 +181,7 @@ export function LoginPage() {
           {/* Footer */}
           <p className="lp-footer-note">
             Accès réservé aux agents autorisés CNAM-CI<br />
-            <span>Simulateur CMU v5 · © 2026</span>
+            <span>ÉCHO · © 2026</span>
           </p>
         </form>
       </div>
