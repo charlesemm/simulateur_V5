@@ -13,11 +13,16 @@ class SimulationEvent:
     passage_id: str
     simulated_at: datetime
     payload: dict[str, Any]
+    # Exécution qui a produit l'événement, nulle hors d'un run enregistré.
+    simulation_id: Any = None
 
     def to_dict(self) -> dict[str, Any]:
         """Convertit l'événement en dictionnaire sérialisable."""
         data = asdict(self)
         data["simulated_at"] = self.simulated_at.isoformat()
+        # L'identifiant d'exécution est un UUID : il ne survivrait pas tel quel
+        # à une sérialisation JSON.
+        data["simulation_id"] = str(self.simulation_id) if self.simulation_id else None
         return data
 
 

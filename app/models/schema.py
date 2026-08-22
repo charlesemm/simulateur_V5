@@ -21,7 +21,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import UUID as PostgreSQLUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.base import AuditMixin, Base
+from app.models.base import AuditMixin, Base, SimulationScopedMixin
 
 
 class InsuredPerson(AuditMixin, Base):
@@ -381,7 +381,7 @@ class TypeInvoice(AuditMixin, Base):
     )
 
 
-class Invoice(AuditMixin, Base):
+class Invoice(SimulationScopedMixin, AuditMixin, Base):
     """Porte la facture centrale d'un parcours de soins."""
 
     __tablename__ = "TB_FACTURES"
@@ -461,7 +461,7 @@ class Invoice(AuditMixin, Base):
     )
 
 
-class InvoicePathology(AuditMixin, Base):
+class InvoicePathology(SimulationScopedMixin, AuditMixin, Base):
     """Associe une facture à une version précise de pathologie."""
 
     __tablename__ = "TB_FACTURES_PATHOLOGIES"
@@ -496,7 +496,7 @@ class InvoicePathology(AuditMixin, Base):
     pathology: Mapped[Pathology] = relationship(back_populates="invoice_pathologies")
 
 
-class InvoicePrescription(AuditMixin, Base):
+class InvoicePrescription(SimulationScopedMixin, AuditMixin, Base):
     """Enregistre une prescription liée à une facture."""
 
     __tablename__ = "TB_FACTURES_PRESCRIPTIONS"
@@ -523,7 +523,7 @@ class InvoicePrescription(AuditMixin, Base):
     invoice: Mapped[Invoice] = relationship(back_populates="prescriptions")
 
 
-class InvoiceProvision(AuditMixin, Base):
+class InvoiceProvision(SimulationScopedMixin, AuditMixin, Base):
     """Détaille une prestation et son calcul de remboursement."""
 
     __tablename__ = "TB_FACTURES_PRESTATIONS"
@@ -609,7 +609,7 @@ class InvoiceRejection(AuditMixin, Base):
     invoice: Mapped[Invoice] = relationship(back_populates="rejections")
 
 
-class InvoiceStatus(AuditMixin, Base):
+class InvoiceStatus(SimulationScopedMixin, AuditMixin, Base):
     """Historise les changements de statut d'une facture."""
 
     __tablename__ = "TB_FACTURES_STATUTS"
@@ -627,7 +627,7 @@ class InvoiceStatus(AuditMixin, Base):
     invoice: Mapped[Invoice] = relationship(back_populates="statuses")
 
 
-class PriorAuthorization(AuditMixin, Base):
+class PriorAuthorization(SimulationScopedMixin, AuditMixin, Base):
     """Porte une demande d'entente préalable."""
 
     __tablename__ = "TB_ENTENTES_PREALABLES"
@@ -695,7 +695,7 @@ class PriorAuthorization(AuditMixin, Base):
     )
 
 
-class PriorAuthorizationStatus(AuditMixin, Base):
+class PriorAuthorizationStatus(SimulationScopedMixin, AuditMixin, Base):
     """Historise le traitement d'une entente par un médecin conseil."""
 
     __tablename__ = "TB_ENTENTES_PREALABLES_STATUTS"
@@ -720,7 +720,7 @@ class PriorAuthorizationStatus(AuditMixin, Base):
     agent: Mapped[Agent] = relationship(back_populates="prior_authorization_statuses")
 
 
-class PriorAuthorizationMedicalAct(AuditMixin, Base):
+class PriorAuthorizationMedicalAct(SimulationScopedMixin, AuditMixin, Base):
     """Détaille la décision d'entente pour un acte médical."""
 
     __tablename__ = "TB_ENTENTES_PREALABLES_ACTES_MEDICAUX"
@@ -766,7 +766,7 @@ class PriorAuthorizationMedicalAct(AuditMixin, Base):
     )
 
 
-class PriorAuthorizationProvision(AuditMixin, Base):
+class PriorAuthorizationProvision(SimulationScopedMixin, AuditMixin, Base):
     """Détaille la décision d'entente pour une prestation."""
 
     __tablename__ = "TB_ENTENTES_PREALABLES_PRESTATIONS"

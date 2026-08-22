@@ -42,10 +42,12 @@ class PassageSimulation:
     """Fait progresser un assuré réservé dans toutes les étapes du parcours."""
 
     def __init__(self, insured_id, config: SimulationConfig, speed_getter,
-                 callback: EventCallback, seed: int) -> None:
+                 callback: EventCallback, seed: int, simulation_id=None) -> None:
         """Initialise un passage déterministe sans démarrer son exécution."""
         self.passage_id = uuid4().hex
         self.insured_id = insured_id
+        # Exécution d'origine, reportée sur chaque ligne écrite par le passage.
+        self.simulation_id = simulation_id
         self.config = config
         self.speed_getter = speed_getter
         self.callback = callback
@@ -61,7 +63,8 @@ class PassageSimulation:
         """Appelle le hook après validation de l'écriture correspondante."""
         metrics_registry.enregistrer_evenement()
         result = self.callback(SimulationEvent(
-            event_type, self.passage_id, self.simulated_at, payload
+            event_type, self.passage_id, self.simulated_at, payload,
+            self.simulation_id,
         ))
         if inspect.isawaitable(result):
             await result
@@ -82,6 +85,7 @@ class PassageSimulation:
                 facture_numero=invoice_number, statut_code=code,
                 statut_date_debut=self.simulated_at.date(),
                 statut_observations=f"Statut produit par le passage {self.passage_id}.",
+                simulation_id=self.simulation_id,
                 utilisateur_id_creation="simulation",
             ))
             await session.commit()
@@ -164,6 +168,7 @@ class PassageSimulation:
                 centre_sante_code=center.centre_sante_code,
                 centre_sante_type_code=center.type_etablissement_sanitaire_code,
                 centre_sante_type_libelle=center.centre_sante_denomination,
+                simulation_id=self.simulation_id,
                 utilisateur_id_creation="simulation",
             ))
             await session.commit()
@@ -181,6 +186,7 @@ class PassageSimulation:
                     pathologie_code=pathology.pathologie_code,
                     pathologie_date_debut=pathology.pathologie_date_debut,
                     pathologie_observations="Diagnostic synthétique du simulateur.",
+                    simulation_id=self.simulation_id,
                     utilisateur_id_creation="simulation",
                 ))
             await session.commit()
@@ -207,7 +213,8 @@ class PassageSimulation:
                 prestation_montant_depense=montant_depense,
                 prestation_montant_rq=montant_rq,
                 prestation_montant_assure=base - montant_rq,
-                statut_code="servie", utilisateur_id_creation="simulation",
+                statut_code="servie", simulation_id=self.simulation_id,
+                utilisateur_id_creation="simulation",
             ))
             await session.commit()
         await self.emit("prestation.servie", facture_numero=invoice_number, code=base_code)
@@ -224,7 +231,8 @@ class PassageSimulation:
                     facture_numero=invoice_number, prescription_code=medicine.medicament_code,
                     date_debut=self.simulated_at.date(), prescription_quantite=1,
                     prescription_posologie="Selon prescription médicale synthétique.",
-                    prescription_duree=5, utilisateur_id_creation="simulation",
+                    prescription_duree=5, simulation_id=self.simulation_id,
+                    utilisateur_id_creation="simulation",
                 ))
                 await session.commit()
             await self.emit("medicament.prescrit", facture_numero=invoice_number, code=medicine.medicament_code)
@@ -272,6 +280,7 @@ class PassageSimulation:
                 organisme_code="CNAM-CI", facture_numero=invoice_number,
                 type_demande_code="hospitalisation" if hospital else "acte",
                 type_hospitalisation_code="standard" if hospital else None,
+                simulation_id=self.simulation_id,
                 utilisateur_id_creation="simulation",
             )
             session.add(agreement)
@@ -305,12 +314,14 @@ class PassageSimulation:
                 acte_medical_montant_assure=amount - cmu_amount,
                 acte_medical_statut=status,
                 acte_medical_motif_rejet=None if accepted else "Refus simulé du médecin conseil.",
+                simulation_id=self.simulation_id,
                 utilisateur_id_creation="simulation",
             ))
             session.add(PriorAuthorizationStatus(
                 entente_prealable_id=agreement_id, statut_code=status,
                 statut_date_debut=self.simulated_at.date(),
                 agent_code=None if advisor is None else advisor.agent_code,
+                simulation_id=self.simulation_id,
                 utilisateur_id_creation="simulation",
             ))
             await session.commit()

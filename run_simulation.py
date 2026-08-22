@@ -5,6 +5,8 @@ import asyncio
 import logging
 from events import publish_simulation_event
 from simulation import SimulationEngine, SimulationEvent
+from simulation.models import STATUT_ARRETEE, STATUT_ECHOUEE, STATUT_TERMINEE
+from simulation.runs import cloturer_execution, ouvrir_execution
 
 async def log_event(event: SimulationEvent) -> None:
     """Affiche l'événement puis le journalise, comme le fait l'API.
@@ -29,15 +31,33 @@ def parse_arguments() -> argparse.Namespace:
     return arguments
 
 async def run() -> None:
-    """Configure et attend la fin du moteur."""
+    """Ouvre une exécution, attend la fin du moteur puis la clôture.
+
+    Un run en ligne de commande s'enregistre comme un run lancé par l'API :
+    ses lignes doivent être aussi rattachables que les autres.
+    """
 
     arguments = parse_arguments()
-    engine = SimulationEngine(event_callback=log_event)
+    simulation_id = await ouvrir_execution({
+        "vitesse": arguments.vitesse,
+        "nombre_passages": arguments.nombre_passages,
+        "origine": "ligne_de_commande",
+    })
+    engine = SimulationEngine(event_callback=log_event, simulation_id=simulation_id)
     engine.set_speed(arguments.vitesse)
+    statut = STATUT_TERMINEE
     try:
         await engine.start(arguments.nombre_passages)
     except KeyboardInterrupt:
+        statut = STATUT_ARRETEE
         await engine.stop()
+    except Exception:
+        statut = STATUT_ECHOUEE
+        raise
+    finally:
+        await cloturer_execution(
+            simulation_id, statut, engine.passages_reussis, engine.passages_echoues
+        )
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(name)s | %(message)s")

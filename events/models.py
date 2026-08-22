@@ -6,10 +6,10 @@ from uuid import UUID
 from sqlalchemy import DateTime, Index, String
 from sqlalchemy.dialects.postgresql import JSONB, UUID as PostgreSQLUUID
 from sqlalchemy.orm import Mapped, mapped_column
-from app.models.base import AuditMixin, Base
+from app.models.base import AuditMixin, Base, SimulationScopedMixin
 
 
-class EventJournal(AuditMixin, Base):
+class EventJournal(SimulationScopedMixin, AuditMixin, Base):
     """Conserve un événement métier avec son horloge simulée."""
 
     __tablename__ = "TB_EVENEMENTS_METIER"

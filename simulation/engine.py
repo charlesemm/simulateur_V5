@@ -20,9 +20,18 @@ class SimulationEngine:
     """Pilote les tâches et interdit deux passages simultanés par assuré."""
 
     def __init__(self, config: SimulationConfig = DEFAULT_CONFIG,
-                 event_callback: EventCallback = default_event_callback) -> None:
+                 event_callback: EventCallback = default_event_callback,
+                 simulation_id: UUID | None = None) -> None:
         self.config = config
         self.event_callback = event_callback
+        # Identifiant de l'exécution ouverte par l'appelant. Il descend jusqu'à
+        # chaque ligne écrite ; nul, le moteur produit des lignes orphelines,
+        # ce qui reste permis pour un lancement hors API.
+        self.simulation_id = simulation_id
+        # Compteurs propres à cette exécution : le registre des métriques est
+        # global au processus et ne peut pas les distinguer.
+        self.passages_reussis = 0
+        self.passages_echoues = 0
         self._speed = config.default_speed
         self._running = False
         self._tasks: set[asyncio.Task] = set()
@@ -75,11 +84,14 @@ class SimulationEngine:
                 await PassageSimulation(
                     insured_id, self.config, lambda: self._speed,
                     self.event_callback, self.config.random_seed + sequence,
+                    self.simulation_id,
                 ).run()
         except Exception:
             logger.exception("Le passage %s a échoué.", sequence)
+            self.passages_echoues += 1
             metrics_registry.enregistrer_passage(succes=False)
         else:
+            self.passages_reussis += 1
             metrics_registry.enregistrer_passage(succes=True)
         finally:
             async with self._lock:

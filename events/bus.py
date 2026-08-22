@@ -16,6 +16,8 @@ class DomainEvent:
     passage_id: str
     simulated_at: datetime
     payload: dict[str, Any]
+    # Exécution qui a produit l'événement, nulle hors d'un run enregistré.
+    simulation_id: Any = None
 
 class EventBus:
     """Copie chaque événement dans la file de chaque abonné actif."""
@@ -45,7 +47,8 @@ class EventBus:
             session.add(EventJournal(
                 evenement_id=uuid4(), type_evenement=event.event_type,
                 passage_id=event.passage_id, simulated_at=event.simulated_at,
-                payload=event.payload, utilisateur_id_creation="event_bus",
+                payload=event.payload, simulation_id=event.simulation_id,
+                utilisateur_id_creation="event_bus",
             ))
             await session.commit()
         async with self._lock:
@@ -61,6 +64,7 @@ async def publish_simulation_event(event) -> None:
     await event_bus.publish(DomainEvent(
         event_type=event.event_type, passage_id=event.passage_id,
         simulated_at=event.simulated_at, payload=event.payload,
+        simulation_id=event.simulation_id,
     ))
 
 

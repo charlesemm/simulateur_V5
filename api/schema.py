@@ -46,6 +46,22 @@ class SimulationStatusResponse(ApiModel):
     vitesse: float
     passages_actifs: int
     passages_simultanes_max: int
+    # Nul tant qu'aucune exécution n'a été ouverte, ou après son arrêt.
+    simulation_id: UUID | None = None
+
+
+class SimulationRunResponse(ApiModel):
+    """Décrit une exécution enregistrée du moteur."""
+
+    simulation_id: UUID
+    simulation_libelle: str
+    simulation_statut: str
+    simulation_parametres: dict[str, Any]
+    simulation_date_debut: datetime
+    simulation_date_fin: datetime | None = None
+    utilisateur_uuid: UUID | None = None
+    passages_reussis: int
+    passages_echoues: int
 
 
 class WindowSchema(ApiModel):
