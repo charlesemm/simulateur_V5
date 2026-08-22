@@ -5,7 +5,6 @@ import { AuthProvider, useAuth } from "./auth/AuthContext";
 import { LoginPage } from "./auth/LoginPage";
 import { ChangePasswordPage } from "./auth/ChangePasswordPage";
 import { RequireRole } from "./auth/RequireRole";
-import { UsersPage } from "./components/UsersPage";
 import { KpiSocketProvider } from "./hooks/useKpiSocket";
 import { TechMetricCards } from "./components/TechMetricCards";
 import { ChargeTraitementChart } from "./components/ChargeTraitementChart";
@@ -13,14 +12,24 @@ import { LatencyPerformanceChart } from "./components/LatencyPerformanceChart";
 import { SystemHealthDonut } from "./components/SystemHealthDonut";
 import { LiveLogTerminal } from "./components/LiveLogTerminal";
 import { ReportsPage } from "./components/ReportsPage";
-import { AnomaliesPanel } from "./components/AnomaliesPanel";
+import { ExecutionEnCoursCard } from "./components/ExecutionEnCoursCard";
 import { ActiviteMetierSection } from "./components/ActiviteMetierSection";
+import { AccueilPage } from "./components/AccueilPage";
+import { AdministrationPage } from "./components/AdministrationPage";
+import { ConsoleInjectionPage } from "./components/ConsoleInjectionPage";
+import { DonneesPage } from "./components/DonneesPage";
+import { QualitePage } from "./components/QualitePage";
+import { SimulationsPage } from "./components/SimulationsPage";
+import type { Onglet } from "./navigation";
 import { api } from "./services/api";
 import type { TechnicalMetricsSnapshot } from "./types";
 
 function DashboardShell() {
   const { isAuthenticated, token, doitChangerMotDePasse } = useAuth();
-  const [ongletActif, setOngletActif] = useState<"dashboard" | "utilisateurs" | "rapports">("dashboard");
+  const [ongletActif, setOngletActif] = useState<Onglet>("accueil");
+  // Exécution ouverte depuis l'accueil : elle voyage jusqu'à l'écran
+  // Simulations, qui l'affiche d'emblée.
+  const [executionOuverte, setExecutionOuverte] = useState<string | null>(null);
   const [metrics, setMetrics] = useState<TechnicalMetricsSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -64,6 +73,29 @@ function DashboardShell() {
           <Header ongletActif={ongletActif} />
 
           <div className="content-scrollable">
+            {ongletActif === "accueil" && (
+              <AccueilPage
+                onVoirExecution={(simulationId) => {
+                  setExecutionOuverte(simulationId);
+                  setOngletActif("simulations");
+                }}
+              />
+            )}
+
+            {ongletActif === "injection" && (
+              <RequireRole minimum="operateur">
+                <ConsoleInjectionPage />
+              </RequireRole>
+            )}
+
+            {ongletActif === "simulations" && (
+              <SimulationsPage executionInitiale={executionOuverte} />
+            )}
+
+            {ongletActif === "qualite" && <QualitePage />}
+
+            {ongletActif === "donnees" && <DonneesPage />}
+
             {ongletActif === "dashboard" && (
               <div className="dashboard-content-space">
                 {/* Rangée 1 : Compteurs & KPIs SRE avec icônes SVG */}
@@ -76,16 +108,17 @@ function DashboardShell() {
                 </section>
 
                 {/* Rangée 3 : Fiabilité & Test de Résilience */}
+                {/* Le panneau d'anomalies a quitté cette page : la console
+                    d'injection le remplace entièrement, et deux endroits pour
+                    régler le même interrupteur se contrediraient. */}
                 <section className="dashboard-row-3">
                   <SystemHealthDonut metrics={metrics} />
-                  <RequireRole minimum="administrateur">
-                    <AnomaliesPanel />
-                  </RequireRole>
+                  <ExecutionEnCoursCard />
                 </section>
 
                 {/* Rangée 4 : Terminal de Logs & Événements en Direct */}
                 <section className="dashboard-row-4">
-                  <LiveLogTerminal metrics={metrics} />
+                  <LiveLogTerminal />
                 </section>
 
                 {/* Rangée 5 : Activité métier issue du snapshot KPI temps réel */}
@@ -99,9 +132,9 @@ function DashboardShell() {
               </RequireRole>
             )}
 
-            {ongletActif === "utilisateurs" && (
+            {ongletActif === "administration" && (
               <RequireRole minimum="administrateur">
-                <UsersPage />
+                <AdministrationPage />
               </RequireRole>
             )}
           </div>

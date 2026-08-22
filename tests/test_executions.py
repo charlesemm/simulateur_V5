@@ -90,6 +90,33 @@ async def test_cloturer_une_execution_inconnue_ne_leve_pas(base_vierge):
     await cloturer_execution(uuid.uuid4(), STATUT_ARRETEE, reussis=0, echoues=0)
 
 
+async def test_la_fiche_compte_ce_que_l_execution_a_produit(client_api):
+    """L'écran Simulations lit cette fiche : elle doit compter juste."""
+
+    simulation_id = await ouvrir_execution({"vitesse": 60})
+    await PassageSimulation(
+        ASSURE_COUVERT, DEFAULT_CONFIG, lambda: 1_000_000.0,
+        publish_simulation_event, 7, simulation_id,
+    ).run()
+
+    reponse = await client_api.get(f"/simulation/executions/{simulation_id}")
+    assert reponse.status_code == 200
+    fiche = reponse.json()
+
+    assert fiche["execution"]["simulation_id"] == str(simulation_id)
+    assert fiche["volumetrie"]["factures"] == 1
+    assert fiche["volumetrie"]["prestations"] >= 1
+    assert fiche["volumetrie"]["evenements"] > 0
+    # Aucune anomalie n'est active dans la base de test.
+    assert fiche["volumetrie"]["anomalies"] == 0
+    assert fiche["anomalies_par_type"] == {}
+
+
+async def test_la_fiche_d_une_execution_inconnue_est_introuvable(client_api):
+    reponse = await client_api.get(f"/simulation/executions/{uuid.uuid4()}")
+    assert reponse.status_code == 404
+
+
 async def test_l_api_ouvre_une_execution_au_nom_de_l_utilisateur(
     client_api, administrateur
 ):

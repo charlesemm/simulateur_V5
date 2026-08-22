@@ -1,131 +1,77 @@
-import { useEffect, useRef, useState } from "react";
-import type { TechnicalMetricsSnapshot } from "../types";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useKpiSocket } from "../hooks/useKpiSocket";
+import type { EvenementParcours } from "../types";
 import { TerminalIcon } from "./Icons";
 
-interface LogEntry {
-  id: string;
-  timestamp: string;
-  level: "INFO" | "SUCCESS" | "WARN" | "ERROR";
-  source: "ENGINE" | "KPI_CONSUMER" | "FASTAPI" | "SOCKETIO";
-  message: string;
+// Chaque type d'événement du moteur, avec le niveau sous lequel l'afficher.
+// Un type absent de cette table reste lisible : il s'affiche en INFO.
+const NIVEAUX: Record<string, "INFO" | "SUCCESS" | "WARN" | "ERROR"> = {
+  "facture.creee": "SUCCESS",
+  "facture.statut": "INFO",
+  "facture.pathologies": "INFO",
+  "prestation.servie": "SUCCESS",
+  "medicament.prescrit": "INFO",
+  "medicament.retire": "INFO",
+  "entente.creee": "INFO",
+  "entente.traitee": "SUCCESS",
+  "passage.refuse": "WARN",
+  "alea.interruption": "ERROR",
+  "alea.base_ralentie": "WARN",
+  "alea.horloge_decalee": "WARN",
+  "alea.saturation_memoire": "WARN",
+};
+
+/** Résume la charge utile d'un événement en une ligne lisible. */
+function resumer(evenement: EvenementParcours): string {
+  const details = Object.entries(evenement.payload)
+    .map(([clef, valeur]) => `${clef}=${String(valeur)}`)
+    .join(" ");
+  return details || "—";
 }
 
-interface LiveLogTerminalProps {
-  metrics: TechnicalMetricsSnapshot | null;
+function niveau(evenement: EvenementParcours) {
+  return NIVEAUX[evenement.type] ?? "INFO";
 }
 
-export function LiveLogTerminal({ metrics }: LiveLogTerminalProps) {
-  const [logs, setLogs] = useState<LogEntry[]>([
-    {
-      id: "1",
-      timestamp: new Date().toLocaleTimeString("fr-FR"),
-      level: "INFO",
-      source: "ENGINE",
-      message: "Démarrage du cockpit de supervision CNAM-CI...",
-    },
-    {
-      id: "2",
-      timestamp: new Date().toLocaleTimeString("fr-FR"),
-      level: "SUCCESS",
-      source: "FASTAPI",
-      message: "Télémétrie active et connectée sur /metrics/technical.",
-    },
-  ]);
+/**
+ * Le journal des événements réellement produits par le moteur.
+ *
+ * Il affichait auparavant des lignes déduites des écarts entre deux relevés de
+ * métriques : plausibles, mais fabriquées. Elles viennent maintenant du bus
+ * d'événements, celui-là même qui alimente le journal en base.
+ */
+export function LiveLogTerminal() {
+  const { evenements, evenementsEcartes, connectionStatus } = useKpiSocket();
   const [autoScroll, setAutoScroll] = useState(true);
-  const [filterLevel, setFilterLevel] = useState<string>("ALL");
-  const terminalEndRef = useRef<HTMLDivElement | null>(null);
-  const prevMetricsRef = useRef<TechnicalMetricsSnapshot | null>(null);
+  const [filtre, setFiltre] = useState<string>("ALL");
+  const finRef = useRef<HTMLDivElement | null>(null);
+
+  const affiches = useMemo(
+    () => evenements.filter((evenement) => filtre === "ALL" || niveau(evenement) === filtre),
+    [evenements, filtre]
+  );
 
   useEffect(() => {
-    if (!metrics) return;
-    const prev = prevMetricsRef.current;
-    const now = new Date().toLocaleTimeString("fr-FR");
-    const newLogs: LogEntry[] = [];
-
-    if (prev) {
-      if (metrics.moteur_etat !== prev.moteur_etat) {
-        newLogs.push({
-          id: Math.random().toString(36).substring(2, 9),
-          timestamp: now,
-          level: metrics.moteur_etat === "en_cours" ? "SUCCESS" : "WARN",
-          source: "ENGINE",
-          message: `Moteur ${metrics.moteur_etat.toUpperCase()} (vitesse ×${metrics.moteur_vitesse}).`,
-        });
-      }
-
-      if (metrics.passages_reussis > prev.passages_reussis) {
-        const delta = metrics.passages_reussis - prev.passages_reussis;
-        newLogs.push({
-          id: Math.random().toString(36).substring(2, 9),
-          timestamp: now,
-          level: "INFO",
-          source: "ENGINE",
-          message: `+${delta} passage(s) clôturé(s) avec succès (Total: ${metrics.passages_reussis}).`,
-        });
-      }
-
-      if (metrics.passages_echoues > prev.passages_echoues) {
-        const delta = metrics.passages_echoues - prev.passages_echoues;
-        newLogs.push({
-          id: Math.random().toString(36).substring(2, 9),
-          timestamp: now,
-          level: "ERROR",
-          source: "ENGINE",
-          message: `+${delta} anomalie(s) survenue(s) lors de l'exécution asynchrone.`,
-        });
-      }
-
-      if (metrics.recalculs_kpi > prev.recalculs_kpi) {
-        newLogs.push({
-          id: Math.random().toString(36).substring(2, 9),
-          timestamp: now,
-          level: "INFO",
-          source: "KPI_CONSUMER",
-          message: `Calcul du snapshot d'état achevé en ${metrics.derniere_duree_recalcul_kpi_ms} ms.`,
-        });
-      }
-
-      if (metrics.clients_socketio_actifs !== prev.clients_socketio_actifs) {
-        newLogs.push({
-          id: Math.random().toString(36).substring(2, 9),
-          timestamp: now,
-          level: "INFO",
-          source: "SOCKETIO",
-          message: `Clients WebSocket actifs : ${metrics.clients_socketio_actifs}.`,
-        });
-      }
+    if (autoScroll && finRef.current) {
+      finRef.current.scrollIntoView({ behavior: "smooth" });
     }
-
-    prevMetricsRef.current = metrics;
-
-    if (newLogs.length > 0) {
-      setLogs((prevLogs) => [...prevLogs, ...newLogs].slice(-100));
-    }
-  }, [metrics]);
-
-  useEffect(() => {
-    if (autoScroll && terminalEndRef.current) {
-      terminalEndRef.current.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [logs, autoScroll]);
-
-  const filteredLogs = logs.filter((log) => (filterLevel === "ALL" ? true : log.level === filterLevel));
+  }, [affiches, autoScroll]);
 
   return (
     <article className="clean-terminal-card">
       <div className="terminal-topbar">
         <div className="terminal-header-left">
           <TerminalIcon className="terminal-icon-svg" />
-          <strong className="terminal-heading">Journal Système & Événements Moteur</strong>
+          <strong className="terminal-heading">Parcours en temps réel</strong>
         </div>
 
         <div className="terminal-actions">
           <select
             className="terminal-select"
-            value={filterLevel}
-            onChange={(e) => setFilterLevel(e.target.value)}
+            value={filtre}
+            onChange={(evenement) => setFiltre(evenement.target.value)}
           >
-            <option value="ALL">Tous les flux</option>
+            <option value="ALL">Tous les événements</option>
             <option value="INFO">INFO</option>
             <option value="SUCCESS">SUCCESS</option>
             <option value="WARN">WARN</option>
@@ -135,27 +81,49 @@ export function LiveLogTerminal({ metrics }: LiveLogTerminalProps) {
             <input
               type="checkbox"
               checked={autoScroll}
-              onChange={(e) => setAutoScroll(e.target.checked)}
+              onChange={(evenement) => setAutoScroll(evenement.target.checked)}
             />
             <span>Auto-scroll</span>
           </label>
-          <button className="terminal-btn-clear" onClick={() => setLogs([])}>
-            Effacer
-          </button>
         </div>
       </div>
 
       <div className="terminal-content">
-        {filteredLogs.map((log) => (
-          <div className="terminal-row" key={log.id}>
-            <span className="row-time">{log.timestamp}</span>
-            <span className={`row-badge tag-${log.level.toLowerCase()}`}>{log.level}</span>
-            <span className="row-source">[{log.source}]</span>
-            <span className="row-message">{log.message}</span>
+        {affiches.length === 0 && (
+          <div className="terminal-row">
+            <span className="row-message">
+              {connectionStatus === "connecte"
+                ? "En attente d'événements — démarrez une simulation."
+                : "Flux temps réel non connecté."}
+            </span>
+          </div>
+        )}
+
+        {affiches.map((evenement, rang) => (
+          <div className="terminal-row" key={`${evenement.passage_id}-${rang}`}>
+            <span className="row-time">
+              {new Date(evenement.simulated_at).toLocaleTimeString("fr-FR")}
+            </span>
+            <span className={`row-badge tag-${niveau(evenement).toLowerCase()}`}>
+              {niveau(evenement)}
+            </span>
+            <span className="row-source">[{evenement.passage_id.slice(0, 8)}]</span>
+            <span className="row-message">
+              {evenement.type} · {resumer(evenement)}
+            </span>
           </div>
         ))}
-        <div ref={terminalEndRef} />
+        <div ref={finRef} />
       </div>
+
+      {evenementsEcartes > 0 && (
+        <p className="terminal-row">
+          <span className="row-message">
+            {evenementsEcartes} événement(s) non affiché(s) : le moteur produit plus
+            vite que le terminal ne se lit. Le journal en base les a tous conservés.
+          </span>
+        </p>
+      )}
     </article>
   );
 }

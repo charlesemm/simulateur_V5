@@ -1,12 +1,16 @@
 // dashboard/src/components/Sidebar.tsx
 import { useAuth } from "../auth/AuthContext";
 import { RequireRole } from "../auth/RequireRole";
+import type { Onglet } from "../navigation";
 import { EchoLogo } from "./EchoLogo";
-import { DashboardIcon, LogoutIcon, ReportsIcon, UsersIcon } from "./Icons";
+import {
+  DashboardIcon, DonneesIcon, HomeIcon, InjectionIcon, LogoutIcon,
+  QualiteIcon, ReportsIcon, SimulationsIcon, UsersIcon,
+} from "./Icons";
 
 interface SidebarProps {
-  ongletActif: "dashboard" | "utilisateurs" | "rapports";
-  onNaviguer: (onglet: "dashboard" | "utilisateurs" | "rapports") => void;
+  ongletActif: Onglet;
+  onNaviguer: (onglet: Onglet) => void;
 }
 
 export function Sidebar({ ongletActif, onNaviguer }: SidebarProps) {
@@ -27,11 +31,45 @@ export function Sidebar({ ongletActif, onNaviguer }: SidebarProps) {
           <span className="sidebar-nav-section-title">Navigation</span>
 
           <button
-            className={`sidebar-nav-item ${ongletActif === "dashboard" ? "active" : ""}`}
-            onClick={() => onNaviguer("dashboard")}
+            className={`sidebar-nav-item ${ongletActif === "accueil" ? "active" : ""}`}
+            onClick={() => onNaviguer("accueil")}
           >
-            <DashboardIcon className="nav-icon" />
-            <span className="nav-text">Tableau de bord</span>
+            <HomeIcon className="nav-icon" />
+            <span className="nav-text">Accueil</span>
+          </button>
+
+          <RequireRole minimum="operateur">
+            <button
+              className={`sidebar-nav-item ${ongletActif === "injection" ? "active" : ""}`}
+              onClick={() => onNaviguer("injection")}
+            >
+              <InjectionIcon className="nav-icon" />
+              <span className="nav-text">Console d'injection</span>
+            </button>
+          </RequireRole>
+
+          <button
+            className={`sidebar-nav-item ${ongletActif === "simulations" ? "active" : ""}`}
+            onClick={() => onNaviguer("simulations")}
+          >
+            <SimulationsIcon className="nav-icon" />
+            <span className="nav-text">Simulations</span>
+          </button>
+
+          <button
+            className={`sidebar-nav-item ${ongletActif === "qualite" ? "active" : ""}`}
+            onClick={() => onNaviguer("qualite")}
+          >
+            <QualiteIcon className="nav-icon" />
+            <span className="nav-text">Qualité</span>
+          </button>
+
+          <button
+            className={`sidebar-nav-item ${ongletActif === "donnees" ? "active" : ""}`}
+            onClick={() => onNaviguer("donnees")}
+          >
+            <DonneesIcon className="nav-icon" />
+            <span className="nav-text">Données</span>
           </button>
 
           <RequireRole minimum="operateur">
@@ -44,13 +82,23 @@ export function Sidebar({ ongletActif, onNaviguer }: SidebarProps) {
             </button>
           </RequireRole>
 
+          <RequireRole minimum="operateur">
+            <button
+              className={`sidebar-nav-item ${ongletActif === "dashboard" ? "active" : ""}`}
+              onClick={() => onNaviguer("dashboard")}
+            >
+              <DashboardIcon className="nav-icon" />
+              <span className="nav-text">Supervision</span>
+            </button>
+          </RequireRole>
+
           <RequireRole minimum="administrateur">
             <button
-              className={`sidebar-nav-item ${ongletActif === "utilisateurs" ? "active" : ""}`}
-              onClick={() => onNaviguer("utilisateurs")}
+              className={`sidebar-nav-item ${ongletActif === "administration" ? "active" : ""}`}
+              onClick={() => onNaviguer("administration")}
             >
               <UsersIcon className="nav-icon" />
-              <span className="nav-text">Utilisateurs</span>
+              <span className="nav-text">Administration</span>
             </button>
           </RequireRole>
         </nav>

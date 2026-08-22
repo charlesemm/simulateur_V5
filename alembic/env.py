@@ -22,11 +22,17 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# L'environnement est prioritaire sur l'URL locale du fichier INI.
-config.set_main_option(
-    "sqlalchemy.url",
-    os.getenv("DATABASE_URL", config.get_main_option("sqlalchemy.url")),
-)
+# DATABASE_URL fait foi, et elle seule. Un appelant qui veut migrer une autre
+# base — la base de test, par exemple — doit poser la variable avant d'appeler
+# Alembic : régler « sqlalchemy.url » sur l'objet Config ne suffit pas, cette
+# ligne l'écraserait.
+url_base = os.getenv("DATABASE_URL")
+if not url_base:
+    raise RuntimeError(
+        "DATABASE_URL est absente : Alembic ne sait pas à quelle base se "
+        "connecter. Renseignez-la dans le .env ou dans l'environnement."
+    )
+config.set_main_option("sqlalchemy.url", url_base)
 target_metadata = Base.metadata
 
 

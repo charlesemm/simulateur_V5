@@ -19,8 +19,15 @@ from app.models import (
     PriorAuthorizationMedicalAct, PriorAuthorizationStatus, Regime,
 )
 from anomalies import anomalies_config
+from anomalies.repository import enregistrer_injections
 from metrics.registry import registry as metrics_registry
+from seed.constants import HEALTH_CENTER_TYPES
+from simulation.aleas import (
+    BASE_RALENTIE, COUPURE_BRUTALE, HORLOGE_DECALEE, PERTE_CONNEXION,
+    SATURATION_MEMOIRE, PassageInterrompu, ScenarioAleas,
+)
 from simulation.events import EventCallback, SimulationEvent
+from simulation.models import RefusAccueil
 from simulation_config import SimulationConfig
 
 logger = logging.getLogger(__name__)
@@ -28,6 +35,11 @@ logger = logging.getLogger(__name__)
 # Motif publié quand l'assuré se présente sans droits ouverts : le passage
 # s'arrête à l'accueil, aucune facture n'est ouverte.
 MOTIF_DROITS_FERMES = "droits_fermes"
+
+# La facture range le libellé du TYPE d'établissement, pas le nom du centre.
+# Elle a longtemps reçu le second, ce qui rendait la colonne inexploitable
+# pour tout regroupement par type.
+LIBELLES_TYPE_CENTRE = dict(HEALTH_CENTER_TYPES)
 
 
 class Coverage(NamedTuple):
@@ -42,12 +54,20 @@ class PassageSimulation:
     """Fait progresser un assuré réservé dans toutes les étapes du parcours."""
 
     def __init__(self, insured_id, config: SimulationConfig, speed_getter,
-                 callback: EventCallback, seed: int, simulation_id=None) -> None:
+                 callback: EventCallback, seed: int, simulation_id=None,
+                 scenario: ScenarioAleas | None = None) -> None:
         """Initialise un passage déterministe sans démarrer son exécution."""
         self.passage_id = uuid4().hex
         self.insured_id = insured_id
+        # Scénario d'aléa de l'exécution. À vide, aucun tirage n'est fait et le
+        # passage se déroule exactement comme avant les crash tests.
+        self.scenario = scenario or ScenarioAleas()
+        self.memoire_retenue: bytearray | None = None
         # Exécution d'origine, reportée sur chaque ligne écrite par le passage.
         self.simulation_id = simulation_id
+        # Carnet d'injections propre au passage : deux passages simultanés ne
+        # peuvent donc pas mélanger leurs anomalies avant l'écriture.
+        self.anomalies = anomalies_config.contexte(simulation_id, self.passage_id)
         self.config = config
         self.speed_getter = speed_getter
         self.callback = callback
@@ -68,6 +88,80 @@ class PassageSimulation:
         ))
         if inspect.isawaitable(result):
             await result
+
+    async def appliquer_aleas_initiaux(self) -> None:
+        """Joue les aléas qui frappent avant la première écriture.
+
+        L'horloge décalée et la saturation mémoire valent pour tout le passage :
+        elles se décident une fois, au départ.
+        """
+
+        if self.scenario.frappe(HORLOGE_DECALEE, self.random):
+            amplitude = self.scenario.reglage(HORLOGE_DECALEE, "amplitude_heures", 72)
+            decalage = self.random.uniform(-amplitude, amplitude)
+            self.simulated_at += timedelta(hours=decalage)
+            await self.emit("alea.horloge_decalee", heures=round(decalage, 2))
+
+        if self.scenario.frappe(SATURATION_MEMOIRE, self.random):
+            megaoctets = int(self.scenario.reglage(SATURATION_MEMOIRE, "megaoctets", 50))
+            # La mémoire est rendue à la fin du passage : l'aléa met le
+            # processus sous tension, il ne cherche pas à le tuer.
+            self.memoire_retenue = bytearray(megaoctets * 1024 * 1024)
+            await self.emit("alea.saturation_memoire", megaoctets=megaoctets)
+
+    async def ralentir(self) -> None:
+        """Fait attendre le passage avant une écriture, base saturée.
+
+        La latence n'est pas divisée par la vitesse : une base lente l'est en
+        temps réel, quelle que soit l'accélération de l'horloge simulée.
+        """
+
+        if not self.scenario.frappe(BASE_RALENTIE, self.random):
+            return
+        latence = self.scenario.reglage(BASE_RALENTIE, "latence_secondes", 0.5)
+        await asyncio.sleep(latence)
+        await self.emit("alea.base_ralentie", latence_secondes=latence)
+
+    async def verifier_interruption(self, etape: str) -> None:
+        """Coupe le passage si un aléa d'arrêt frappe à cette étape.
+
+        La coupure laisse volontairement la facture ouverte, sans prestation
+        ni clôture : c'est exactement l'incohérence que les crash tests
+        cherchent à produire.
+        """
+
+        for alea in (COUPURE_BRUTALE, PERTE_CONNEXION):
+            if self.scenario.frappe(alea, self.random):
+                await self.emit("alea.interruption", alea=alea, etape=etape)
+                raise PassageInterrompu(alea)
+
+    async def enregistrer_refus(self, coverage: Coverage) -> None:
+        """Consigne une présentation refusée à l'accueil.
+
+        Un refus ne produit aucune facture : sans ce registre, l'assuré qui
+        s'est déplacé pour rien ne laisserait aucune trace, et la part de
+        refus d'une exécution serait impossible à établir.
+        """
+
+        async with async_session_factory() as session:
+            session.add(RefusAccueil(
+                passage_id=self.passage_id,
+                personne_uuid=self.insured_id,
+                refus_date=self.simulated_at.date(),
+                refus_motif=MOTIF_DROITS_FERMES,
+                regime_code=coverage.regime_code,
+                simulation_id=self.simulation_id,
+                utilisateur_id_creation="simulation",
+            ))
+            await session.commit()
+
+    async def journaliser_anomalies(self) -> None:
+        """Écrit au journal les anomalies posées depuis le dernier appel.
+
+        Appelée juste après la validation des lignes corrompues : le journal
+        ne peut donc pas annoncer une anomalie que la base n'a pas reçue.
+        """
+        await enregistrer_injections(self.anomalies.vider())
 
     async def choose(self, model, *criteria):
         """Sélectionne aléatoirement une ligne active du référentiel."""
@@ -133,7 +227,19 @@ class PassageSimulation:
         return Coverage(regime_code, taux, statut == 1)
 
     async def run(self) -> None:
-        """Exécute la state machine jusqu'à la clôture de la facture."""
+        """Exécute la state machine jusqu'à la clôture de la facture.
+
+        La mémoire retenue par un aléa de saturation est rendue quoi qu'il
+        arrive : un passage interrompu ne doit pas la garder.
+        """
+        try:
+            await self._derouler()
+        finally:
+            self.memoire_retenue = None
+
+    async def _derouler(self) -> None:
+        """Enchaîne les étapes du parcours, aléas compris."""
+        await self.appliquer_aleas_initiaux()
         coverage = await self.load_coverage()
 
         # Contrôle des droits à l'accueil. Dans le système réel, une facture
@@ -142,6 +248,7 @@ class PassageSimulation:
         if not coverage.droits_ouverts:
             logger.info("[%s] Passage refusé à l'accueil : droits fermés au %s.",
                         self.passage_id, self.simulated_at.date())
+            await self.enregistrer_refus(coverage)
             await self.emit("passage.refuse", motif=MOTIF_DROITS_FERMES,
                             regime=coverage.regime_code)
             return
@@ -156,6 +263,7 @@ class PassageSimulation:
                     coverage.regime_code, coverage.taux)
 
         # 1. Création de la facture
+        await self.ralentir()
         async with async_session_factory() as session:
             session.add(Invoice(
                 facture_numero=invoice_number, produit_code="CMU",
@@ -163,17 +271,26 @@ class PassageSimulation:
                 regime_taux=coverage.taux, organisme_code="CNAM-CI",
                 assurance_code="CMU", personne_uuid=self.insured_id,
                 type_facture_code=invoice_type,
-                facture_date_soins=anomalies_config.injecter_date(self.simulated_at.date()),
+                facture_date_soins=self.anomalies.injecter_date(
+                    self.simulated_at.date(), invoice_number
+                ),
                 dossier_numero=f"DOS-{self.passage_id[:12]}",
                 centre_sante_code=center.centre_sante_code,
                 centre_sante_type_code=center.type_etablissement_sanitaire_code,
-                centre_sante_type_libelle=center.centre_sante_denomination,
+                centre_sante_type_libelle=LIBELLES_TYPE_CENTRE.get(
+                    center.type_etablissement_sanitaire_code
+                ),
                 simulation_id=self.simulation_id,
                 utilisateur_id_creation="simulation",
             ))
             await session.commit()
+        await self.journaliser_anomalies()
         await self.emit("facture.creee", facture_numero=invoice_number, type=invoice_type)
         await self.add_status(invoice_number, "ouverte")
+
+        # La facture est ouverte mais rien n'est encore facturé : c'est ici
+        # qu'une coupure laisse la trace la plus révélatrice.
+        await self.verifier_interruption("facture_ouverte")
 
         # 2. Ajout des pathologies
         pathologies = []
@@ -197,8 +314,9 @@ class PassageSimulation:
             self.config.consultation_min_seconds, self.config.consultation_max_seconds
         ))
         base_code = "CONS-GEN" if ambulatory else self.random.choice(["DENT-DET", "DENT-EXT", "DENT-CAR"])
-        montant_depense = anomalies_config.injecter_montant(Decimal("10000"))
-        quantite_servie = anomalies_config.injecter_quantite(1, 1)
+        await self.ralentir()
+        montant_depense = self.anomalies.injecter_montant(Decimal("10000"), invoice_number)
+        quantite_servie = self.anomalies.injecter_quantite(1, 1, invoice_number)
         taux = coverage.taux
         base = Decimal("10000")
         montant_rq = (base * taux / Decimal("100")).quantize(Decimal("0.01"))
@@ -217,6 +335,7 @@ class PassageSimulation:
                 utilisateur_id_creation="simulation",
             ))
             await session.commit()
+        await self.journaliser_anomalies()
         await self.emit("prestation.servie", facture_numero=invoice_number, code=base_code)
 
         # 4. Prescriptions et Ententes
@@ -252,6 +371,7 @@ class PassageSimulation:
             await self.emit("medicament.retire", facture_numero=invoice_number)
 
         # 5. Clôture de la facture
+        await self.verifier_interruption("avant_cloture")
         await self.add_status(invoice_number, "cloturee")
         logger.info("[%s] Facture %s clôturée.", self.passage_id, invoice_number)
 
@@ -297,8 +417,9 @@ class PassageSimulation:
         accepted = automatic or self.random.random() < self.config.prior_authorization_acceptance_probability
         advisor = None if automatic else await self.choose(Agent, Agent.agent_type_code == "medecin_conseil")
         status = "validee_office" if automatic else ("acceptee" if accepted else "refusee")
-        amount = anomalies_config.injecter_montant(
-            Decimal("50000") if hospital else Decimal("15000")
+        amount = self.anomalies.injecter_montant(
+            Decimal("50000") if hospital else Decimal("15000"),
+            f"EP-{self.passage_id[:12]}",
         )
         cmu_amount = ((amount * taux / Decimal("100")).quantize(Decimal("0.01"))
                       if accepted else Decimal("0"))
@@ -325,5 +446,6 @@ class PassageSimulation:
                 utilisateur_id_creation="simulation",
             ))
             await session.commit()
+        await self.journaliser_anomalies()
         await self.emit("entente.traitee", entente_id=agreement_id, statut=status,
                         delai_secondes=round(response_delay))

@@ -3,12 +3,13 @@ import { useEffect, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { RequireRole } from "../auth/RequireRole";
 import { useKpiSocket } from "../hooks/useKpiSocket";
+import { TITRES, type Onglet } from "../navigation";
 import { api } from "../services/api";
 import type { SimulationStatus } from "../types";
 import { ConnectionBadge } from "./ConnectionBadge";
 
 interface TopbarProps {
-  ongletActif: "dashboard" | "utilisateurs" | "rapports";
+  ongletActif: Onglet;
 }
 
 export function Header({ ongletActif }: TopbarProps) {
@@ -102,18 +103,7 @@ export function Header({ ongletActif }: TopbarProps) {
   const enCours = status?.etat === "en_cours";
   const controlsBusy = initialLoading || starting || stopping || speedLoading;
 
-  function getPageTitle() {
-    switch (ongletActif) {
-      case "dashboard":
-        return { title: "Supervision Technique", subtitle: "Télémétrie en temps réel du moteur de simulation" };
-      case "rapports":
-        return { title: "Rapports Quotidiens", subtitle: "Génération et archivage des états du simulateur" };
-      case "utilisateurs":
-        return { title: "Gestion des Accès", subtitle: "Administration des comptes et permissions" };
-    }
-  }
-
-  const { title, subtitle } = getPageTitle();
+  const { titre: title, sousTitre: subtitle } = TITRES[ongletActif];
 
   return (
     <>

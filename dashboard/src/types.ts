@@ -28,6 +28,160 @@ export interface SimulationStatus {
   vitesse: number;
   passages_actifs: number;
   passages_simultanes_max: number;
+  simulation_id: string | null;
+  type_simulation: string | null;
+  passages_interrompus: number;
+}
+
+/** Une exécution enregistrée du moteur. */
+export interface SimulationRun {
+  simulation_id: string;
+  simulation_libelle: string;
+  simulation_statut: "en_cours" | "terminee" | "arretee" | "echouee";
+  simulation_type: string | null;
+  simulation_parametres: Record<string, unknown>;
+  simulation_date_debut: string;
+  simulation_date_fin: string | null;
+  utilisateur_uuid: string | null;
+  passages_reussis: number;
+  passages_echoues: number;
+}
+
+export interface ExecutionDetail {
+  execution: SimulationRun;
+  volumetrie: Record<string, number>;
+  anomalies_par_type: Record<string, number>;
+}
+
+/** Un des quatre types de simulation, avec son réglage par défaut. */
+export interface ProfilSimulation {
+  code: string;
+  libelle: string;
+  description: string;
+  vitesse: number;
+  passages_simultanes_max: number;
+  anomalies: Record<string, Record<string, unknown>>;
+  aleas: Record<string, Record<string, unknown>>;
+}
+
+/** Une entrée du catalogue d'anomalies. */
+export interface TypeAnomalie {
+  anomalie_code: string;
+  anomalie_libelle: string;
+  anomalie_famille: string;
+  anomalie_couleur: string;
+  anomalie_table_cible: string;
+  anomalie_colonne_cible: string;
+  anomalie_severite: string;
+  anomalie_active: boolean;
+  anomalie_taux: number;
+  anomalie_declenchement: string;
+  anomalie_delai_secondes: number | null;
+}
+
+export interface InjectionJournal {
+  injection_id: string;
+  anomalie_code: string;
+  simulation_id: string | null;
+  passage_id: string | null;
+  cible_cle: string | null;
+  valeur_origine: string | null;
+  valeur_injectee: string | null;
+}
+
+export interface ScenarioAlea { code: string; libelle: string }
+
+/** Un événement de parcours diffusé en temps réel par le moteur. */
+export interface EvenementParcours {
+  type: string;
+  passage_id: string;
+  simulation_id: string | null;
+  simulated_at: string;
+  payload: Record<string, unknown>;
+}
+
+export interface PaquetParcours {
+  evenements: EvenementParcours[];
+  /** Événements écartés par le serveur pour ne pas noyer le navigateur. */
+  ecartes: number;
+}
+
+/** Rapport du moteur de qualité (T1), avec sa confrontation. */
+export interface RegleQualite {
+  code: string;
+  libelle: string;
+  dimension: string;
+  anomalie_visee: string | null;
+  referentielle: boolean;
+  constats: number;
+  exemples: Array<{ cle: string; valeur: string }>;
+}
+
+export interface LigneConfrontation {
+  anomalie_code: string;
+  taux_demande_pourcent: number;
+  injectees: number;
+  detectees: number;
+  taux_detection_pourcent: number | null;
+  regles: string[];
+}
+
+export interface RapportQualite {
+  simulation_id: string | null;
+  genere_le: string;
+  total_constats: number;
+  par_dimension: Record<string, number>;
+  regles: RegleQualite[];
+  confrontation: LigneConfrontation[];
+}
+
+/** Une paire de la vérité terrain du rapprochement d'identités (T2). */
+export interface PaireMdm {
+  paire_id: string;
+  simulation_id: string | null;
+  personne_uuid_source: string;
+  personne_uuid_variante: string;
+  type_variation: string;
+  meme_personne: boolean;
+  commentaire: string | null;
+}
+
+/** Un assuré, tel que l'écran Données le liste. */
+export interface AssureListItem {
+  personne_uuid: string;
+  numero_secu: string;
+  numero_identifiant: string | null;
+  nom: string;
+  prenoms: string | null;
+  date_naissance: string | null;
+  regime_code: string | null;
+  droits_ouverts: boolean;
+}
+
+export interface AssureListe {
+  total: number;
+  limite: number;
+  decalage: number;
+  assures: AssureListItem[];
+}
+
+export interface AssureFiche extends AssureListItem {
+  civilite_code: string | null;
+  lieu_naissance: string | null;
+  pays_naissance_code: string | null;
+  factures: number;
+  droits: Array<{ annee: number; mois: number; ouverts: boolean }>;
+  professions: Array<{ code: string; date_debut: string; date_fin: string | null }>;
+}
+
+/** Une fiche du catalogue de gouvernance, avec sa volumétrie. */
+export interface FicheGouvernance {
+  table: string;
+  domaine: string;
+  proprietaire: string;
+  criticite: string;
+  donnees_personnelles: boolean;
+  lignes: number;
 }
 
 export interface HealthCenter {

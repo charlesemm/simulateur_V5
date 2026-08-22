@@ -27,10 +27,15 @@ class HealthResponse(ApiModel):
 
 
 class SimulationStartRequest(ApiModel):
-    """Paramètre le démarrage continu du moteur."""
+    """Paramètre le démarrage continu du moteur.
 
-    vitesse: float = Field(default=60, gt=0, le=86400)
-    nombre_passages_simultanes_max: int = Field(default=20, ge=1, le=200)
+    Vitesse et limite sont facultatives : sans elles, celles du profil du type
+    demandé s'appliquent.
+    """
+
+    type_simulation: str | None = None
+    vitesse: float | None = Field(default=None, gt=0, le=86400)
+    nombre_passages_simultanes_max: int | None = Field(default=None, ge=1, le=200)
 
 
 class SimulationSpeedRequest(ApiModel):
@@ -48,6 +53,10 @@ class SimulationStatusResponse(ApiModel):
     passages_simultanes_max: int
     # Nul tant qu'aucune exécution n'a été ouverte, ou après son arrêt.
     simulation_id: UUID | None = None
+    type_simulation: str | None = None
+    # Passages coupés volontairement par un aléa, à ne pas confondre avec des
+    # échecs du simulateur.
+    passages_interrompus: int = 0
 
 
 class SimulationRunResponse(ApiModel):
@@ -62,6 +71,34 @@ class SimulationRunResponse(ApiModel):
     utilisateur_uuid: UUID | None = None
     passages_reussis: int
     passages_echoues: int
+    simulation_type: str | None = None
+
+
+class ProfilResponse(ApiModel):
+    """Décrit un des quatre types de simulation et son réglage."""
+
+    code: str
+    libelle: str
+    description: str
+    vitesse: float
+    passages_simultanes_max: int
+    anomalies: dict[str, Any]
+    aleas: dict[str, Any]
+
+
+class CommandeRequest(ApiModel):
+    """Ordre adressé à un moteur déjà lancé."""
+
+    ordre: str
+    cible: str
+
+
+class ExecutionDetailResponse(ApiModel):
+    """Une exécution et le compte de ce qu'elle a laissé en base."""
+
+    execution: SimulationRunResponse
+    volumetrie: dict[str, int]
+    anomalies_par_type: dict[str, int]
 
 
 class WindowSchema(ApiModel):

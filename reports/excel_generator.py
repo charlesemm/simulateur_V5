@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from datetime import date, datetime, time, timezone
 from pathlib import Path
+from uuid import UUID
 
 from openpyxl import Workbook
 from sqlalchemy import select
@@ -22,15 +23,45 @@ def _bornes_journee(jour: date) -> tuple[datetime, datetime]:
 
 
 async def build_daily_excel_export(jour: date) -> Path:
-    """Exporte les factures, prestations, ententes et événements du jour."""
+    """Exporte une journée entière. Cas particulier de l'export par période."""
 
     debut, fin = _bornes_journee(jour)
+    return await build_excel_export(
+        debut, fin, libelle=f"Journée du {jour.isoformat()}",
+        nom_fichier=f"export_donnees_{jour.isoformat()}",
+    )
+
+
+def _restreindre(requete, modele, debut: datetime | None, fin: datetime | None,
+                 simulation_id: UUID | None):
+    """Applique la fenêtre de temps et l'exécution, quand elles sont fournies.
+
+    Filtrer sur l'exécution suffit à isoler ce qu'elle a produit : les bornes
+    de temps ne servent alors qu'à découper à l'intérieur.
+    """
+
+    if debut is not None and fin is not None:
+        requete = requete.where(modele.date_creation.between(debut, fin))
+    if simulation_id is not None:
+        requete = requete.where(modele.simulation_id == simulation_id)
+    return requete
+
+
+async def build_excel_export(debut: datetime | None = None, fin: datetime | None = None,
+                             simulation_id: UUID | None = None,
+                             libelle: str = "Export", nom_fichier: str = "export") -> Path:
+    """Exporte les factures, prestations, ententes et événements d'un périmètre.
+
+    Le périmètre est une période, une exécution, ou les deux : c'est ce qui
+    permet de sortir aussi bien le jeu de données d'un run que celui d'un mois.
+    """
+
     classeur = Workbook()
     compteurs: dict[str, int] = {}
 
     async with async_session_factory() as session:
         factures = list((await session.execute(
-            select(Invoice).where(Invoice.date_creation.between(debut, fin))
+            _restreindre(select(Invoice), Invoice, debut, fin, simulation_id)
         )).scalars())
         compteurs["Factures"] = len(factures)
         feuille = classeur.create_sheet("Factures")
@@ -46,7 +77,7 @@ async def build_daily_excel_export(jour: date) -> Path:
             ])
 
         prestations = list((await session.execute(
-            select(InvoiceProvision).where(InvoiceProvision.date_creation.between(debut, fin))
+            _restreindre(select(InvoiceProvision), InvoiceProvision, debut, fin, simulation_id)
         )).scalars())
         compteurs["Prestations"] = len(prestations)
         feuille = classeur.create_sheet("Prestations")
@@ -62,7 +93,7 @@ async def build_daily_excel_export(jour: date) -> Path:
             ])
 
         ententes = list((await session.execute(
-            select(PriorAuthorization).where(PriorAuthorization.date_creation.between(debut, fin))
+            _restreindre(select(PriorAuthorization), PriorAuthorization, debut, fin, simulation_id)
         )).scalars())
         compteurs["Ententes préalables"] = len(ententes)
         feuille = classeur.create_sheet("Ententes préalables")
@@ -80,7 +111,7 @@ async def build_daily_excel_export(jour: date) -> Path:
         # Limité à 2000 lignes : le journal technique peut grossir vite,
         # inutile de tout charger dans un fichier destiné à être lu à l'oeil.
         evenements = list((await session.execute(
-            select(EventJournal).where(EventJournal.date_creation.between(debut, fin))
+            _restreindre(select(EventJournal), EventJournal, debut, fin, simulation_id)
             .order_by(EventJournal.simulated_at).limit(2000)
         )).scalars())
         compteurs["Événements techniques (max. 2000)"] = len(evenements)
@@ -91,13 +122,18 @@ async def build_daily_excel_export(jour: date) -> Path:
 
     resume = classeur.active
     resume.title = "Résumé"
-    resume.append(["Export de données -- Simulateur CMU"])
-    resume.append(["Date", jour.isoformat()])
+    resume.append(["Export de données -- ÉCHO, CNAM-CI"])
+    resume.append(["Périmètre", libelle])
+    if simulation_id is not None:
+        resume.append(["Exécution", str(simulation_id)])
+    if debut is not None and fin is not None:
+        resume.append(["Du", debut.isoformat()])
+        resume.append(["Au", fin.isoformat()])
     resume.append([])
     resume.append(["Feuille", "Lignes exportées"])
     for nom, total in compteurs.items():
         resume.append([nom, total])
 
-    chemin = OUTPUT_DIR / f"export_donnees_{jour.isoformat()}.xlsx"
+    chemin = OUTPUT_DIR / f"{nom_fichier}.xlsx"
     classeur.save(chemin)
     return chemin

@@ -8,11 +8,16 @@ import socketio
 import os
 
 import app
-from anomalies.repository import charger_configuration, sauvegarder_configuration
+from anomalies.repository import (
+    charger_catalogue, charger_configuration, sauvegarder_configuration,
+)
 from api.routers import centres, factures, kpi, parcours, simulation
 from api.schema import HealthResponse
 from api.routers import anomalies as anomalies_router
 from api.routers import metrics as metrics_router
+from api.routers import assures as assures_router
+from api.routers import moteurs as moteurs_router
+from api.routers import qualite as qualite_router
 from api.services.simulation_manager import simulation_manager
 from realtime import shutdown_event_pipeline, sio, startup_event_pipeline
 from api.routers import auth as auth_router
@@ -29,6 +34,7 @@ async def lifespan(application: FastAPI):
 
     del application
     await charger_configuration()
+    await charger_catalogue()
     await startup_event_pipeline()
     start_scheduler()
     try:
@@ -88,6 +94,9 @@ fastapi_app.include_router(auth_router.router)
 fastapi_app.include_router(users_router.router)
 fastapi_app.include_router(reports_router.router)
 fastapi_app.include_router(anomalies_router.router)
+fastapi_app.include_router(qualite_router.router)
+fastapi_app.include_router(moteurs_router.router)
+fastapi_app.include_router(assures_router.router)
 fastapi_app.include_router(metrics_router.router)
 
 @fastapi_app.get("/health", tags=["Technique"], response_model=HealthResponse)

@@ -1,0 +1,452 @@
+/* ═══════════════════════════════════════════════════════════
+   Screens.css — Accueil, Console d'injection et Simulations
+   Reprend les variables et les cartes du système existant.
+═══════════════════════════════════════════════════════════ */
+
+.screen {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.screen-section-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-light);
+  margin-bottom: 12px;
+}
+
+.screen-empty {
+  padding: 28px;
+  text-align: center;
+  color: var(--text-muted);
+  background: var(--surface);
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  font-size: 0.9rem;
+}
+
+.screen-error {
+  padding: 12px 16px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  color: #b91c1c;
+  font-size: 0.86rem;
+  font-weight: 500;
+}
+
+/* ── Bandeau de chiffres ── */
+.stat-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px;
+}
+
+.stat-tile {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 18px;
+  box-shadow: var(--shadow-card);
+}
+
+.stat-tile-label {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-light);
+  margin-bottom: 6px;
+}
+
+.stat-tile-value {
+  font-size: 1.7rem;
+  font-weight: 700;
+  color: var(--text-main);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.stat-tile-hint {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.76rem;
+  color: var(--text-muted);
+}
+
+/* ── Les quatre types de simulation ── */
+.type-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 14px;
+}
+
+.type-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px;
+  box-shadow: var(--shadow-card);
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.type-card:hover {
+  box-shadow: var(--shadow-hover);
+  border-color: var(--cnam-green-border);
+}
+
+.type-card-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 4px;
+}
+
+.type-card-code {
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--cnam-green);
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+.type-card-desc {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  line-height: 1.55;
+  flex: 1;
+  margin-bottom: 14px;
+}
+
+.type-card-meta {
+  display: flex;
+  gap: 14px;
+  font-size: 0.74rem;
+  color: var(--text-light);
+  margin-bottom: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Tableaux ── */
+.screen-table-wrap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow-x: auto;
+  box-shadow: var(--shadow-card);
+}
+
+.screen-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.screen-table th {
+  text-align: left;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-light);
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.screen-table td {
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-main);
+}
+
+.screen-table tr:last-child td {
+  border-bottom: none;
+}
+
+.screen-table tbody tr.cliquable {
+  cursor: pointer;
+}
+
+.screen-table tbody tr.cliquable:hover {
+  background: var(--surface-subtle);
+}
+
+.screen-table tbody tr.selectionnee {
+  background: var(--cnam-green-light);
+}
+
+/* ── Pastilles de statut ── */
+.pastille {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 9px;
+  border-radius: 100px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.pastille-en_cours { background: var(--cnam-green-light); color: var(--cnam-green-dark); border: 1px solid var(--cnam-green-border); }
+.pastille-terminee { background: var(--cnam-blue-light); color: var(--cnam-blue-dark); border: 1px solid var(--cnam-blue-border); }
+.pastille-arretee { background: #f1f5f9; color: #475569; border: 1px solid var(--border); }
+.pastille-echouee { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+
+/* ── Console d'injection ── */
+.console-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 14px;
+}
+
+.anomalie-carte {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--famille-couleur, var(--border));
+  border-radius: 10px;
+  padding: 16px;
+  box-shadow: var(--shadow-card);
+  opacity: 0.62;
+  transition: opacity 0.15s ease, box-shadow 0.15s ease;
+}
+
+.anomalie-carte.active {
+  opacity: 1;
+}
+
+.anomalie-carte:hover {
+  box-shadow: var(--shadow-hover);
+}
+
+.anomalie-carte-tete {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.anomalie-famille {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--famille-couleur, var(--text-muted));
+}
+
+.anomalie-famille .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--famille-couleur, var(--text-muted));
+}
+
+.anomalie-nom {
+  font-size: 0.94rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin: 6px 0 3px;
+}
+
+.anomalie-cible {
+  font-size: 0.72rem;
+  color: var(--text-light);
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  margin-bottom: 12px;
+  word-break: break-all;
+}
+
+.anomalie-ligne {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.anomalie-ligne strong {
+  color: var(--text-main);
+  font-variant-numeric: tabular-nums;
+}
+
+.champ-console {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  font-size: 0.8rem;
+  color: var(--text-main);
+  background: var(--surface);
+}
+
+.champ-console:disabled {
+  background: var(--surface-subtle);
+  color: var(--text-light);
+}
+
+/* ── Aléas ── */
+.alea-carte {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 13px 16px;
+  box-shadow: var(--shadow-card);
+}
+
+.alea-nom {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.alea-code {
+  display: block;
+  font-size: 0.68rem;
+  color: var(--text-light);
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  margin-top: 2px;
+}
+
+.btn-outline-danger {
+  background: transparent;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+}
+
+.btn-outline-danger:hover:not(:disabled) {
+  background: #fef2f2;
+}
+
+.btn-outline-danger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Fiche d'exécution ── */
+.fiche {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: var(--shadow-card);
+}
+
+.fiche-tete {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.fiche-titre {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.fiche-identifiant {
+  font-size: 0.72rem;
+  color: var(--text-light);
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+
+.fiche-parametres {
+  margin-top: 18px;
+  padding: 14px;
+  background: var(--surface-subtle);
+  border-radius: 8px;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 0.76rem;
+  color: var(--text-muted);
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-x: auto;
+}
+
+/* ── Onglets internes à un écran ── */
+.onglets {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0;
+}
+
+.onglet {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 9px 16px;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.onglet:hover {
+  color: var(--text-main);
+}
+
+.onglet.actif {
+  color: var(--cnam-green-dark);
+  border-bottom-color: var(--cnam-green);
+}
+
+/* ── Pagination ── */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+}
+
+/* ── Frise des droits mois par mois ── */
+.pastilles-droits {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* ── Bandeau d'aide, quand l'écran dépend du moteur ── */
+.bandeau-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 15px;
+  background: var(--cnam-blue-light);
+  border: 1px solid var(--cnam-blue-border);
+  border-radius: 8px;
+  color: var(--cnam-blue-dark);
+  font-size: 0.83rem;
+}
+
+/* Réservé à ce qui est irréversible : la purge, et rien d'autre. */
+.bandeau-alerte {
+  background: var(--cnam-orange-light);
+  border-color: var(--cnam-orange-border);
+  color: var(--cnam-orange);
+}

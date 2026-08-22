@@ -11,13 +11,15 @@ from simulation.models import STATUT_EN_COURS, SimulationRun
 
 
 async def ouvrir_execution(parametres: dict[str, Any],
-                           utilisateur_uuid: uuid.UUID | None = None) -> uuid.UUID:
+                           utilisateur_uuid: uuid.UUID | None = None,
+                           type_simulation: str | None = None) -> uuid.UUID:
     """Enregistre une exécution en cours et retourne son identifiant."""
 
     debut = datetime.now(timezone.utc)
     execution = SimulationRun(
         simulation_id=uuid.uuid4(),
         simulation_libelle=f"Exécution du {debut:%d/%m/%Y à %H:%M:%S}",
+        simulation_type=type_simulation,
         simulation_statut=STATUT_EN_COURS,
         simulation_parametres=parametres,
         simulation_date_debut=debut,

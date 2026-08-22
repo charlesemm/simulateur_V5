@@ -1,6 +1,10 @@
 // Centralise les appels HTTP, le typage et les messages d'erreur français.
 
-import type { HealthCenterList, KpiHistory, KpiSnapshot, SimulationStatus } from "../types";
+import type {
+  AssureFiche, AssureListe, ExecutionDetail, FicheGouvernance, HealthCenterList,
+  InjectionJournal, KpiHistory, KpiSnapshot, PaireMdm, ProfilSimulation,
+  RapportQualite, ScenarioAlea, SimulationRun, SimulationStatus, TypeAnomalie,
+} from "../types";
 
 export const API_URL = (import.meta.env.VITE_API_URL as string) ?? "http://127.0.0.1:8000";
 
@@ -62,16 +66,97 @@ export const api = {
 
   /** Simulation – endpoints protégés (nécessitent un token JWT) */
   async startSimulation(
-    vitesse: number,
-    nombrePassagesSimultanesMax: number = 20,
-    token: string | null = null
+    vitesse: number | null = null,
+    nombrePassagesSimultanesMax: number | null = null,
+    token: string | null = null,
+    typeSimulation: string | null = null
   ): Promise<SimulationStatus> {
+    // Les champs nuls sont omis : l'API applique alors le réglage du profil.
+    const corps: Record<string, unknown> = {};
+    if (vitesse !== null) corps.vitesse = vitesse;
+    if (nombrePassagesSimultanesMax !== null) {
+      corps.nombre_passages_simultanes_max = nombrePassagesSimultanesMax;
+    }
+    if (typeSimulation !== null) corps.type_simulation = typeSimulation;
+
     const response = await fetch(`${API_URL}/simulation/start`, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...authHeaders(token) },
-      body: JSON.stringify({ vitesse, nombre_passages_simultanes_max: nombrePassagesSimultanesMax }),
+      body: JSON.stringify(corps),
     });
     return parseOrThrow<SimulationStatus>(response);
+  },
+
+  /** Les quatre types de simulation et leur réglage par défaut. */
+  async getProfils(token: string | null): Promise<ProfilSimulation[]> {
+    const response = await fetch(`${API_URL}/simulation/profils`, {
+      headers: authHeaders(token),
+    });
+    return parseOrThrow<ProfilSimulation[]>(response);
+  },
+
+  async getExecutions(token: string | null, limite = 50): Promise<SimulationRun[]> {
+    const response = await fetch(`${API_URL}/simulation/executions?limite=${limite}`, {
+      headers: authHeaders(token),
+    });
+    return parseOrThrow<SimulationRun[]>(response);
+  },
+
+  async getExecution(simulationId: string, token: string | null): Promise<ExecutionDetail> {
+    const response = await fetch(`${API_URL}/simulation/executions/${simulationId}`, {
+      headers: authHeaders(token),
+    });
+    return parseOrThrow<ExecutionDetail>(response);
+  },
+
+  async getAleas(token: string | null): Promise<ScenarioAlea[]> {
+    const response = await fetch(`${API_URL}/simulation/aleas`, {
+      headers: authHeaders(token),
+    });
+    return parseOrThrow<ScenarioAlea[]>(response);
+  },
+
+  /** Dépose un ordre pour le moteur en cours : armer, désarmer, déclencher. */
+  async commander(ordre: string, cible: string, token: string | null): Promise<{ message: string }> {
+    const response = await fetch(`${API_URL}/simulation/commandes`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders(token) },
+      body: JSON.stringify({ ordre, cible }),
+    });
+    return parseOrThrow<{ message: string }>(response);
+  },
+
+  /** Catalogue d'anomalies – administrateur */
+  async getCatalogue(token: string | null): Promise<TypeAnomalie[]> {
+    const response = await fetch(`${API_URL}/anomalies/catalogue`, {
+      headers: authHeaders(token),
+    });
+    return parseOrThrow<TypeAnomalie[]>(response);
+  },
+
+  async modifierTypeAnomalie(
+    code: string,
+    reglage: Partial<{ active: boolean; taux: number; declenchement: string; delai_secondes: number }>,
+    token: string | null
+  ): Promise<TypeAnomalie> {
+    const response = await fetch(`${API_URL}/anomalies/catalogue/${code}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...authHeaders(token) },
+      body: JSON.stringify(reglage),
+    });
+    return parseOrThrow<TypeAnomalie>(response);
+  },
+
+  async getJournalAnomalies(
+    token: string | null,
+    simulationId: string | null = null,
+    limite = 100
+  ): Promise<InjectionJournal[]> {
+    const filtre = simulationId ? `&simulation_id=${simulationId}` : "";
+    const response = await fetch(`${API_URL}/anomalies/journal?limite=${limite}${filtre}`, {
+      headers: authHeaders(token),
+    });
+    return parseOrThrow<InjectionJournal[]>(response);
   },
 
   async stopSimulation(token: string | null = null): Promise<{ message: string }> {
@@ -91,6 +176,84 @@ export const api = {
     return parseOrThrow<SimulationStatus>(response);
   },
 
+  /** Qualité des données (T1) et vérité terrain du rapprochement (T2) */
+  async getRapportQualite(
+    token: string | null,
+    simulationId: string | null = null,
+    inclureReferentiel = true
+  ): Promise<RapportQualite> {
+    const filtre = simulationId ? `simulation_id=${simulationId}&` : "";
+    const response = await fetch(
+      `${API_URL}/qualite/rapport?${filtre}inclure_referentiel=${inclureReferentiel}`,
+      { headers: authHeaders(token) }
+    );
+    return parseOrThrow<RapportQualite>(response);
+  },
+
+  async getVeriteTerrain(
+    token: string | null,
+    simulationId: string | null = null
+  ): Promise<PaireMdm[]> {
+    const filtre = simulationId ? `?simulation_id=${simulationId}` : "";
+    const response = await fetch(`${API_URL}/mdm/verite-terrain${filtre}`, {
+      headers: authHeaders(token),
+    });
+    return parseOrThrow<PaireMdm[]>(response);
+  },
+
+  /** Référentiel assuré – lecture, observateur minimum */
+  async getAssures(
+    token: string | null,
+    recherche = "",
+    limite = 25,
+    decalage = 0
+  ): Promise<AssureListe> {
+    const filtre = recherche ? `recherche=${encodeURIComponent(recherche)}&` : "";
+    const response = await fetch(
+      `${API_URL}/assures?${filtre}limite=${limite}&decalage=${decalage}`,
+      { headers: authHeaders(token) }
+    );
+    return parseOrThrow<AssureListe>(response);
+  },
+
+  async getAssure(personneUuid: string, token: string | null): Promise<AssureFiche> {
+    const response = await fetch(`${API_URL}/assures/${personneUuid}`, {
+      headers: authHeaders(token),
+    });
+    return parseOrThrow<AssureFiche>(response);
+  },
+
+  /** Gouvernance (T4) – volumétrie par table du catalogue */
+  async getVolumetrie(token: string | null): Promise<FicheGouvernance[]> {
+    const response = await fetch(`${API_URL}/gouvernance/volumetrie`, {
+      headers: authHeaders(token),
+    });
+    return parseOrThrow<FicheGouvernance[]>(response);
+  },
+
+  /** Volumétrie et purge d'une exécution – administrateur */
+  async previsualiserPurge(
+    simulationId: string,
+    token: string | null
+  ): Promise<Record<string, number>> {
+    const response = await fetch(
+      `${API_URL}/simulation/executions/${simulationId}/purge`,
+      { headers: authHeaders(token) }
+    );
+    return parseOrThrow<Record<string, number>>(response);
+  },
+
+  async purgerExecution(
+    simulationId: string,
+    token: string | null
+  ): Promise<Record<string, number>> {
+    const response = await fetch(
+      `${API_URL}/simulation/executions/${simulationId}/donnees`,
+      { method: "DELETE", headers: authHeaders(token) }
+    );
+    return parseOrThrow<Record<string, number>>(response);
+  },
+
   /** Rapports – endpoints protégés (opérateur minimum) */
   async listReports(token: string | null): Promise<string[]> {
     const response = await fetch(`${API_URL}/reports`, {
@@ -101,6 +264,29 @@ export const api = {
 
   async generateReport(token: string | null): Promise<{ pdf: string; excel: string }> {
     const response = await fetch(`${API_URL}/reports/generate`, {
+      method: "POST",
+      headers: authHeaders(token),
+    });
+    return parseOrThrow<{ pdf: string; excel: string }>(response);
+  },
+
+  async exporterPeriode(
+    dateMin: string,
+    dateMax: string,
+    token: string | null
+  ): Promise<{ excel: string }> {
+    const response = await fetch(
+      `${API_URL}/reports/periode?date_min=${dateMin}&date_max=${dateMax}`,
+      { method: "POST", headers: authHeaders(token) }
+    );
+    return parseOrThrow<{ excel: string }>(response);
+  },
+
+  async exporterExecution(
+    simulationId: string,
+    token: string | null
+  ): Promise<{ pdf: string; excel: string }> {
+    const response = await fetch(`${API_URL}/reports/execution/${simulationId}`, {
       method: "POST",
       headers: authHeaders(token),
     });

@@ -14,6 +14,52 @@ export function DashboardIcon({ className = "", size = 18 }: IconProps) {
   );
 }
 
+export function HomeIcon({ className = "", size = 18 }: IconProps) {
+  return (
+    <svg width={size} height={size} className={`svg-icon ${className}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.955-8.955a1.125 1.125 0 011.59 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75" />
+    </svg>
+  );
+}
+
+/** Ondes concentriques : l'injection qui se propage dans le flux. */
+export function InjectionIcon({ className = "", size = 18 }: IconProps) {
+  return (
+    <svg width={size} height={size} className={`svg-icon ${className}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+      <circle cx="12" cy="12" r="2.25" fill="currentColor" stroke="none" />
+      <path strokeLinecap="round" d="M16.2 7.8a6 6 0 010 8.4M7.8 16.2a6 6 0 010-8.4" />
+      <path strokeLinecap="round" opacity="0.55" d="M19.5 4.5a10.5 10.5 0 010 15M4.5 19.5a10.5 10.5 0 010-15" />
+    </svg>
+  );
+}
+
+export function SimulationsIcon({ className = "", size = 18 }: IconProps) {
+  return (
+    <svg width={size} height={size} className={`svg-icon ${className}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6l4.5 2.25M12 3.75a8.25 8.25 0 108.25 8.25M20.25 3.75v4.5h-4.5" />
+    </svg>
+  );
+}
+
+/** Une coche dans un bouclier : ce qui est contrôlé et validé. */
+export function QualiteIcon({ className = "", size = 18 }: IconProps) {
+  return (
+    <svg width={size} height={size} className={`svg-icon ${className}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75l2.25 2.25 4.5-4.5M12 3l7.5 3v5.25c0 4.28-3.2 8.28-7.5 9.75-4.3-1.47-7.5-5.47-7.5-9.75V6L12 3z" />
+    </svg>
+  );
+}
+
+/** Un empilement de disques : la base de données. */
+export function DonneesIcon({ className = "", size = 18 }: IconProps) {
+  return (
+    <svg width={size} height={size} className={`svg-icon ${className}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+      <ellipse cx="12" cy="6" rx="7.5" ry="3" />
+      <path strokeLinecap="round" d="M4.5 6v12c0 1.66 3.36 3 7.5 3s7.5-1.34 7.5-3V6M4.5 12c0 1.66 3.36 3 7.5 3s7.5-1.34 7.5-3" />
+    </svg>
+  );
+}
+
 export function ReportsIcon({ className = "", size = 18 }: IconProps) {
   return (
     <svg width={size} height={size} className={`svg-icon ${className}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>

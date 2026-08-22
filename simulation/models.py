@@ -3,14 +3,14 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 
-from sqlalchemy import DateTime, Index, Integer, String
+from sqlalchemy import Date, DateTime, ForeignKey, Index, Integer, String
 from sqlalchemy.dialects.postgresql import JSONB, UUID as PostgreSQLUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.models.base import AuditMixin, Base
+from app.models.base import AuditMixin, Base, SimulationScopedMixin
 
 # Statuts possibles d'une exécution, du démarrage à sa fin.
 STATUT_EN_COURS = "en_cours"
@@ -39,6 +39,9 @@ class SimulationRun(AuditMixin, Base):
     simulation_libelle: Mapped[str] = mapped_column(
         "SIMULATION_LIBELLE", String(150), nullable=False
     )
+    # Type de simulation : QUALITE, MDM, ENTREPOT ou GOUVERNANCE. Nul pour les
+    # exécutions ouvertes avant que les profils n'existent.
+    simulation_type: Mapped[str | None] = mapped_column("SIMULATION_TYPE", String(20))
     simulation_statut: Mapped[str] = mapped_column(
         "SIMULATION_STATUT", String(20), nullable=False, default=STATUT_EN_COURS
     )
@@ -63,3 +66,36 @@ class SimulationRun(AuditMixin, Base):
     passages_echoues: Mapped[int] = mapped_column(
         "PASSAGES_ECHOUES", Integer, nullable=False, default=0
     )
+
+
+class RefusAccueil(SimulationScopedMixin, AuditMixin, Base):
+    """Un assuré présenté à l'accueil, et renvoyé faute de droits ouverts.
+
+    Ces présentations ne laissaient aucune trace : le passage s'arrêtait et
+    tout se perdait. TB_FACTURES_REJETS ne peut pas les accueillir — sa clé
+    primaire exige un numéro de facture, et justement, aucune facture ne
+    s'ouvre. D'où cette table à part.
+
+    Le registre compte : un assuré refusé est un assuré qui s'est déplacé, et
+    la part de refus dit quelque chose du référentiel des droits.
+    """
+
+    __tablename__ = "TB_REFUS_ACCUEIL"
+    __table_args__ = (
+        Index("IX_REFUS_ACCUEIL_SIMULATION", "SIMULATION_ID"),
+        Index("IX_REFUS_ACCUEIL_PERSONNE", "PERSONNE_UUID"),
+    )
+
+    refus_id: Mapped[uuid.UUID] = mapped_column(
+        "REFUS_ID", PostgreSQLUUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    passage_id: Mapped[str] = mapped_column("PASSAGE_ID", String(64), nullable=False)
+    personne_uuid: Mapped[uuid.UUID] = mapped_column(
+        "PERSONNE_UUID",
+        ForeignKey("TB_REF_ASSURES.PERSONNE_UUID"),
+        nullable=False,
+    )
+    # Date à laquelle l'assuré s'est présenté, sur l'horloge simulée.
+    refus_date: Mapped[date] = mapped_column("REFUS_DATE", Date, nullable=False)
+    refus_motif: Mapped[str] = mapped_column("REFUS_MOTIF", String(40), nullable=False)
+    regime_code: Mapped[str | None] = mapped_column("REGIME_CODE", String(30))

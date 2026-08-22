@@ -69,6 +69,8 @@ from app.models import (  # noqa: E402
     InsuredIdentifier, InsuredPerson, InsuredProfession, InsuredRight,
     MedicalAct, Medication, Pathology, Regime,
 )
+from anomalies.catalogue import CATALOGUE_INITIAL, CODES  # noqa: E402
+from anomalies.models import AnomalyType  # noqa: E402
 from auth.models import User  # noqa: E402
 from auth.security import hash_password  # noqa: E402
 
@@ -87,6 +89,9 @@ def base_de_test():
     from alembic import command
     from alembic.config import Config
 
+    # C'est DATABASE_URL, posée plus haut sur URL_TEST, qui décide de la base
+    # migrée : alembic/env.py l'impose et écraserait toute autre valeur donnée
+    # ici. La ligne ci-dessous ne fait que garder le fichier INI cohérent.
     configuration = Config("alembic.ini")
     configuration.set_main_option("sqlalchemy.url", URL_TEST)
     command.upgrade(configuration, "head")
@@ -114,6 +119,16 @@ async def base_vierge(base_de_test):
             await connexion.execute(text(f"TRUNCATE {liste} RESTART IDENTITY CASCADE"))
     await moteur.dispose()
 
+    # La configuration des anomalies est un singleton de processus : sans
+    # remise à zéro, un test qui coupe un type le couperait pour les suivants.
+    from anomalies.config import Reglage, anomalies_config
+
+    anomalies_config.enabled = False
+    anomalies_config.rate = 0.0
+    anomalies_config.injected_count = 0
+    anomalies_config.reglages = {code: Reglage() for code in CODES}
+    anomalies_config.debut_execution = None
+
     await _installer_referentiel()
     yield
 
@@ -125,6 +140,24 @@ async def _installer_referentiel() -> None:
     mois = datetime.now(timezone.utc)
 
     async with async_session_factory() as session:
+        # Le catalogue d'anomalies est un référentiel comme les autres : le
+        # TRUNCATE l'emporte, et le journal des injections y renvoie.
+        session.add_all([
+            AnomalyType(
+                anomalie_code=type_anomalie.code,
+                anomalie_libelle=type_anomalie.libelle,
+                anomalie_famille=type_anomalie.famille,
+                anomalie_couleur=type_anomalie.couleur,
+                anomalie_declenchement="continu",
+                anomalie_table_cible=type_anomalie.table_cible,
+                anomalie_colonne_cible=type_anomalie.colonne_cible,
+                anomalie_severite=type_anomalie.severite,
+                anomalie_active=True,
+                anomalie_taux=Decimal("0.00"),
+                **audit,
+            )
+            for type_anomalie in CATALOGUE_INITIAL
+        ])
         session.add_all([
             Regime(regime_code="RGB", regime_date_debut=VALIDITE, regime_code_parent="RGB",
                    regime_denomination="RÉGIME GÉNÉRAL DE BASE", regime_taux=Decimal("70"),

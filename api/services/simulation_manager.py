@@ -4,9 +4,15 @@ from __future__ import annotations
 import asyncio
 from dataclasses import replace
 from uuid import UUID
+from anomalies.repository import appliquer_profil
+from entrepot import approfondir_historique
 from events import publish_simulation_event
+from mdm import generer_variantes
 from simulation import SimulationEngine
+from simulation.aleas import ScenarioAleas
+from simulation.commandes import Commande
 from simulation.models import STATUT_ARRETEE, STATUT_ECHOUEE
+from simulation.profils import QUALITE, profil
 from simulation.runs import cloturer_execution, ouvrir_execution
 from simulation_config import DEFAULT_CONFIG
 
@@ -19,10 +25,15 @@ class SimulationManager:
         self._lock = asyncio.Lock()
         self._maximum = DEFAULT_CONFIG.max_concurrent_passages
         self._simulation_id: UUID | None = None
+        self._type = QUALITE
 
-    async def start(self, speed: float, maximum: int,
-                    utilisateur_uuid: UUID | None = None) -> None:
-        """Ouvre une exécution et démarre un flux continu.
+    async def start(self, speed: float | None = None, maximum: int | None = None,
+                    utilisateur_uuid: UUID | None = None,
+                    type_simulation: str | None = None) -> None:
+        """Applique un profil, ouvre une exécution et démarre un flux continu.
+
+        La vitesse et la limite passées explicitement l'emportent sur celles du
+        profil : le profil donne un point de départ, pas une contrainte.
 
         Refuse un double démarrage : une seule exécution est ouverte à la fois,
         sans quoi deux moteurs se disputeraient les mêmes assurés.
@@ -31,19 +42,61 @@ class SimulationManager:
         async with self._lock:
             if self._task and not self._task.done():
                 raise RuntimeError("Le simulateur est déjà démarré.")
-            config = replace(DEFAULT_CONFIG, default_speed=speed, max_concurrent_passages=maximum)
+
+            profil_retenu = profil(type_simulation)
+            vitesse = profil_retenu.vitesse if speed is None else speed
+            limite = (profil_retenu.passages_simultanes_max if maximum is None else maximum)
+
+            config = replace(DEFAULT_CONFIG, default_speed=vitesse,
+                             max_concurrent_passages=limite)
+            scenario = ScenarioAleas.depuis_parametres(profil_retenu.aleas)
+            appliquer_profil(profil_retenu.anomalies)
+
             self._simulation_id = await ouvrir_execution(
                 {
-                    "vitesse": speed,
-                    "passages_simultanes_max": maximum,
+                    "vitesse": vitesse,
+                    "passages_simultanes_max": limite,
                     "graine": config.random_seed,
+                    "anomalies": profil_retenu.anomalies,
+                    "aleas": scenario.en_parametres(),
                 },
                 utilisateur_uuid,
+                profil_retenu.code,
             )
-            self._engine = SimulationEngine(config, publish_simulation_event, self._simulation_id)
-            self._engine.set_speed(speed)
-            self._maximum = maximum
+            await self._preparer(profil_retenu, self._simulation_id)
+
+            self._engine = SimulationEngine(
+                config, publish_simulation_event, self._simulation_id, scenario
+            )
+            self._engine.set_speed(vitesse)
+            self._maximum = limite
+            self._type = profil_retenu.code
             self._task = asyncio.create_task(self._engine.start())
+
+    async def _preparer(self, profil_retenu, simulation_id: UUID) -> None:
+        """Produit ce que le type demande avant que le moteur ne démarre.
+
+        Un échec n'est pas avalé : mieux vaut refuser le démarrage que d'ouvrir
+        une exécution MDM sans la vérité terrain qui lui donne son sens.
+        """
+
+        preparation = profil_retenu.preparation
+        if variantes := preparation.get("mdm_variantes"):
+            await generer_variantes(simulation_id, nombre=variantes)
+        if mois := preparation.get("historique_mois"):
+            await approfondir_historique(
+                mois=mois,
+                assures=preparation.get("historique_assures", 50),
+                simulation_id=simulation_id,
+            )
+
+    def commander(self, commande: Commande) -> None:
+        """Dépose un ordre pour le moteur en cours, ou refuse s'il est arrêté."""
+
+        if self._engine is None or not self._engine._running:
+            raise RuntimeError("Le simulateur est arrêté.")
+        if not self._engine.canal.deposer(commande):
+            raise RuntimeError("Le canal de commande est saturé, réessayez.")
 
     async def stop(self) -> None:
         """Arrête le moteur, attend sa tâche puis clôture l'exécution."""
@@ -85,8 +138,10 @@ class SimulationManager:
         return {
             "etat": "en_cours" if running else "arrete",
             "simulation_id": self._simulation_id,
+            "type_simulation": self._type,
             "vitesse": self._engine._speed if self._engine else DEFAULT_CONFIG.default_speed,
             "passages_actifs": len(self._engine._insured_in_progress) if self._engine else 0,
             "passages_simultanes_max": self._maximum,
+            "passages_interrompus": self._engine.passages_interrompus if self._engine else 0,
         }
 simulation_manager = SimulationManager()

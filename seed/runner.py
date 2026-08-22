@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import random
 from datetime import date, datetime, timedelta, timezone
 import unicodedata
@@ -28,6 +29,11 @@ from seed.constants import (
     MEDICAL_SPECIALTIES, MEDICATION_SEEDS, PATHOLOGY_LABELS, PROFESSIONS,
 )
 from anomalies import anomalies_config, apply_anomalies_to_row
+from anomalies.repository import enregistrer_injections
+
+# Carnet des anomalies posées par le seed. Elles corrompent le référentiel
+# avant qu'aucune exécution n'existe : leur SIMULATION_ID reste nul.
+anomalies_seed = anomalies_config.contexte()
 
 ## initialisation du logger
 logging.basicConfig(level=logging.INFO, format="%(levelname)s - %(message)s")
@@ -43,8 +49,22 @@ VALID_FROM_TS = datetime.combine(VALID_FROM, datetime.min.time(), tzinfo=timezon
 
 # Part des assurés disposant de droits ouverts. Les volumes réels du système
 # CNAM suggèrent une proportion bien plus faible, mais un simulateur qui
-# rejette presque tous les passages ne démontre rien : ajuste selon le besoin.
-TAUX_COUVERTURE = 0.60
+# rejette presque tous les passages ne démontre rien.
+#
+# Le chiffre est une hypothèse assumée, consignée dans seed/provenance.py et
+# exposée par la gouvernance. La variable d'environnement permet de l'ajuster
+# le jour où les vrais volumes seront connus, sans toucher au code.
+def _taux_couverture() -> float:
+    """Lit le taux de couverture, en le bornant à un intervalle sensé."""
+
+    try:
+        valeur = float(os.getenv("TAUX_COUVERTURE", "0.60"))
+    except ValueError:
+        return 0.60
+    return max(0.0, min(1.0, valeur))
+
+
+TAUX_COUVERTURE = _taux_couverture()
 ANNEE_DROITS = 2026
 random_generator = random.Random(RANDOM_SEED)
 fake = Faker("fr_FR")
@@ -183,7 +203,7 @@ def build_agents() -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
         }
         
         # Appliquer les anomalies
-        agent_row = apply_anomalies_to_row(agent_row, anomalies_config, "agent")
+        agent_row = apply_anomalies_to_row(agent_row, anomalies_seed, "agent")
         
         # Ajouter à la liste
         agents.append(agent_row)
@@ -271,7 +291,7 @@ def build_insured_people() -> list[dict[str, Any]]:
         }
 
         # Appliquer les anomalies
-        insured_row = apply_anomalies_to_row(insured_row, anomalies_config, "insured")
+        insured_row = apply_anomalies_to_row(insured_row, anomalies_seed, "insured")
         rows.append(insured_row)
     return rows
 
@@ -654,6 +674,12 @@ async def seed_database() -> None:
             await upsert_rows(session, InsuredProfession, build_insured_professions(assures))
             await upsert_rows(session, InsuredBirthInfo, build_insured_birth_infos(assures, localities))
             await upsert_rows(session, InsuredRight, build_insured_rights(assures))
+
+            # Le journal part dans la même transaction que les lignes qu'il
+            # décrit : un seed annulé n'y laisse aucune anomalie fantôme.
+            posees = await enregistrer_injections(anomalies_seed.vider(), session)
+    if posees:
+        logger.info("Anomalies consignées au journal : %s.", posees)
     logger.info("Peuplement référentiel terminé avec succès.")
 
 def main() -> None:

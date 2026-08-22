@@ -10,6 +10,11 @@ from sqlalchemy import select
 from metrics.registry import registry as metrics_registry
 from app.database import async_session_factory
 from app.models import InsuredPerson, InsuredRight
+from anomalies import anomalies_config
+from simulation.aleas import RAFALE, PassageInterrompu, ScenarioAleas
+from simulation.commandes import (
+    ARMER_ANOMALIE, DECLENCHER_ALEA, DESARMER_ANOMALIE, CanalDeCommande,
+)
 from simulation.events import EventCallback, default_event_callback
 from simulation.passage import PassageSimulation
 from simulation_config import DEFAULT_CONFIG, SimulationConfig
@@ -21,9 +26,18 @@ class SimulationEngine:
 
     def __init__(self, config: SimulationConfig = DEFAULT_CONFIG,
                  event_callback: EventCallback = default_event_callback,
-                 simulation_id: UUID | None = None) -> None:
+                 simulation_id: UUID | None = None,
+                 scenario: ScenarioAleas | None = None) -> None:
         self.config = config
         self.event_callback = event_callback
+        # Scénario d'aléa de l'exécution, partagé par tous ses passages.
+        self.scenario = scenario or ScenarioAleas()
+        # Canal par lequel l'API arme une anomalie ou déclenche un aléa
+        # pendant que le moteur tourne.
+        self.canal = CanalDeCommande()
+        # Passages coupés volontairement par un aléa : ce ne sont pas des
+        # pannes du simulateur, ils sont comptés à part.
+        self.passages_interrompus = 0
         # Identifiant de l'exécution ouverte par l'appelant. Il descend jusqu'à
         # chaque ligne écrite ; nul, le moteur produit des lignes orphelines,
         # ce qui reste permis pour un lancement hors API.
@@ -84,8 +98,13 @@ class SimulationEngine:
                 await PassageSimulation(
                     insured_id, self.config, lambda: self._speed,
                     self.event_callback, self.config.random_seed + sequence,
-                    self.simulation_id,
+                    self.simulation_id, self.scenario,
                 ).run()
+        except PassageInterrompu as coupure:
+            # Coupure demandée : la trace incohérente qu'elle laisse en base
+            # est le résultat attendu, pas un échec du simulateur.
+            logger.info("Le passage %s a été coupé par l'aléa %s.", sequence, coupure.alea)
+            self.passages_interrompus += 1
         except Exception:
             logger.exception("Le passage %s a échoué.", sequence)
             self.passages_echoues += 1
@@ -97,16 +116,64 @@ class SimulationEngine:
             async with self._lock:
                 self._insured_in_progress.discard(insured_id)
 
-    async def start(self, number_of_passages: int | None = None) -> None:
-        """Crée un flux fini ou continu de tâches de passage."""
-        self._running = True
-        sequence = 0
-        while self._running and (number_of_passages is None or sequence < number_of_passages):
-            insured_id = await self._reserve_insured()
+    def _traiter_commandes(self) -> None:
+        """Applique les ordres déposés depuis le dernier passage créé.
+
+        Le moteur est le seul à toucher l'état armé : l'API se contente de
+        déposer, ce qui évite de modifier la configuration depuis le fil d'une
+        requête HTTP pendant qu'un passage la lit.
+        """
+
+        for commande in self.canal.vider():
+            if commande.ordre == ARMER_ANOMALIE:
+                anomalies_config.armer(commande.cible, True)
+            elif commande.ordre == DESARMER_ANOMALIE:
+                anomalies_config.armer(commande.cible, False)
+            elif commande.ordre == DECLENCHER_ALEA:
+                self.scenario.armer(commande.cible)
+            logger.info("Commande appliquée : %s sur %s.", commande.ordre, commande.cible)
+
+    async def _lancer_rafale(self, sequence: int) -> int:
+        """Lance d'un coup une salve de passages, et retourne le nouveau rang.
+
+        La rafale ne demande pas la permission au rythme d'arrivée : c'est tout
+        son intérêt, saturer d'un seul coup.
+        """
+
+        taille = int(self.scenario.reglage(RAFALE, "taille", 25))
+        for _ in range(taille):
+            try:
+                insured_id = await self._reserve_insured()
+            except RuntimeError:
+                # Plus d'assuré libre : la rafale s'arrête là où elle peut.
+                break
             sequence += 1
             task = asyncio.create_task(self._run_one(insured_id, sequence))
             self._tasks.add(task)
             task.add_done_callback(self._tasks.discard)
+        logger.info("Rafale lancée jusqu'au passage %s.", sequence)
+        return sequence
+
+    async def start(self, number_of_passages: int | None = None) -> None:
+        """Crée un flux fini ou continu de tâches de passage."""
+        self._running = True
+        sequence = 0
+        # L'horloge des moments d'injection part avec le moteur : c'est d'elle
+        # que se comptent les déclenchements différés et de démarrage.
+        anomalies_config.demarrer_execution()
+        while self._running and (number_of_passages is None or sequence < number_of_passages):
+            self._traiter_commandes()
+            if self.scenario.frappe(RAFALE, self._random):
+                # La salve remplace le passage unique de ce tour, mais le
+                # rythme d'arrivée reprend ensuite : sans cela, une rafale à
+                # forte probabilité tournerait sans jamais souffler.
+                sequence = await self._lancer_rafale(sequence)
+            else:
+                insured_id = await self._reserve_insured()
+                sequence += 1
+                task = asyncio.create_task(self._run_one(insured_id, sequence))
+                self._tasks.add(task)
+                task.add_done_callback(self._tasks.discard)
             if number_of_passages is None or sequence < number_of_passages:
                 delay = self._random.expovariate(1 / self.config.passage_arrival_mean_seconds)
                 self._pause_task = asyncio.create_task(asyncio.sleep(delay / self._speed))

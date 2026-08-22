@@ -1,13 +1,28 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { api } from "../services/api";
+import type { SimulationRun } from "../types";
+import { dateCourte } from "./format-execution";
 import { DownloadIcon, RefreshIcon, ReportsIcon } from "./Icons";
+import "./Screens.css";
+
+/** Date du jour au format attendu par un champ date. */
+function aujourdhui(): string {
+  return new Date().toISOString().slice(0, 10);
+}
 
 export function ReportsPage() {
   const { token } = useAuth();
   const [fichiers, setFichiers] = useState<string[]>([]);
   const [enCours, setEnCours] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
+
+  // Export par période et par exécution : le rapport quotidien n'est plus le
+  // seul découpage possible.
+  const [dateMin, setDateMin] = useState(aujourdhui());
+  const [dateMax, setDateMax] = useState(aujourdhui());
+  const [executions, setExecutions] = useState<SimulationRun[]>([]);
+  const [execution, setExecution] = useState("");
 
   async function refresh() {
     try {
@@ -19,7 +34,43 @@ export function ReportsPage() {
 
   useEffect(() => {
     void refresh();
-  }, []);
+    void (async () => {
+      try {
+        const liste = await api.getExecutions(token, 50);
+        setExecutions(liste);
+        if (liste.length > 0) setExecution((actuelle) => actuelle || liste[0].simulation_id);
+      } catch {
+        // La liste des exécutions n'est pas indispensable pour télécharger.
+      }
+    })();
+  }, [token]);
+
+  async function exporterPeriode() {
+    setEnCours(true);
+    setErreur(null);
+    try {
+      await api.exporterPeriode(dateMin, dateMax, token);
+      await refresh();
+    } catch (reason) {
+      setErreur((reason as Error).message);
+    } finally {
+      setEnCours(false);
+    }
+  }
+
+  async function exporterExecution() {
+    if (!execution) return;
+    setEnCours(true);
+    setErreur(null);
+    try {
+      await api.exporterExecution(execution, token);
+      await refresh();
+    } catch (reason) {
+      setErreur((reason as Error).message);
+    } finally {
+      setEnCours(false);
+    }
+  }
 
   async function handleGenerer() {
     setEnCours(true);
@@ -69,6 +120,59 @@ export function ReportsPage() {
           déclencher une extraction immédiate à tout moment.
         </div>
       </div>
+
+      <section style={{ marginBottom: 22 }}>
+        <h2 className="screen-section-title">Export par période</h2>
+        <div className="alea-carte">
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            <label className="alea-code">Du</label>
+            <input
+              type="date"
+              className="champ-console"
+              style={{ width: 170 }}
+              value={dateMin}
+              onChange={(evenement) => setDateMin(evenement.target.value)}
+            />
+            <label className="alea-code">au</label>
+            <input
+              type="date"
+              className="champ-console"
+              style={{ width: 170 }}
+              value={dateMax}
+              onChange={(evenement) => setDateMax(evenement.target.value)}
+            />
+          </div>
+          <button className="btn btn-start" onClick={exporterPeriode} disabled={enCours}>
+            Exporter la période
+          </button>
+        </div>
+      </section>
+
+      <section style={{ marginBottom: 22 }}>
+        <h2 className="screen-section-title">Export d'une exécution</h2>
+        <div className="alea-carte">
+          <select
+            className="champ-console"
+            style={{ maxWidth: 420 }}
+            value={execution}
+            onChange={(evenement) => setExecution(evenement.target.value)}
+          >
+            {executions.length === 0 && <option value="">Aucune exécution enregistrée</option>}
+            {executions.map((ligne) => (
+              <option key={ligne.simulation_id} value={ligne.simulation_id}>
+                {dateCourte(ligne.simulation_date_debut)} · {ligne.simulation_type ?? "sans type"}
+              </option>
+            ))}
+          </select>
+          <button
+            className="btn btn-start"
+            onClick={exporterExecution}
+            disabled={enCours || !execution}
+          >
+            Exporter (PDF + Excel)
+          </button>
+        </div>
+      </section>
 
       <div className="reports-card">
         <div className="reports-card-header">

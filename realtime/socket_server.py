@@ -8,6 +8,7 @@ from auth.security import decode_access_token
 from events import event_bus
 from kpi import KpiConsumer, KpiService
 from metrics.registry import registry as metrics_registry
+from realtime.parcours_consumer import ParcoursConsumer
 
 # Mêmes origines que le middleware CORS de FastAPI (api/main.py), pour qu'une
 # seule variable d'environnement pilote REST et temps réel.
@@ -20,6 +21,9 @@ _cors_origins = [origin.strip() for origin in _cors_raw.split(",") if origin.str
 sio = socketio.AsyncServer(async_mode="asgi", cors_allowed_origins=_cors_origins)
 socket_app = socketio.ASGIApp(sio)
 kpi_consumer = KpiConsumer(event_bus, sio)
+# Deux consommateurs, deux abonnements distincts au bus : chacun a sa file, et
+# l'agrégation des KPI ne retient pas la diffusion du parcours.
+parcours_consumer = ParcoursConsumer(event_bus, sio)
 
 @sio.event(namespace="/kpi")
 async def connect(sid, environ, auth) -> None:
@@ -58,15 +62,17 @@ async def subscribe_center(sid, data) -> dict:
 
 
 async def startup_event_pipeline() -> None:
-    """Démarre le consommateur ; FastAPI appellera cette fonction au lifespan."""
+    """Démarre les consommateurs ; FastAPI appelle cette fonction au lifespan."""
 
     await kpi_consumer.start()
+    await parcours_consumer.start()
 
 
 async def shutdown_event_pipeline() -> None:
-    """Arrête le consommateur lors de l'extinction ASGI."""
+    """Arrête les consommateurs lors de l'extinction ASGI."""
 
     await kpi_consumer.stop()
+    await parcours_consumer.stop()
 
 @sio.event(namespace="/kpi")
 async def disconnect(sid) -> None:

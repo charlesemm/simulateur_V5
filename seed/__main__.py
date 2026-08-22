@@ -1,8 +1,25 @@
 """Permet d'exécuter le seed avec la commande python -m seed."""
 
 import os
+import sys
+
 from anomalies import anomalies_config
 from seed.runner import main
+
+
+def afficher(message: str) -> None:
+    """Écrit une ligne sans jamais faire échouer le seed sur l'encodage.
+
+    La console Windows redirigée est en cp1252 : un simple « ✓ » y levait une
+    UnicodeEncodeError, après que le seed avait pourtant tout commité. Le
+    peuplement paraissait alors échoué alors qu'il avait réussi.
+    """
+
+    try:
+        print(message)
+    except UnicodeEncodeError:
+        encodage = sys.stdout.encoding or "ascii"
+        print(message.encode(encodage, "replace").decode(encodage))
 
 
 if __name__ == "__main__":
@@ -17,6 +34,6 @@ if __name__ == "__main__":
 
     # Afficher un résumé après le seed
     if anomalies_config.injected_count > 0:
-        print(f"\n✓ Seed complété. Anomalies injectées : {anomalies_config.injected_count}")
+        afficher(f"\nSeed complété. Anomalies injectées : {anomalies_config.injected_count}")
     else:
-        print("\n✓ Seed complété. Aucune anomalie.")
+        afficher("\nSeed complété. Aucune anomalie.")
