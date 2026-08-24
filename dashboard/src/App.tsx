@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Header } from "./components/Header";
 import { Sidebar } from "./components/Sidebar";
 import { AuthProvider, useAuth } from "./auth/AuthContext";
@@ -64,11 +64,24 @@ function DashboardShell() {
 
   const moteurEnCours = metrics?.moteur_etat === "en_cours";
 
+  // Quand on navigue vers le cockpit (après un démarrage), les métriques
+  // polled toutes les 1,5 s n'ont pas encore rattrapé le nouvel état du
+  // moteur. Sans délai de grâce, l'effet ci-dessous renvoie à l'accueil
+  // avant même que le cockpit n'apparaisse.
+  const graceRef = useRef(false);
+
+  const allerAuCockpit = useCallback(() => {
+    graceRef.current = true;
+    setOngletActif("encours");
+    // 5 secondes : assez pour que 3 polls confirment l'état du moteur.
+    setTimeout(() => { graceRef.current = false; }, 5000);
+  }, []);
+
   // Le cockpit n'existe que pendant l'exécution : si le moteur s'arrête alors
   // qu'on y est, on revient à l'accueil plutôt que de laisser un écran qui ne
   // décrit plus rien.
   useEffect(() => {
-    if (ongletActif === "encours" && metrics && !moteurEnCours) {
+    if (ongletActif === "encours" && metrics && !moteurEnCours && !graceRef.current) {
       setOngletActif("accueil");
     }
   }, [ongletActif, metrics, moteurEnCours]);
@@ -93,7 +106,7 @@ function DashboardShell() {
         {/* Navigation Latérale Gauche */}
         <Sidebar
           ongletActif={ongletActif}
-          onNaviguer={setOngletActif}
+          onNaviguer={(onglet) => onglet === "encours" ? allerAuCockpit() : setOngletActif(onglet)}
           moteurEnCours={moteurEnCours}
         />
 
@@ -122,7 +135,7 @@ function DashboardShell() {
                   onAnnuler={() => setOngletActif("accueil")}
                   // Le démarrage mène droit au poste de pilotage : c'est le
                   // seul endroit d'où l'on déclenche un aléa.
-                  onDemarre={() => setOngletActif("encours")}
+                  onDemarre={() => allerAuCockpit()}
                 />
               </RequireRole>
             )}
