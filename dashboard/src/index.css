@@ -1655,6 +1655,12 @@ svg {
   border: 1px solid var(--cnam-green-border);
 }
 
+.badge-csv {
+  background: #eff6ff;
+  color: #2563eb;
+  border: 1px solid #bfdbfe;
+}
+
 .btn-download {
   background: var(--surface);
   border: 1px solid var(--border);

@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
 
 from auth.dependencies import require_role
+from reports.csv_generator import build_csv_export
 from reports.excel_generator import build_excel_export
 from reports.paths import OUTPUT_DIR
 from reports.pdf_generator import build_execution_pdf_report
@@ -46,12 +47,11 @@ async def generate_periode(date_min: date, date_max: date) -> dict[str, str]:
 
     debut = datetime.combine(date_min, time.min, tzinfo=timezone.utc)
     fin = datetime.combine(date_max, time.max, tzinfo=timezone.utc)
-    chemin = await build_excel_export(
-        debut, fin,
-        libelle=f"Du {date_min.isoformat()} au {date_max.isoformat()}",
-        nom_fichier=f"export_periode_{date_min.isoformat()}_{date_max.isoformat()}",
-    )
-    return {"excel": chemin.name}
+    nom = f"export_periode_{date_min.isoformat()}_{date_max.isoformat()}"
+    libelle_p = f"Du {date_min.isoformat()} au {date_max.isoformat()}"
+    chemin_excel = await build_excel_export(debut, fin, libelle=libelle_p, nom_fichier=nom)
+    chemin_csv = await build_csv_export(debut, fin, nom_fichier=nom)
+    return {"excel": chemin_excel.name, "csv": chemin_csv.name}
 
 
 @router.post("/execution/{simulation_id}")
@@ -63,12 +63,14 @@ async def generate_execution(simulation_id: UUID) -> dict[str, str]:
     except LookupError as absente:
         raise HTTPException(status_code=404, detail=str(absente)) from absente
 
+    nom = f"execution_{simulation_id}"
     excel = await build_excel_export(
         simulation_id=simulation_id,
         libelle=f"Exécution {simulation_id}",
-        nom_fichier=f"execution_{simulation_id}",
+        nom_fichier=nom,
     )
-    return {"pdf": pdf.name, "excel": excel.name}
+    csv_zip = await build_csv_export(simulation_id=simulation_id, nom_fichier=nom)
+    return {"pdf": pdf.name, "excel": excel.name, "csv": csv_zip.name}
 
 
 @router.delete("", dependencies=[Depends(require_role("administrateur"))])

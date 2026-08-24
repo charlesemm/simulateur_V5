@@ -108,6 +108,8 @@ export function ReportsPage() {
   function getFileTypeBadge(filename: string) {
     if (filename.endsWith(".pdf")) return { label: "PDF", class: "badge-pdf" };
     if (filename.endsWith(".xlsx") || filename.endsWith(".xls")) return { label: "EXCEL", class: "badge-excel" };
+    if (filename.endsWith(".csv.zip") || filename.endsWith(".csv")) return { label: "CSV", class: "badge-csv" };
+    if (filename.endsWith(".zip")) return { label: "ZIP", class: "badge-csv" };
     return { label: "FICHIER", class: "badge-gray" };
   }
 
