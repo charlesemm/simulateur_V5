@@ -28,7 +28,7 @@ from simulation.commandes import (
     ARMER_ANOMALIE, DECLENCHER_ALEA, CanalDeCommande, Commande,
 )
 from simulation.passage import PassageSimulation
-from simulation.profils import ENTREPOT, GOUVERNANCE, MDM, PROFILS, QUALITE, profil
+from simulation.profils import ENTREPOT, GOUVERNANCE, LIBRE, MDM, PROFILS, QUALITE, profil
 from simulation.runs import ouvrir_execution
 from simulation_config import DEFAULT_CONFIG
 from tests.conftest import ASSURE_COUVERT
@@ -145,6 +145,41 @@ def test_un_alea_certain_frappe_toujours():
     assert all(scenario.frappe(COUPURE_BRUTALE, tirage) for _ in range(20))
 
 
+def test_chaque_alea_declare_les_reglages_qu_il_accepte():
+    """Un écran ne peut proposer que ce que le moteur déclare accepter."""
+
+    from simulation.aleas import ALEAS, DEFAUTS, PARAMETRES
+
+    assert set(PARAMETRES) == set(ALEAS)
+    for code, reglages in PARAMETRES.items():
+        for reglage in reglages:
+            # Le nom doit correspondre à une clé réellement lue par le moteur.
+            assert reglage.nom in DEFAUTS[code], (code, reglage.nom)
+            assert reglage.defaut == DEFAUTS[code][reglage.nom]
+            assert reglage.minimum <= reglage.defaut <= reglage.maximum
+            assert reglage.libelle and reglage.unite
+
+
+def test_les_aleas_sans_reglage_n_en_declarent_aucun():
+    """Une coupure frappe ou ne frappe pas : rien à régler."""
+
+    from simulation.aleas import PARAMETRES, PERTE_CONNEXION
+
+    assert PARAMETRES[COUPURE_BRUTALE] == ()
+    assert PARAMETRES[PERTE_CONNEXION] == ()
+
+
+def test_un_reglage_transmis_est_bien_applique():
+    """Ce que l'écran envoie doit atteindre le moteur, pas rester en route."""
+
+    scenario = ScenarioAleas.depuis_parametres(
+        {RAFALE: {"probabilite": 0.5, "taille": 120}}
+    )
+
+    assert scenario.reglage(RAFALE, "taille", 25) == 120
+    assert scenario.en_parametres()[RAFALE]["taille"] == 120
+
+
 def test_seuls_les_aleas_actifs_sont_retenus_sur_l_execution():
     scenario = ScenarioAleas()
     scenario.reglages[BASE_RALENTIE]["probabilite"] = 0.3
@@ -217,10 +252,10 @@ async def test_la_memoire_retenue_est_rendue_a_la_fin(base_vierge):
     assert passage.memoire_retenue is None
 
 
-# ── S5 : les profils des quatre types ─────────────────────────────────────
+# ── S5 : les profils des cinq types ──────────────────────────────────────
 
-def test_les_quatre_types_sont_au_catalogue():
-    assert set(PROFILS) == {QUALITE, MDM, ENTREPOT, GOUVERNANCE}
+def test_les_cinq_types_sont_au_catalogue():
+    assert set(PROFILS) == {LIBRE, QUALITE, MDM, ENTREPOT, GOUVERNANCE}
 
 
 def test_un_type_inconnu_retombe_sur_la_qualite():
@@ -237,7 +272,17 @@ def test_le_profil_entrepot_vise_le_volume():
 
     assert entrepot.passages_simultanes_max > qualite.passages_simultanes_max
     assert entrepot.vitesse > qualite.vitesse
-    assert RAFALE in entrepot.aleas
+
+
+def test_aucun_type_ne_declenche_d_alea_de_lui_meme():
+    """Un crash test est un geste délibéré, jamais un réglage d'usine.
+
+    Un aléa qui frappe sans qu'on l'ait demandé rend l'exécution illisible :
+    on ne sait plus si une incohérence vient de là ou d'ailleurs.
+    """
+
+    for profil_simulation in PROFILS.values():
+        assert profil_simulation.aleas == {}, profil_simulation.code
 
 
 def test_le_profil_qualite_injecte_plus_que_l_entrepot():
@@ -254,15 +299,31 @@ def test_le_profil_gouvernance_fait_entrer_les_anomalies_en_cours_de_route():
     assert reglage["delai_secondes"] > 0
 
 
-def test_chaque_type_produit_autre_chose():
-    """Quatre boutons ne se justifient que si chacun change ce qui est produit."""
+def test_aucun_type_ne_prepare_rien_en_attendant_le_cahier_des_charges():
+    """Tant que les moteurs T1-T4 n'existent pas, aucune préparation ne tourne."""
 
-    assert PROFILS[MDM].preparation["mdm_variantes"] > 0
-    assert PROFILS[ENTREPOT].preparation["historique_mois"] > 0
-    # La qualité et la gouvernance ne préparent rien : elles travaillent sur le
-    # flux des passages, que les anomalies suffisent à distinguer.
-    assert PROFILS[QUALITE].preparation == {}
-    assert PROFILS[GOUVERNANCE].preparation == {}
+    for profil_simulation in PROFILS.values():
+        assert profil_simulation.preparation == {}, profil_simulation.code
+
+
+def test_le_mode_libre_part_vierge():
+    """Le bac à sable ne pré-configure rien : tout se compose à la main."""
+
+    libre = PROFILS[LIBRE]
+    assert libre.anomalies == {}
+    assert libre.aleas == {}
+    assert libre.preparation == {}
+
+
+def test_un_alea_declenche_a_la_main_frappe_malgre_une_probabilite_nulle():
+    """C'est tout le mécanisme du poste de pilotage : l'ordre l'emporte."""
+
+    scenario = ScenarioAleas()
+    assert scenario.reglage(RAFALE, "probabilite", 0.0) == 0.0
+
+    scenario.armer(RAFALE)
+
+    assert scenario.frappe(RAFALE, random.Random(1)) is True
 
 
 def test_le_profil_regle_la_configuration_du_moteur():

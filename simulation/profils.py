@@ -1,10 +1,10 @@
-"""Les quatre types de simulation d'ÉCHO, et ce que chacun règle.
+"""Les cinq types de simulation d'ÉCHO, et ce que chacun règle.
 
-Les quatre boutons ne sont pas quatre habillages du même moteur : chacun change
-ce qui est produit. Ce module ne contient que les profils de paramètres — les
-moteurs eux-mêmes viennent avec T1 à T4. Un profil dit, pour son type :
-combien de passages à la fois, à quelle vitesse, quelles anomalies à quel taux
-et à quel moment, et quels aléas.
+Le mode LIBRE est le bac à sable : aucune anomalie pré-configurée, aucune
+préparation préalable — l'opérateur compose sa recette à la main dans l'écran
+de lancement, puis déclenche les aléas depuis le cockpit. Les quatre autres
+types (QUALITE, MDM, ENTREPOT, GOUVERNANCE) proposent un réglage de départ
+adapté à chaque objectif, modifiable avant lancement.
 """
 
 from __future__ import annotations
@@ -15,15 +15,15 @@ from anomalies.catalogue import (
     DATE_ANTIDATEE, DECLENCHEMENT_CONTINU, DECLENCHEMENT_DIFFERE,
     EMAIL_INVALIDE, MONTANT_ABERRANT, NUMERO_SECU_INVALIDE, QUANTITE_EXCESSIVE,
 )
-from simulation.aleas import BASE_RALENTIE, COUPURE_BRUTALE, RAFALE
 from simulation_config import DEFAULT_CONFIG, SimulationConfig
 
+LIBRE = "LIBRE"
 QUALITE = "QUALITE"
 MDM = "MDM"
 ENTREPOT = "ENTREPOT"
 GOUVERNANCE = "GOUVERNANCE"
 
-TYPES = (QUALITE, MDM, ENTREPOT, GOUVERNANCE)
+TYPES = (LIBRE, QUALITE, MDM, ENTREPOT, GOUVERNANCE)
 
 
 @dataclass(frozen=True, slots=True)
@@ -33,6 +33,9 @@ class ProfilSimulation:
     code: str
     libelle: str
     description: str
+    # Couleur du type, pour que l'accueil distingue les quatre d'un coup d'œil
+    # sans que l'interface ait à les connaître par leur nom.
+    couleur: str
     vitesse: float
     passages_simultanes_max: int
     # Réglage par type d'anomalie : taux, déclenchement, délai.
@@ -55,6 +58,21 @@ class ProfilSimulation:
 
 
 PROFILS: dict[str, ProfilSimulation] = {
+    LIBRE: ProfilSimulation(
+        code=LIBRE,
+        libelle="Simulation libre",
+        description=(
+            "Le bac à sable : aucune anomalie pré-configurée, tout se compose "
+            "à la main. Choisissez vos anomalies, réglez vos taux, et déclenchez "
+            "les aléas en direct depuis le cockpit."
+        ),
+        couleur="#e5484d",
+        vitesse=60,
+        passages_simultanes_max=20,
+        # Rien de pré-coché : c'est le principe du mode libre.
+        anomalies={},
+        aleas={},
+    ),
     QUALITE: ProfilSimulation(
         code=QUALITE,
         libelle="Qualité des données",
@@ -62,6 +80,7 @@ PROFILS: dict[str, ProfilSimulation] = {
             "Produit un flux courant, largement corrompu, pour éprouver la "
             "détection : complétude, validité, unicité, cohérence."
         ),
+        couleur="#16a34a",
         vitesse=60,
         passages_simultanes_max=20,
         # Le type le plus généreux en anomalies : c'est ce qu'il vient tester.
@@ -81,6 +100,7 @@ PROFILS: dict[str, ProfilSimulation] = {
             "le rapprochement. Les identités volontairement jumelles et leur "
             "vérité terrain viennent avec le moteur T2."
         ),
+        couleur="#7c3aed",
         vitesse=60,
         passages_simultanes_max=20,
         anomalies={
@@ -88,9 +108,9 @@ PROFILS: dict[str, ProfilSimulation] = {
             EMAIL_INVALIDE: {"taux": 0.10, "declenchement": DECLENCHEMENT_CONTINU},
         },
         aleas={},
-        # Les identités jumelles et leur vérité terrain sont fabriquées au
-        # lancement : sans elles, ce type ne se distinguerait pas des autres.
-        preparation={"mdm_variantes": 50},
+        # Les identités jumelles viendront avec le moteur T2 (cahier des
+        # charges en attente). En attendant, le profil sert d'amorce
+        # d'anomalies centrées sur l'identité.
     ),
     ENTREPOT: ProfilSimulation(
         code=ENTREPOT,
@@ -99,19 +119,16 @@ PROFILS: dict[str, ProfilSimulation] = {
             "Cherche le volume et la profondeur d'historique plutôt que le "
             "défaut : beaucoup de passages, très accélérés, peu d'anomalies."
         ),
+        couleur="#0284c7",
         vitesse=600,
         passages_simultanes_max=100,
         anomalies={
             MONTANT_ABERRANT: {"taux": 0.01, "declenchement": DECLENCHEMENT_CONTINU},
         },
-        # Le volume est justement l'occasion d'éprouver une base qui ralentit.
-        aleas={
-            RAFALE: {"probabilite": 0.05, "taille": 50},
-            BASE_RALENTIE: {"probabilite": 0.02, "latence_secondes": 0.3},
-        },
-        # La profondeur d'historique est produite d'emblée : c'est elle qu'un
-        # chargement d'entrepôt vient éprouver, pas le flux du jour.
-        preparation={"historique_mois": 12, "historique_assures": 100},
+        # Aucun aléa d'office : ils se déclenchent à la main.
+        aleas={},
+        # L'historique SCD2 viendra avec le moteur T3 (cahier des charges en
+        # attente). En attendant, le profil configure beaucoup de volume.
     ),
     GOUVERNANCE: ProfilSimulation(
         code=GOUVERNANCE,
@@ -121,6 +138,7 @@ PROFILS: dict[str, ProfilSimulation] = {
             "anomalies entrent en cours de route, pour que l'avant et l'après "
             "soient comparables dans la même exécution."
         ),
+        couleur="#a16207",
         vitesse=60,
         passages_simultanes_max=20,
         anomalies={
@@ -135,8 +153,8 @@ PROFILS: dict[str, ProfilSimulation] = {
                 "delai_secondes": 120,
             },
         },
-        # La coupure éprouve ce que devient la piste d'audit quand tout casse.
-        aleas={COUPURE_BRUTALE: {"probabilite": 0.02}},
+        # Comme les autres types : les aléas se déclenchent à la main.
+        aleas={},
     ),
 }
 

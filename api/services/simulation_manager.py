@@ -5,9 +5,7 @@ import asyncio
 from dataclasses import replace
 from uuid import UUID
 from anomalies.repository import appliquer_profil
-from entrepot import approfondir_historique
 from events import publish_simulation_event
-from mdm import generer_variantes
 from simulation import SimulationEngine
 from simulation.aleas import ScenarioAleas
 from simulation.commandes import Commande
@@ -29,11 +27,17 @@ class SimulationManager:
 
     async def start(self, speed: float | None = None, maximum: int | None = None,
                     utilisateur_uuid: UUID | None = None,
-                    type_simulation: str | None = None) -> None:
+                    type_simulation: str | None = None,
+                    libelle: str | None = None,
+                    anomalies: dict[str, dict] | None = None,
+                    aleas: dict[str, dict] | None = None) -> None:
         """Applique un profil, ouvre une exécution et démarre un flux continu.
 
-        La vitesse et la limite passées explicitement l'emportent sur celles du
-        profil : le profil donne un point de départ, pas une contrainte.
+        Tout ce qui est passé explicitement l'emporte sur le profil : celui-ci
+        propose un point de départ que l'écran de lancement peut retoucher
+        entièrement. Les réglages d'anomalies valent **pour cette exécution** —
+        le catalogue en base n'est pas réécrit, sans quoi lancer une simulation
+        modifierait sournoisement les réglages de la suivante.
 
         Refuse un double démarrage : une seule exécution est ouverte à la fois,
         sans quoi deux moteurs se disputeraient les mêmes assurés.
@@ -46,22 +50,27 @@ class SimulationManager:
             profil_retenu = profil(type_simulation)
             vitesse = profil_retenu.vitesse if speed is None else speed
             limite = (profil_retenu.passages_simultanes_max if maximum is None else maximum)
+            reglages_anomalies = (
+                profil_retenu.anomalies if anomalies is None else anomalies
+            )
+            reglages_aleas = profil_retenu.aleas if aleas is None else aleas
 
             config = replace(DEFAULT_CONFIG, default_speed=vitesse,
                              max_concurrent_passages=limite)
-            scenario = ScenarioAleas.depuis_parametres(profil_retenu.aleas)
-            appliquer_profil(profil_retenu.anomalies)
+            scenario = ScenarioAleas.depuis_parametres(reglages_aleas)
+            appliquer_profil(reglages_anomalies)
 
             self._simulation_id = await ouvrir_execution(
                 {
                     "vitesse": vitesse,
                     "passages_simultanes_max": limite,
                     "graine": config.random_seed,
-                    "anomalies": profil_retenu.anomalies,
+                    "anomalies": reglages_anomalies,
                     "aleas": scenario.en_parametres(),
                 },
                 utilisateur_uuid,
                 profil_retenu.code,
+                libelle,
             )
             await self._preparer(profil_retenu, self._simulation_id)
 
@@ -76,19 +85,10 @@ class SimulationManager:
     async def _preparer(self, profil_retenu, simulation_id: UUID) -> None:
         """Produit ce que le type demande avant que le moteur ne démarre.
 
-        Un échec n'est pas avalé : mieux vaut refuser le démarrage que d'ouvrir
-        une exécution MDM sans la vérité terrain qui lui donne son sens.
+        Désactivé en attendant le cahier des charges des moteurs T1-T4. Le
+        champ `preparation` du profil est lu mais ignoré — quand les moteurs
+        spécialisés seront implémentés, cette méthode reprendra du service.
         """
-
-        preparation = profil_retenu.preparation
-        if variantes := preparation.get("mdm_variantes"):
-            await generer_variantes(simulation_id, nombre=variantes)
-        if mois := preparation.get("historique_mois"):
-            await approfondir_historique(
-                mois=mois,
-                assures=preparation.get("historique_assures", 50),
-                simulation_id=simulation_id,
-            )
 
     def commander(self, commande: Commande) -> None:
         """Dépose un ordre pour le moteur en cours, ou refuse s'il est arrêté."""

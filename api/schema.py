@@ -29,13 +29,19 @@ class HealthResponse(ApiModel):
 class SimulationStartRequest(ApiModel):
     """Paramètre le démarrage continu du moteur.
 
-    Vitesse et limite sont facultatives : sans elles, celles du profil du type
-    demandé s'appliquent.
+    Tout est facultatif : ce qui manque vient du profil du type demandé. Les
+    réglages d'anomalies et d'aléas ne valent que pour cette exécution ; le
+    catalogue en base reste ce que l'opérateur y a mis.
     """
 
     type_simulation: str | None = None
+    libelle: str | None = Field(default=None, max_length=150)
     vitesse: float | None = Field(default=None, gt=0, le=86400)
     nombre_passages_simultanes_max: int | None = Field(default=None, ge=1, le=200)
+    # Par code d'anomalie : {"taux": 0.15, "declenchement": "continu", ...}
+    anomalies: dict[str, dict[str, Any]] | None = None
+    # Par code d'aléa : {"probabilite": 0.05, "taille": 50, ...}
+    aleas: dict[str, dict[str, Any]] | None = None
 
 
 class SimulationSpeedRequest(ApiModel):
@@ -75,11 +81,12 @@ class SimulationRunResponse(ApiModel):
 
 
 class ProfilResponse(ApiModel):
-    """Décrit un des quatre types de simulation et son réglage."""
+    """Décrit un type de simulation et son réglage."""
 
     code: str
     libelle: str
     description: str
+    couleur: str
     vitesse: float
     passages_simultanes_max: int
     anomalies: dict[str, Any]

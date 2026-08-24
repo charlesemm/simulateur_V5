@@ -252,8 +252,12 @@ async def test_l_api_expose_les_trois_moteurs(client_api):
     assert "lignage" in gouvernance.json()
 
 
-async def test_lancer_un_run_mdm_fabrique_sa_verite_terrain(client_api):
-    """Le type choisi doit changer ce que l'exécution produit, dès son ouverture."""
+async def test_lancer_un_run_mdm_demarre_sans_preparation(client_api):
+    """En attendant le cahier des charges, le type MDM démarre comme les autres.
+
+    La préparation (variantes, vérité terrain) est désactivée : le profil sert
+    d'amorce d'anomalies centrées sur l'identité, rien de plus.
+    """
 
     demarrage = await client_api.post(
         "/simulation/start",
@@ -263,10 +267,9 @@ async def test_lancer_un_run_mdm_fabrique_sa_verite_terrain(client_api):
     simulation_id = demarrage.json()["simulation_id"]
     await client_api.post("/simulation/stop")
 
+    # Aucune paire n'est produite puisque _preparer est un no-op.
     paires = await lire_paires(simulation_id)
-
-    assert paires
-    assert all(str(paire.simulation_id) == simulation_id for paire in paires)
+    assert paires == []
 
 
 async def test_la_purge_des_donnees_ne_doit_pas_emporter_la_verite_terrain(base_vierge):
