@@ -1,6 +1,7 @@
 """Connexion, émission du jeton JWT et changement de mot de passe."""
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -13,6 +14,7 @@ from auth.models import User
 from auth.schemas import ChangePasswordRequest, LoginRequest, TokenResponse
 from auth.security import create_access_token, hash_password, verify_password
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["authentification"])
 
 
@@ -39,8 +41,19 @@ async def login(
     if user is None or not user.statut_actif or not verify_password(
         payload.mot_de_passe, user.mot_de_passe_hash
     ):
-        # Un message unique : distinguer « compte inconnu » de « mot de passe
-        # faux » révélerait quels comptes existent.
+        # La réponse reste volontairement identique dans les trois cas :
+        # distinguer « compte inconnu » de « mot de passe faux » révélerait
+        # quels comptes existent. Le journal du serveur, lui, le dit — il
+        # n'est lisible que par qui administre la machine, et sans cette
+        # trace un refus de connexion est indiagnosticable.
+        if user is None:
+            motif = "aucun compte ne porte cet identifiant"
+        elif not user.statut_actif:
+            motif = "le compte est désactivé"
+        else:
+            motif = "le mot de passe ne correspond pas"
+        logger.warning("Connexion refusée pour « %s » : %s.", identifiant, motif)
+
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Identifiant ou mot de passe incorrect.",

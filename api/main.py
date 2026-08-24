@@ -66,6 +66,16 @@ _cors_raw = os.getenv(
 )
 _cors_origins = [origin.strip() for origin in _cors_raw.split(",") if origin.strip()]
 
+# Vite change de port dès qu'un autre serveur occupe le sien : un second
+# « npm run dev » écoute sur 5174, et l'origine n'est plus dans la liste. Le
+# préflight repart alors en 400, le navigateur bloque la requête, et l'écran
+# de connexion ne peut pas distinguer ce refus d'une API éteinte — on cherche
+# la panne dans son mot de passe pendant des heures.
+#
+# Toute origine locale est donc acceptée, quel que soit le port. Poser
+# CORS_ORIGIN_REGEX à vide referme cette tolérance pour un déploiement.
+_cors_regex = os.getenv("CORS_ORIGIN_REGEX", r"http://(localhost|127\.0\.0\.1)(:\d+)?")
+
 @fastapi_app.middleware("http")
 async def mesurer_temps_reponse(request, call_next):
     """Chronomètre chaque requête REST pour le rapport technique quotidien."""
@@ -81,6 +91,7 @@ async def mesurer_temps_reponse(request, call_next):
 fastapi_app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins,
+    allow_origin_regex=_cors_regex or None,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -98,6 +109,28 @@ fastapi_app.include_router(qualite_router.router)
 fastapi_app.include_router(moteurs_router.router)
 fastapi_app.include_router(assures_router.router)
 fastapi_app.include_router(metrics_router.router)
+
+@fastapi_app.get("/", tags=["Technique"])
+async def racine() -> dict:
+    """Dit ce qu'est cette adresse et où aller ensuite.
+
+    Sans cette route, taper l'adresse de l'API dans un navigateur renvoyait un
+    « Not Found » nu : rien n'indiquait qu'on était au bon endroit mais sur le
+    mauvais port, ni où se trouvait le tableau de bord.
+    """
+
+    return {
+        "service": "ÉCHO — API du simulateur de données CMU",
+        "organisation": "CNAM Côte d'Ivoire",
+        "message": (
+            "Vous êtes sur l'API, pas sur le tableau de bord. "
+            "Celui-ci s'ouvre depuis le serveur du dashboard."
+        ),
+        "documentation": "/docs",
+        "sante": "/health",
+        "temps_reel": "/socket.io",
+    }
+
 
 @fastapi_app.get("/health", tags=["Technique"], response_model=HealthResponse)
 async def health() -> HealthResponse:

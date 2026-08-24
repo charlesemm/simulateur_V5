@@ -29,6 +29,22 @@ async def _produire_une_facture() -> str:
 
 # ── Authentification ────────────────────────────────────────────────────
 
+async def test_la_racine_oriente_au_lieu_de_renvoyer_un_mur(client_api):
+    """Taper l'adresse de l'API dans un navigateur ne doit pas donner un 404 nu.
+
+    On arrive là par erreur, en cherchant le tableau de bord : la réponse doit
+    le dire, et donner les deux adresses utiles.
+    """
+
+    reponse = await client_api.get("/")
+
+    assert reponse.status_code == 200
+    corps = reponse.json()
+    assert "ÉCHO" in corps["service"]
+    assert corps["documentation"] == "/docs"
+    assert corps["sante"] == "/health"
+
+
 async def test_les_factures_exigent_un_jeton(client_api):
     reponse = await client_api.get("/factures", headers={"Authorization": ""})
     assert reponse.status_code == 401
