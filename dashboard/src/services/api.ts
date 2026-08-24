@@ -1,9 +1,9 @@
 // Centralise les appels HTTP, le typage et les messages d'erreur français.
 
 import type {
-  AssureFiche, AssureListe, ExecutionDetail, FicheGouvernance, HealthCenterList,
-  InjectionJournal, KpiHistory, KpiSnapshot, PaireMdm, ProfilSimulation,
-  RapportQualite, ScenarioAlea, SimulationRun, SimulationStatus, TypeAnomalie,
+  ExecutionDetail, FicheGouvernance, HealthCenterList, InjectionJournal,
+  KpiHistory, KpiSnapshot, PaireMdm, ProfilSimulation, RapportQualite,
+  ScenarioAlea, SimulationRun, SimulationStatus, TypeAnomalie,
 } from "../types";
 
 export const API_URL = (import.meta.env.VITE_API_URL as string) ?? "http://127.0.0.1:8000";
@@ -17,10 +17,13 @@ async function parseOrThrow<T>(response: Response): Promise<T> {
     const detail = await response.json().catch(() => null);
     const message = detail?.detail ?? `Erreur HTTP ${response.status}`;
     if (response.status === 401) {
+      // Un jeton refusé ferme la session : sans ce signal, l'interface
+      // restait sur un tableau de bord vide en répétant la même erreur.
+      window.dispatchEvent(new CustomEvent("echo:session-expiree"));
       throw new Error(
         typeof message === "string" && message !== "Not authenticated"
           ? message
-          : "Session expirée ou non authentifiée — reconnectez-vous."
+          : "Session expirée — reconnectez-vous."
       );
     }
     throw new Error(typeof message === "string" ? message : `Erreur HTTP ${response.status}`);
@@ -83,6 +86,26 @@ export const api = {
       method: "POST",
       headers: { "Content-Type": "application/json", ...authHeaders(token) },
       body: JSON.stringify(corps),
+    });
+    return parseOrThrow<SimulationStatus>(response);
+  },
+
+  /** Démarrage paramétré : nom, cadence, anomalies et aléas de cette exécution. */
+  async demarrerSimulation(
+    token: string | null,
+    parametres: {
+      type_simulation: string;
+      libelle?: string;
+      vitesse?: number;
+      nombre_passages_simultanes_max?: number;
+      anomalies?: Record<string, Record<string, unknown>>;
+      aleas?: Record<string, Record<string, unknown>>;
+    }
+  ): Promise<SimulationStatus> {
+    const response = await fetch(`${API_URL}/simulation/start`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders(token) },
+      body: JSON.stringify(parametres),
     });
     return parseOrThrow<SimulationStatus>(response);
   },
@@ -201,28 +224,6 @@ export const api = {
     return parseOrThrow<PaireMdm[]>(response);
   },
 
-  /** Référentiel assuré – lecture, observateur minimum */
-  async getAssures(
-    token: string | null,
-    recherche = "",
-    limite = 25,
-    decalage = 0
-  ): Promise<AssureListe> {
-    const filtre = recherche ? `recherche=${encodeURIComponent(recherche)}&` : "";
-    const response = await fetch(
-      `${API_URL}/assures?${filtre}limite=${limite}&decalage=${decalage}`,
-      { headers: authHeaders(token) }
-    );
-    return parseOrThrow<AssureListe>(response);
-  },
-
-  async getAssure(personneUuid: string, token: string | null): Promise<AssureFiche> {
-    const response = await fetch(`${API_URL}/assures/${personneUuid}`, {
-      headers: authHeaders(token),
-    });
-    return parseOrThrow<AssureFiche>(response);
-  },
-
   /** Gouvernance (T4) – volumétrie par table du catalogue */
   async getVolumetrie(token: string | null): Promise<FicheGouvernance[]> {
     const response = await fetch(`${API_URL}/gouvernance/volumetrie`, {
@@ -291,6 +292,14 @@ export const api = {
       headers: authHeaders(token),
     });
     return parseOrThrow<{ pdf: string; excel: string }>(response);
+  },
+
+  async viderRapports(token: string | null): Promise<{ supprimes: number }> {
+    const response = await fetch(`${API_URL}/reports`, {
+      method: "DELETE",
+      headers: authHeaders(token),
+    });
+    return parseOrThrow<{ supprimes: number }>(response);
   },
 
   async downloadReport(nomFichier: string, token: string | null): Promise<void> {

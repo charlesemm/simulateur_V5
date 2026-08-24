@@ -34,6 +34,31 @@ ALEAS = (
     PERTE_CONNEXION, HORLOGE_DECALEE, SATURATION_MEMOIRE,
 )
 
+# Trois natures d'aléa, trois couleurs — pas une par scénario. Un aléa qui
+# coupe, un aléa qui charge et un aléa qui fait dériver ne se ressemblent pas ;
+# deux aléas d'une même nature, si.
+INTERRUPTION = "#b4460c"
+CHARGE = "#0369a1"
+DERIVE = "#7c3aed"
+
+COULEURS: dict[str, str] = {
+    COUPURE_BRUTALE: INTERRUPTION,
+    PERTE_CONNEXION: INTERRUPTION,
+    RAFALE: CHARGE,
+    BASE_RALENTIE: CHARGE,
+    HORLOGE_DECALEE: DERIVE,
+    SATURATION_MEMOIRE: DERIVE,
+}
+
+NATURES: dict[str, str] = {
+    COUPURE_BRUTALE: "Interruption",
+    PERTE_CONNEXION: "Interruption",
+    RAFALE: "Charge",
+    BASE_RALENTIE: "Charge",
+    HORLOGE_DECALEE: "Dérive",
+    SATURATION_MEMOIRE: "Dérive",
+}
+
 LIBELLES: dict[str, str] = {
     COUPURE_BRUTALE: "Coupure brutale en pleine transaction",
     RAFALE: "Génération massive en rafale",
@@ -51,6 +76,44 @@ DEFAUTS: dict[str, dict[str, float]] = {
     PERTE_CONNEXION: {"probabilite": 0.0},
     HORLOGE_DECALEE: {"probabilite": 0.0, "amplitude_heures": 72},
     SATURATION_MEMOIRE: {"probabilite": 0.0, "megaoctets": 50},
+}
+
+
+@dataclass(frozen=True, slots=True)
+class Reglage:
+    """Un paramètre propre à un aléa, tel qu'un écran doit le proposer.
+
+    La probabilité vaut pour tous ; ce qui suit ne vaut que pour son scénario.
+    Sans cette description, une interface ne peut proposer qu'un pourcentage —
+    et une rafale de 25 passages reste une rafale de 25 passages, quoi qu'on
+    veuille en faire.
+    """
+
+    nom: str
+    libelle: str
+    unite: str
+    defaut: float
+    minimum: float
+    maximum: float
+
+
+PARAMETRES: dict[str, tuple[Reglage, ...]] = {
+    # Une coupure et une perte de connexion n'ont rien à régler : elles
+    # frappent ou ne frappent pas.
+    COUPURE_BRUTALE: (),
+    PERTE_CONNEXION: (),
+    RAFALE: (
+        Reglage("taille", "Passages par salve", "passages", 25, 2, 500),
+    ),
+    BASE_RALENTIE: (
+        Reglage("latence_secondes", "Latence ajoutée", "s", 0.5, 0.1, 30),
+    ),
+    HORLOGE_DECALEE: (
+        Reglage("amplitude_heures", "Amplitude du décalage", "h", 72, 1, 8760),
+    ),
+    SATURATION_MEMOIRE: (
+        Reglage("megaoctets", "Mémoire retenue par passage", "Mo", 50, 1, 2000),
+    ),
 }
 
 

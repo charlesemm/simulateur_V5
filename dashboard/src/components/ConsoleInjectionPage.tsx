@@ -2,9 +2,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { API_URL, api } from "../services/api";
-import type {
-  InjectionJournal, ScenarioAlea, SimulationStatus, TypeAnomalie,
-} from "../types";
+import type { InjectionJournal, SimulationStatus, TypeAnomalie } from "../types";
 import "./Screens.css";
 
 const DECLENCHEMENTS: Array<{ valeur: string; libelle: string }> = [
@@ -32,7 +30,6 @@ export function ConsoleInjectionPage() {
   const { token } = useAuth();
   const [global, setGlobal] = useState<ReglageGlobal | null>(null);
   const [catalogue, setCatalogue] = useState<TypeAnomalie[]>([]);
-  const [aleas, setAleas] = useState<ScenarioAlea[]>([]);
   const [journal, setJournal] = useState<InjectionJournal[]>([]);
   const [statut, setStatut] = useState<SimulationStatus | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
@@ -49,14 +46,12 @@ export function ConsoleInjectionPage() {
 
   const rafraichir = useCallback(async () => {
     try {
-      const [liste, scenarios, etat, injections] = await Promise.all([
+      const [liste, etat, injections] = await Promise.all([
         api.getCatalogue(token),
-        api.getAleas(token),
         api.getSimulationStatus(token),
         api.getJournalAnomalies(token, null, 20),
       ]);
       setCatalogue(liste);
-      setAleas(scenarios);
       setStatut(etat);
       setJournal(injections);
       await chargerGlobal();
@@ -165,18 +160,22 @@ export function ConsoleInjectionPage() {
             <span className="stat-tile-hint">
               Utilisé par les types qui n'ont pas de taux propre
             </span>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.05"
-              className="clean-slider"
-              value={global?.rate ?? 0}
-              disabled={occupe || globalCoupe}
-              onChange={(evenement) =>
-                void modifierGlobal({ rate: parseFloat(evenement.target.value) })
-              }
-            />
+            <div className="champ-pourcentage" style={{ marginTop: 8 }}>
+              <input
+                type="number"
+                className="champ-console"
+                min={0}
+                max={100}
+                value={Math.round((global?.rate ?? 0) * 100)}
+                disabled={occupe || globalCoupe}
+                onChange={(evenement) =>
+                  void modifierGlobal({
+                    rate: Math.max(0, Math.min(100, Number(evenement.target.value))) / 100,
+                  })
+                }
+              />
+              <span>%</span>
+            </div>
           </div>
           <div className="stat-tile">
             <span className="stat-tile-label">Injectées</span>
@@ -220,22 +219,24 @@ export function ConsoleInjectionPage() {
 
               <div className="anomalie-ligne">
                 <span>Taux</span>
-                <strong>{(type.anomalie_taux * 100).toFixed(0)} %</strong>
+                <div className="champ-pourcentage">
+                  <input
+                    type="number"
+                    className="champ-console"
+                    min={0}
+                    max={100}
+                    value={Math.round(type.anomalie_taux * 100)}
+                    disabled={occupe || !type.anomalie_active}
+                    onChange={(evenement) =>
+                      void modifierType(type.anomalie_code, {
+                        taux:
+                          Math.max(0, Math.min(100, Number(evenement.target.value))) / 100,
+                      })
+                    }
+                  />
+                  <span>%</span>
+                </div>
               </div>
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.05"
-                className="clean-slider"
-                value={type.anomalie_taux}
-                disabled={occupe || !type.anomalie_active}
-                onChange={(evenement) =>
-                  void modifierType(type.anomalie_code, {
-                    taux: parseFloat(evenement.target.value),
-                  })
-                }
-              />
 
               <div className="anomalie-ligne" style={{ marginTop: 12 }}>
                 <span>Moment</span>
@@ -301,27 +302,9 @@ export function ConsoleInjectionPage() {
         </div>
       </section>
 
-      <section>
-        <h2 className="screen-section-title">Scénarios d'aléa</h2>
-        <div className="console-grid">
-          {aleas.map((alea) => (
-            <div key={alea.code} className="alea-carte">
-              <div>
-                <span className="alea-nom">{alea.libelle}</span>
-                <span className="alea-code">{alea.code}</span>
-              </div>
-              <button
-                className="btn btn-outline-danger"
-                disabled={occupe || !enCours}
-                onClick={() => void commander("declencher_alea", alea.code)}
-                title={enCours ? "Déclencher au prochain passage" : "Le moteur est arrêté"}
-              >
-                Déclencher
-              </button>
-            </div>
-          ))}
-        </div>
-      </section>
+      {/* Les aléas ne sont plus ici : ils se déclenchent depuis l'écran de
+          suivi, pendant l'exécution. Deux endroits pour le même geste, c'est
+          un endroit de trop — et celui-ci ne montre pas ce que l'aléa produit. */}
 
       <section>
         <h2 className="screen-section-title">Journal des injections</h2>

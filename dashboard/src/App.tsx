@@ -13,11 +13,12 @@ import { SystemHealthDonut } from "./components/SystemHealthDonut";
 import { LiveLogTerminal } from "./components/LiveLogTerminal";
 import { ReportsPage } from "./components/ReportsPage";
 import { ExecutionEnCoursCard } from "./components/ExecutionEnCoursCard";
+import { ExecutionEnCoursPage } from "./components/ExecutionEnCoursPage";
 import { ActiviteMetierSection } from "./components/ActiviteMetierSection";
 import { AccueilPage } from "./components/AccueilPage";
 import { AdministrationPage } from "./components/AdministrationPage";
 import { ConsoleInjectionPage } from "./components/ConsoleInjectionPage";
-import { DonneesPage } from "./components/DonneesPage";
+import { LancementPage } from "./components/LancementPage";
 import { QualitePage } from "./components/QualitePage";
 import { SimulationsPage } from "./components/SimulationsPage";
 import type { Onglet } from "./navigation";
@@ -30,6 +31,8 @@ function DashboardShell() {
   // Exécution ouverte depuis l'accueil : elle voyage jusqu'à l'écran
   // Simulations, qui l'affiche d'emblée.
   const [executionOuverte, setExecutionOuverte] = useState<string | null>(null);
+  // Type choisi sur l'accueil, que l'écran de lancement vient paramétrer.
+  const [typeAConfigurer, setTypeAConfigurer] = useState("QUALITE");
   const [metrics, setMetrics] = useState<TechnicalMetricsSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -59,14 +62,40 @@ function DashboardShell() {
     };
   }, [isAuthenticated, token, doitChangerMotDePasse]);
 
+  const moteurEnCours = metrics?.moteur_etat === "en_cours";
+
+  // Le cockpit n'existe que pendant l'exécution : si le moteur s'arrête alors
+  // qu'on y est, on revient à l'accueil plutôt que de laisser un écran qui ne
+  // décrit plus rien.
+  useEffect(() => {
+    if (ongletActif === "encours" && metrics && !moteurEnCours) {
+      setOngletActif("accueil");
+    }
+  }, [ongletActif, metrics, moteurEnCours]);
+
   if (!isAuthenticated) return <LoginPage />;
   if (doitChangerMotDePasse) return <ChangePasswordPage />;
 
+  // Le cockpit sort du cadre : ni barre latérale, ni en-tête. Il n'a rien à
+  // partager avec les écrans de consultation, pas même leur gabarit. Le
+  // fournisseur temps réel reste au-dessus des deux branches : le sortir et le
+  // remettre à chaque bascule rouvrirait la connexion et perdrait le flux
+  // d'événements déjà reçu.
   return (
     <KpiSocketProvider>
+      {ongletActif === "encours" ? (
+        <ExecutionEnCoursPage
+          onQuitter={() => setOngletActif("accueil")}
+          onArret={() => setOngletActif("accueil")}
+        />
+      ) : (
       <div className="enterprise-layout">
         {/* Navigation Latérale Gauche */}
-        <Sidebar ongletActif={ongletActif} onNaviguer={setOngletActif} />
+        <Sidebar
+          ongletActif={ongletActif}
+          onNaviguer={setOngletActif}
+          moteurEnCours={moteurEnCours}
+        />
 
         {/* Zone de contenu principale avec Topbar */}
         <div className="enterprise-main">
@@ -79,7 +108,23 @@ function DashboardShell() {
                   setExecutionOuverte(simulationId);
                   setOngletActif("simulations");
                 }}
+                onConfigurer={(type) => {
+                  setTypeAConfigurer(type);
+                  setOngletActif("lancement");
+                }}
               />
+            )}
+
+            {ongletActif === "lancement" && (
+              <RequireRole minimum="operateur">
+                <LancementPage
+                  typeSimulation={typeAConfigurer}
+                  onAnnuler={() => setOngletActif("accueil")}
+                  // Le démarrage mène droit au poste de pilotage : c'est le
+                  // seul endroit d'où l'on déclenche un aléa.
+                  onDemarre={() => setOngletActif("encours")}
+                />
+              </RequireRole>
             )}
 
             {ongletActif === "injection" && (
@@ -93,8 +138,6 @@ function DashboardShell() {
             )}
 
             {ongletActif === "qualite" && <QualitePage />}
-
-            {ongletActif === "donnees" && <DonneesPage />}
 
             {ongletActif === "dashboard" && (
               <div className="dashboard-content-space">
@@ -140,6 +183,7 @@ function DashboardShell() {
           </div>
         </div>
       </div>
+      )}
     </KpiSocketProvider>
   );
 }

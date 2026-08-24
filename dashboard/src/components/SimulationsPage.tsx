@@ -1,8 +1,10 @@
 // dashboard/src/components/SimulationsPage.tsx
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { api } from "../services/api";
-import type { ExecutionDetail, SimulationRun } from "../types";
+import type {
+  ExecutionDetail, ScenarioAlea, SimulationRun, TypeAnomalie,
+} from "../types";
 import { StatutPastille, dateCourte, duree } from "./format-execution";
 import "./Screens.css";
 
@@ -32,6 +34,10 @@ export function SimulationsPage({ executionInitiale = null }: SimulationsPagePro
   const [selection, setSelection] = useState<string | null>(executionInitiale);
   const [fiche, setFiche] = useState<ExecutionDetail | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
+  // Le catalogue donne aux codes leur libellé et leur couleur ; les aléas,
+  // leur intitulé lisible.
+  const [catalogue, setCatalogue] = useState<TypeAnomalie[]>([]);
+  const [aleas, setAleas] = useState<ScenarioAlea[]>([]);
 
   const chargerListe = useCallback(async () => {
     try {
@@ -40,6 +46,22 @@ export function SimulationsPage({ executionInitiale = null }: SimulationsPagePro
     } catch (raison) {
       setErreur((raison as Error).message);
     }
+  }, [token]);
+
+  useEffect(() => {
+    // Ces deux référentiels ne bougent pas pendant qu'on lit une fiche.
+    void (async () => {
+      try {
+        const [liste, scenarios] = await Promise.all([
+          api.getCatalogue(token),
+          api.getAleas(token),
+        ]);
+        setCatalogue(liste);
+        setAleas(scenarios);
+      } catch {
+        // Sans eux, la fiche affiche les codes bruts : lisible, sans plus.
+      }
+    })();
   }, [token]);
 
   useEffect(() => {
@@ -74,6 +96,54 @@ export function SimulationsPage({ executionInitiale = null }: SimulationsPagePro
       annule = true;
     };
   }, [selection, token, executions]);
+
+  // Ce qui a été demandé au lancement vit dans les paramètres de l'exécution ;
+  // ce qui a réellement été fait vient du journal d'injection. Les deux côte à
+  // côte, y compris les types restés à zéro — un type demandé qui n'a rien
+  // produit est justement ce qu'on veut voir.
+  const parametres = (fiche?.execution.simulation_parametres ?? {}) as {
+    anomalies?: Record<string, { taux?: number; active?: boolean }>;
+    aleas?: Record<string, { probabilite?: number }>;
+    vitesse?: number;
+    passages_simultanes_max?: number;
+  };
+
+  const anomaliesParametrees = useMemo(() => {
+    const demandees = parametres.anomalies ?? {};
+    const codes = new Set([
+      ...Object.keys(demandees),
+      ...Object.keys(fiche?.anomalies_par_type ?? {}),
+    ]);
+    return [...codes]
+      .map((code) => {
+        const type = catalogue.find((entree) => entree.anomalie_code === code);
+        const reglage = demandees[code] ?? {};
+        return {
+          code,
+          libelle: type?.anomalie_libelle ?? code,
+          couleur: type?.anomalie_couleur ?? "var(--text-light)",
+          pourcentage: Math.round((reglage.taux ?? 0) * 100),
+          injectees: fiche?.anomalies_par_type[code] ?? 0,
+        };
+      })
+      // Un type éteint et sans injection n'apprend rien : on l'écarte.
+      .filter((ligne) => ligne.pourcentage > 0 || ligne.injectees > 0)
+      .sort((premier, second) => second.injectees - premier.injectees);
+  }, [parametres.anomalies, fiche, catalogue]);
+
+  const aleasParametres = useMemo(() => {
+    const demandes = parametres.aleas ?? {};
+    return Object.entries(demandes)
+      .map(([code, reglage]) => ({
+        code,
+        libelle: aleas.find((alea) => alea.code === code)?.libelle ?? code,
+        pourcentage: Math.round((reglage.probabilite ?? 0) * 100),
+      }))
+      .filter((ligne) => ligne.pourcentage > 0);
+  }, [parametres.aleas, aleas]);
+
+  const vitesseDemandee = parametres.vitesse ?? "—";
+  const limiteDemandee = parametres.passages_simultanes_max ?? "—";
 
   return (
     <div className="screen">
@@ -148,38 +218,71 @@ export function SimulationsPage({ executionInitiale = null }: SimulationsPagePro
               ))}
             </div>
 
-            {Object.keys(fiche.anomalies_par_type).length > 0 && (
+            {anomaliesParametrees.length > 0 && (
               <>
                 <h3 className="screen-section-title" style={{ marginTop: 22 }}>
-                  Anomalies par type
+                  Anomalies — demandé puis obtenu
                 </h3>
-                <div className="screen-table-wrap">
-                  <table className="screen-table">
-                    <thead>
-                      <tr>
-                        <th>Type</th>
-                        <th>Injections</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {Object.entries(fiche.anomalies_par_type).map(([code, nombre]) => (
-                        <tr key={code}>
-                          <td>{code}</td>
-                          <td>{nombre}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                <div className="cellules">
+                  {anomaliesParametrees.map((ligne) => (
+                    <div
+                      key={ligne.code}
+                      className={`cellule${ligne.injectees > 0 ? " remplie" : ""}`}
+                      style={{ ["--cellule-couleur" as string]: ligne.couleur }}
+                    >
+                      <span className="cellule-titre">{ligne.libelle}</span>
+                      <span className="cellule-nombre">{ligne.injectees}</span>
+                      <span className="cellule-pied">
+                        <span>injectées</span>
+                        <strong>demandé {ligne.pourcentage} %</strong>
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                {anomaliesParametrees.some((ligne) => ligne.injectees === 0) && (
+                  <p className="stat-tile-hint" style={{ marginTop: 10 }}>
+                    Un type demandé mais jamais injecté n'est pas forcément une
+                    panne : à faible taux, une exécution courte peut ne jamais
+                    tomber dessus.
+                  </p>
+                )}
+              </>
+            )}
+
+            {aleasParametres.length > 0 && (
+              <>
+                <h3 className="screen-section-title" style={{ marginTop: 22 }}>
+                  Aléas demandés
+                </h3>
+                <div className="cellules">
+                  {aleasParametres.map((ligne) => (
+                    <div key={ligne.code} className="cellule">
+                      <span className="cellule-titre">{ligne.libelle}</span>
+                      <span className="cellule-nombre">{ligne.pourcentage} %</span>
+                      <span className="cellule-pied">
+                        <span>probabilité par passage</span>
+                      </span>
+                    </div>
+                  ))}
                 </div>
               </>
             )}
 
             <h3 className="screen-section-title" style={{ marginTop: 22 }}>
-              Paramètres du run
+              Cadence demandée
             </h3>
-            <pre className="fiche-parametres">
-              {JSON.stringify(fiche.execution.simulation_parametres, null, 2)}
-            </pre>
+            <div className="cellules">
+              <div className="cellule">
+                <span className="cellule-titre">Vitesse</span>
+                <span className="cellule-nombre">×{vitesseDemandee}</span>
+                <span className="cellule-pied"><span>fois le temps réel</span></span>
+              </div>
+              <div className="cellule">
+                <span className="cellule-titre">Passages en parallèle</span>
+                <span className="cellule-nombre">{limiteDemandee}</span>
+                <span className="cellule-pied"><span>au maximum</span></span>
+              </div>
+            </div>
           </article>
         </section>
       )}

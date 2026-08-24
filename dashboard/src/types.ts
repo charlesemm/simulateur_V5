@@ -58,6 +58,7 @@ export interface ProfilSimulation {
   code: string;
   libelle: string;
   description: string;
+  couleur: string;
   vitesse: number;
   passages_simultanes_max: number;
   anomalies: Record<string, Record<string, unknown>>;
@@ -89,7 +90,25 @@ export interface InjectionJournal {
   valeur_injectee: string | null;
 }
 
-export interface ScenarioAlea { code: string; libelle: string }
+/** Un réglage propre à un aléa : taille de salve, latence, amplitude… */
+export interface ReglageAlea {
+  nom: string;
+  libelle: string;
+  unite: string;
+  defaut: number;
+  minimum: number;
+  maximum: number;
+}
+
+export interface ScenarioAlea {
+  code: string;
+  libelle: string;
+  /** Interruption, Charge ou Dérive — la nature colore le bouton. */
+  nature: string;
+  couleur: string;
+  /** Vide pour les aléas qui n'ont rien à régler : ils frappent ou non. */
+  parametres: ReglageAlea[];
+}
 
 /** Un événement de parcours diffusé en temps réel par le moteur. */
 export interface EvenementParcours {
@@ -144,34 +163,6 @@ export interface PaireMdm {
   type_variation: string;
   meme_personne: boolean;
   commentaire: string | null;
-}
-
-/** Un assuré, tel que l'écran Données le liste. */
-export interface AssureListItem {
-  personne_uuid: string;
-  numero_secu: string;
-  numero_identifiant: string | null;
-  nom: string;
-  prenoms: string | null;
-  date_naissance: string | null;
-  regime_code: string | null;
-  droits_ouverts: boolean;
-}
-
-export interface AssureListe {
-  total: number;
-  limite: number;
-  decalage: number;
-  assures: AssureListItem[];
-}
-
-export interface AssureFiche extends AssureListItem {
-  civilite_code: string | null;
-  lieu_naissance: string | null;
-  pays_naissance_code: string | null;
-  factures: number;
-  droits: Array<{ annee: number; mois: number; ouverts: boolean }>;
-  professions: Array<{ code: string; date_debut: string; date_fin: string | null }>;
 }
 
 /** Une fiche du catalogue de gouvernance, avec sa volumétrie. */

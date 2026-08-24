@@ -4,10 +4,11 @@
 
 export type Onglet =
   | "accueil"
+  | "lancement"
+  | "encours"
   | "injection"
   | "simulations"
   | "qualite"
-  | "donnees"
   | "rapports"
   | "dashboard"
   | "administration";
@@ -25,13 +26,17 @@ export const TITRES: Record<Onglet, { titre: string; sousTitre: string }> = {
     titre: "Simulations",
     sousTitre: "Historique des exécutions et détail de ce qu'elles ont produit",
   },
+  lancement: {
+    titre: "Paramétrer une simulation",
+    sousTitre: "Nom, cadence et anomalies à injecter",
+  },
+  encours: {
+    titre: "Simulation en cours",
+    sousTitre: "Ce qui se produit en direct, et les aléas à déclencher",
+  },
   qualite: {
     titre: "Qualité",
     sousTitre: "Ce qui a été demandé, injecté, puis détecté",
-  },
-  donnees: {
-    titre: "Données",
-    sousTitre: "Assurés, factures et référentiels produits",
   },
   dashboard: {
     titre: "Supervision Technique",
