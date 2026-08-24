@@ -264,6 +264,13 @@ class PassageSimulation:
 
         # 1. Création de la facture
         await self.ralentir()
+        # Trois anomalies visent la même date, chacune à sa façon : antidatée,
+        # projetée dans l'avenir, ou sortie de la période de droits. Elles
+        # s'appliquent l'une après l'autre, la dernière l'emportant.
+        date_soins = self.anomalies.injecter_date(self.simulated_at.date(), invoice_number)
+        date_soins = self.anomalies.injecter_date_future(date_soins, invoice_number)
+        date_soins = self.anomalies.injecter_date_hors_droits(date_soins, invoice_number)
+
         async with async_session_factory() as session:
             session.add(Invoice(
                 facture_numero=invoice_number, produit_code="CMU",
@@ -271,12 +278,12 @@ class PassageSimulation:
                 regime_taux=coverage.taux, organisme_code="CNAM-CI",
                 assurance_code="CMU", personne_uuid=self.insured_id,
                 type_facture_code=invoice_type,
-                facture_date_soins=self.anomalies.injecter_date(
-                    self.simulated_at.date(), invoice_number
-                ),
+                facture_date_soins=date_soins,
                 dossier_numero=f"DOS-{self.passage_id[:12]}",
                 centre_sante_code=center.centre_sante_code,
-                centre_sante_type_code=center.type_etablissement_sanitaire_code,
+                centre_sante_type_code=self.anomalies.injecter_type_centre(
+                    center.type_etablissement_sanitaire_code, invoice_number
+                ),
                 centre_sante_type_libelle=LIBELLES_TYPE_CENTRE.get(
                     center.type_etablissement_sanitaire_code
                 ),
@@ -317,12 +324,19 @@ class PassageSimulation:
         await self.ralentir()
         montant_depense = self.anomalies.injecter_montant(Decimal("10000"), invoice_number)
         quantite_servie = self.anomalies.injecter_quantite(1, 1, invoice_number)
-        taux = coverage.taux
+        quantite_servie = self.anomalies.injecter_quantite_nulle(quantite_servie, invoice_number)
+        code_prestation = self.anomalies.injecter_code_prestation(base_code, invoice_number)
+
+        # Le taux vient du régime de l'assuré ; l'anomalie hors barème lui en
+        # substitue un qui appartient à l'autre régime.
+        taux = self.anomalies.injecter_taux(coverage.taux, coverage.regime_code, invoice_number)
         base = Decimal("10000")
         montant_rq = (base * taux / Decimal("100")).quantize(Decimal("0.01"))
+        part_assure = self.anomalies.injecter_part_assure(base - montant_rq, invoice_number)
+
         async with async_session_factory() as session:
             session.add(InvoiceProvision(
-                facture_numero=invoice_number, prestation_code=base_code,
+                facture_numero=invoice_number, prestation_code=code_prestation,
                 professionnel_sante_code=professional.professionnel_sante_code,
                 statut_remboursement="couvert",
                 prestation_base_remboursement=base,
@@ -330,13 +344,14 @@ class PassageSimulation:
                 prestation_quantite_servie=quantite_servie, prestation_prix_unitaire=base,
                 prestation_montant_depense=montant_depense,
                 prestation_montant_rq=montant_rq,
-                prestation_montant_assure=base - montant_rq,
+                prestation_montant_assure=part_assure,
                 statut_code="servie", simulation_id=self.simulation_id,
                 utilisateur_id_creation="simulation",
             ))
             await session.commit()
         await self.journaliser_anomalies()
-        await self.emit("prestation.servie", facture_numero=invoice_number, code=base_code)
+        await self.emit("prestation.servie", facture_numero=invoice_number,
+                        code=code_prestation)
 
         # 4. Prescriptions et Ententes
         medications = self.random.random() < self.config.medication_probability

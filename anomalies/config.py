@@ -18,9 +18,12 @@ from typing import Any, NamedTuple
 from uuid import UUID
 
 from anomalies.catalogue import (
-    CODES, DATE_ANTIDATEE, DECLENCHEMENT_CONTINU, DECLENCHEMENT_DEMARRAGE,
+    CODES, DATE_ANTIDATEE, DATE_HORS_DROITS, DATE_NAISSANCE_ABERRANTE,
+    DATE_SOINS_FUTURE, DECLENCHEMENT_CONTINU, DECLENCHEMENT_DEMARRAGE,
     DECLENCHEMENT_DIFFERE, DECLENCHEMENT_MANUEL, DELAI_PAR_DEFAUT,
-    EMAIL_INVALIDE, MONTANT_ABERRANT, NUMERO_SECU_INVALIDE, QUANTITE_EXCESSIVE,
+    EMAIL_INVALIDE, MONTANT_ABERRANT, MONTANT_HORS_BAREME,
+    NUMERO_SECU_INVALIDE, PRESTATION_ORPHELINE, QUANTITE_EXCESSIVE,
+    QUANTITE_NULLE, REPARTITION_FAUSSEE, TYPE_CENTRE_INCONNU,
 )
 
 
@@ -189,6 +192,75 @@ class AnomaliesConfig:
         self.record_injection()
         return Tirage("pas_un_email_valide", True)
 
+    def tirer_taux(self, taux: Decimal, regime_code: str | None) -> Tirage:
+        """Tire un taux étranger au régime : 100 % sur du RGB, 70 % sur du RAM.
+
+        Le taux reste plausible pris isolément — c'est tout l'intérêt : seule
+        la confrontation au régime de l'assuré révèle l'incohérence.
+        """
+        if not self.should_inject(MONTANT_HORS_BAREME):
+            return Tirage(taux, False)
+        self.record_injection()
+        return Tirage(Decimal("70") if regime_code == "RAM" else Decimal("100"), True)
+
+    def tirer_part_assure(self, part: Decimal) -> Tirage:
+        """Tire une part assuré qui ne recompose plus la base remboursable."""
+        if not self.should_inject(REPARTITION_FAUSSEE):
+            return Tirage(part, False)
+        self.record_injection()
+        ecart = Decimal(self.random.randrange(500, 5000))
+        return Tirage(part + ecart, True)
+
+    def tirer_date_future(self, valeur: date) -> Tirage:
+        """Tire une date de soins postérieure au jour de la facture."""
+        if not self.should_inject(DATE_SOINS_FUTURE):
+            return Tirage(valeur, False)
+        self.record_injection()
+        return Tirage(valeur + timedelta(days=self.random.randint(8, 180)), True)
+
+    def tirer_date_hors_droits(self, valeur: date) -> Tirage:
+        """Tire une date de soins hors de la période de droits couverte.
+
+        Le décalage reste dans l'année, mais change de mois : les droits sont
+        ouverts mois par mois, un mois de plus suffit à sortir de la période.
+        """
+        if not self.should_inject(DATE_HORS_DROITS):
+            return Tirage(valeur, False)
+        self.record_injection()
+        return Tirage(valeur - timedelta(days=self.random.randint(40, 300)), True)
+
+    def tirer_quantite_nulle(self, servie: int) -> Tirage:
+        """Tire une quantité servie nulle malgré une prescription."""
+        if not self.should_inject(QUANTITE_NULLE):
+            return Tirage(servie, False)
+        self.record_injection()
+        return Tirage(0, True)
+
+    def tirer_date_naissance(self, valeur):
+        """Tire une date de naissance impossible : à venir, ou plus que centenaire."""
+        if not self.should_inject(DATE_NAISSANCE_ABERRANTE):
+            return Tirage(valeur, False)
+        self.record_injection()
+        if valeur is None:
+            return Tirage(valeur, False)
+        if self.random.random() < 0.5:
+            return Tirage(valeur + timedelta(days=self.random.randint(400, 3000)), True)
+        return Tirage(valeur - timedelta(days=self.random.randint(45000, 55000)), True)
+
+    def tirer_type_centre(self, code: str | None) -> Tirage:
+        """Tire un code de type d'établissement qui n'existe nulle part."""
+        if not self.should_inject(TYPE_CENTRE_INCONNU):
+            return Tirage(code, False)
+        self.record_injection()
+        return Tirage(f"ZZ{self.random.randrange(10, 99)}", True)
+
+    def tirer_code_prestation(self, code: str) -> Tirage:
+        """Tire un code de prestation absent du référentiel des actes."""
+        if not self.should_inject(PRESTATION_ORPHELINE):
+            return Tirage(code, False)
+        self.record_injection()
+        return Tirage(f"INCONNU-{self.random.randrange(1000, 9999)}", True)
+
     # ── Injecteurs sans contexte, pour les appelants qui ne journalisent pas ──
 
     def injecter_montant(self, montant: Decimal) -> Decimal:
@@ -272,6 +344,47 @@ class ContexteInjection:
         return self._retenir(EMAIL_INVALIDE, email,
                              self.config.tirer_email(email), cible_cle)
 
+    def injecter_taux(self, taux: Decimal, regime_code: str | None,
+                      cible_cle: str | None = None) -> Decimal:
+        """Fausse un taux de remboursement et le consigne."""
+        return self._retenir(MONTANT_HORS_BAREME, taux,
+                             self.config.tirer_taux(taux, regime_code), cible_cle)
+
+    def injecter_part_assure(self, part: Decimal, cible_cle: str | None = None) -> Decimal:
+        """Fausse la part restant à l'assuré et la consigne."""
+        return self._retenir(REPARTITION_FAUSSEE, part,
+                             self.config.tirer_part_assure(part), cible_cle)
+
+    def injecter_date_future(self, valeur: date, cible_cle: str | None = None) -> date:
+        """Repousse la date de soins dans l'avenir et la consigne."""
+        return self._retenir(DATE_SOINS_FUTURE, valeur,
+                             self.config.tirer_date_future(valeur), cible_cle)
+
+    def injecter_date_hors_droits(self, valeur: date, cible_cle: str | None = None) -> date:
+        """Sort la date de soins de la période de droits et la consigne."""
+        return self._retenir(DATE_HORS_DROITS, valeur,
+                             self.config.tirer_date_hors_droits(valeur), cible_cle)
+
+    def injecter_quantite_nulle(self, servie: int, cible_cle: str | None = None) -> int:
+        """Annule la quantité servie et la consigne."""
+        return self._retenir(QUANTITE_NULLE, servie,
+                             self.config.tirer_quantite_nulle(servie), cible_cle)
+
+    def injecter_date_naissance(self, valeur, cible_cle: str | None = None):
+        """Fausse une date de naissance et la consigne."""
+        return self._retenir(DATE_NAISSANCE_ABERRANTE, valeur,
+                             self.config.tirer_date_naissance(valeur), cible_cle)
+
+    def injecter_type_centre(self, code: str | None, cible_cle: str | None = None) -> str | None:
+        """Remplace le type d'établissement par un code inconnu, et le consigne."""
+        return self._retenir(TYPE_CENTRE_INCONNU, code,
+                             self.config.tirer_type_centre(code), cible_cle)
+
+    def injecter_code_prestation(self, code: str, cible_cle: str | None = None) -> str:
+        """Remplace le code de prestation par un code orphelin, et le consigne."""
+        return self._retenir(PRESTATION_ORPHELINE, code,
+                             self.config.tirer_code_prestation(code), cible_cle)
+
     def vider(self) -> list[Injection]:
         """Rend les injections accumulées et repart d'un carnet vide."""
 
@@ -305,5 +418,9 @@ def apply_anomalies_to_row(
     elif row_type == "insured" and "numero_secu" in row:
         cle = {"cible_cle": str(row.get("personne_uuid"))} if journalise else {}
         row["numero_secu"] = config.injecter_numero_secu(row["numero_secu"], **cle)
+        if journalise and "assure_date_naissance" in row:
+            row["assure_date_naissance"] = config.injecter_date_naissance(
+                row["assure_date_naissance"], **cle
+            )
 
     return row

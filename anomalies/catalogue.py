@@ -10,13 +10,21 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-# Codes des cinq types injectables aujourd'hui. Ils nomment les entrées du
-# catalogue et les lignes du journal : ne pas les renommer sans migration.
+# Codes des types injectables. Ils nomment les entrées du catalogue et les
+# lignes du journal : ne pas les renommer sans migration.
 MONTANT_ABERRANT = "MONTANT_ABERRANT"
+MONTANT_HORS_BAREME = "MONTANT_HORS_BAREME"
+REPARTITION_FAUSSEE = "REPARTITION_FAUSSEE"
 DATE_ANTIDATEE = "DATE_ANTIDATEE"
+DATE_SOINS_FUTURE = "DATE_SOINS_FUTURE"
+DATE_HORS_DROITS = "DATE_HORS_DROITS"
 QUANTITE_EXCESSIVE = "QUANTITE_EXCESSIVE"
+QUANTITE_NULLE = "QUANTITE_NULLE"
 NUMERO_SECU_INVALIDE = "NUMERO_SECU_INVALIDE"
+DATE_NAISSANCE_ABERRANTE = "DATE_NAISSANCE_ABERRANTE"
 EMAIL_INVALIDE = "EMAIL_INVALIDE"
+TYPE_CENTRE_INCONNU = "TYPE_CENTRE_INCONNU"
+PRESTATION_ORPHELINE = "PRESTATION_ORPHELINE"
 
 # Les six familles de la console d'injection, chacune avec sa couleur. Elles
 # regroupent les types en boutons ; la famille Référentiel n'a pas encore de
@@ -113,6 +121,71 @@ CATALOGUE_INITIAL: tuple[TypeAnomalie, ...] = (
         "FORMAT",
         "TB_REF_AGENTS",
         "AGENT_EMAIL",
+        SEVERITE_DURE,
+    ),
+    # ── Types ajoutés pour couvrir les six familles ──────────────────────
+    TypeAnomalie(
+        MONTANT_HORS_BAREME,
+        "Taux de remboursement étranger au régime de l'assuré",
+        "MONTANTS",
+        "TB_FACTURES_PRESTATIONS",
+        "PRESTATION_TAUX_REMBOURSEMENT",
+        SEVERITE_DOUCE,
+    ),
+    TypeAnomalie(
+        REPARTITION_FAUSSEE,
+        "Part CMU et part assuré qui ne recomposent pas la base",
+        "MONTANTS",
+        "TB_FACTURES_PRESTATIONS",
+        "PRESTATION_MONTANT_ASSURE",
+        SEVERITE_DOUCE,
+    ),
+    TypeAnomalie(
+        DATE_SOINS_FUTURE,
+        "Date de soins postérieure au jour de la facture",
+        "DATES",
+        "TB_FACTURES",
+        "FACTURE_DATE_SOINS",
+        SEVERITE_DOUCE,
+    ),
+    TypeAnomalie(
+        DATE_HORS_DROITS,
+        "Date de soins tombant hors de la période de droits",
+        "DATES",
+        "TB_FACTURES",
+        "FACTURE_DATE_SOINS",
+        SEVERITE_DOUCE,
+    ),
+    TypeAnomalie(
+        QUANTITE_NULLE,
+        "Quantité servie nulle alors qu'une quantité est prescrite",
+        "QUANTITES",
+        "TB_FACTURES_PRESTATIONS",
+        "PRESTATION_QUANTITE_SERVIE",
+        SEVERITE_DOUCE,
+    ),
+    TypeAnomalie(
+        DATE_NAISSANCE_ABERRANTE,
+        "Date de naissance impossible",
+        "IDENTITE",
+        "TB_REF_ASSURES",
+        "ASSURE_DATE_NAISSANCE",
+        SEVERITE_DURE,
+    ),
+    TypeAnomalie(
+        TYPE_CENTRE_INCONNU,
+        "Type d'établissement absent du référentiel",
+        "REFERENTIEL",
+        "TB_FACTURES",
+        "CENTRE_SANTE_TYPE_CODE",
+        SEVERITE_DURE,
+    ),
+    TypeAnomalie(
+        PRESTATION_ORPHELINE,
+        "Code de prestation absent du référentiel des actes",
+        "REFERENTIEL",
+        "TB_FACTURES_PRESTATIONS",
+        "PRESTATION_CODE",
         SEVERITE_DURE,
     ),
 )

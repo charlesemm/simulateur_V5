@@ -17,16 +17,19 @@ from decimal import Decimal
 from typing import Any, Callable
 from uuid import UUID
 
-from sqlalchemy import Select, String, and_, cast, func, not_, or_, select
+from sqlalchemy import Select, String, and_, cast, func, not_, or_, select, text
 
 from anomalies.catalogue import (
-    DATE_ANTIDATEE, EMAIL_INVALIDE, MONTANT_ABERRANT, NUMERO_SECU_INVALIDE,
-    QUANTITE_EXCESSIVE,
+    DATE_ANTIDATEE, DATE_NAISSANCE_ABERRANTE, DATE_SOINS_FUTURE,
+    EMAIL_INVALIDE, MONTANT_ABERRANT, MONTANT_HORS_BAREME,
+    NUMERO_SECU_INVALIDE, PRESTATION_ORPHELINE, QUANTITE_EXCESSIVE,
+    QUANTITE_NULLE, REPARTITION_FAUSSEE, TYPE_CENTRE_INCONNU,
 )
 from app.models import (
-    Agent, InsuredPerson, Invoice, InvoiceProvision, InvoiceStatus,
-    PriorAuthorizationMedicalAct,
+    Agent, HealthCenter, InsuredPerson, Invoice, InvoiceProvision,
+    InvoiceStatus, MedicalAct, PriorAuthorizationMedicalAct,
 )
+from seed.constants import HEALTH_CENTER_TYPES
 
 COMPLETUDE = "COMPLETUDE"
 VALIDITE = "VALIDITE"
@@ -192,6 +195,97 @@ def _facture_sans_regime(simulation_id, _debut):
 
 # ── Référentiel : ce que le seed a corrompu ──────────────────────────────
 
+def _quantite_nulle(simulation_id, _debut):
+    """Rien n'a été servi alors qu'une quantité était prescrite."""
+
+    return _portee(
+        select(InvoiceProvision.facture_numero, InvoiceProvision.prestation_quantite_servie)
+        .where(and_(
+            InvoiceProvision.prestation_quantite_prescrite > 0,
+            InvoiceProvision.prestation_quantite_servie == 0,
+        )),
+        InvoiceProvision, simulation_id,
+    )
+
+
+def _taux_hors_bareme(simulation_id, _debut):
+    """Le taux de la prestation ne correspond pas au régime de la facture.
+
+    Pris isolément, 70 % comme 100 % sont des taux légitimes : seule la
+    confrontation au régime révèle l'incohérence. C'est le genre de défaut
+    qu'un contrôle colonne par colonne ne voit jamais.
+    """
+
+    return _portee(
+        select(InvoiceProvision.facture_numero, InvoiceProvision.prestation_taux_remboursement)
+        .join(Invoice, Invoice.facture_numero == InvoiceProvision.facture_numero)
+        .where(or_(
+            and_(Invoice.regime_code == "RAM",
+                 InvoiceProvision.prestation_taux_remboursement != 100),
+            and_(Invoice.regime_code == "RGB",
+                 InvoiceProvision.prestation_taux_remboursement != 70),
+        )),
+        InvoiceProvision, simulation_id,
+    )
+
+
+def _prestation_orpheline(simulation_id, _debut):
+    """Le code de prestation ne se retrouve ni dans les actes, ni dans les
+    consultations que le moteur sait produire."""
+
+    connus = select(MedicalAct.acte_medical_code)
+    return _portee(
+        select(InvoiceProvision.facture_numero, InvoiceProvision.prestation_code)
+        .where(and_(
+            not_(InvoiceProvision.prestation_code.in_(connus)),
+            not_(InvoiceProvision.prestation_code.like("CONS-%")),
+            not_(InvoiceProvision.prestation_code.like("DENT-%")),
+        )),
+        InvoiceProvision, simulation_id,
+    )
+
+
+def _type_centre_inconnu(simulation_id, _debut):
+    """Le code du type d'établissement n'existe pas au référentiel."""
+
+    codes = [code for code, _ in HEALTH_CENTER_TYPES]
+    return _portee(
+        select(Invoice.facture_numero, Invoice.centre_sante_type_code)
+        .where(and_(
+            Invoice.centre_sante_type_code.is_not(None),
+            not_(Invoice.centre_sante_type_code.in_(codes)),
+        )),
+        Invoice, simulation_id,
+    )
+
+
+def _centre_hors_referentiel(simulation_id, _debut):
+    """La facture désigne un centre absent du référentiel.
+
+    La clé étrangère l'interdit aujourd'hui : la règle veille sur le jour où
+    des données viendraient d'ailleurs que du moteur.
+    """
+
+    connus = select(HealthCenter.centre_sante_code)
+    return _portee(
+        select(Invoice.facture_numero, Invoice.centre_sante_code)
+        .where(not_(Invoice.centre_sante_code.in_(connus))),
+        Invoice, simulation_id,
+    )
+
+
+def _date_naissance_aberrante(_simulation_id, _debut):
+    """Naissance à venir, ou âge dépassant toute vraisemblance."""
+
+    return select(
+        InsuredPerson.assure_numero_identifiant, InsuredPerson.assure_date_naissance
+    ).where(or_(
+        InsuredPerson.assure_date_naissance > func.current_date(),
+        InsuredPerson.assure_date_naissance
+        < func.current_date() - text("interval '120 years'"),
+    ))
+
+
 def _numero_secu_invalide(_simulation_id, _debut):
     return select(InsuredPerson.assure_numero_identifiant, InsuredPerson.numero_secu).where(
         or_(
@@ -243,11 +337,23 @@ REGLES: tuple[Regle, ...] = (
     Regle("DATE_SOINS_ANTIDATEE", "Date de soins bien antérieure à l'exécution", VALIDITE,
           _date_antidatee, DATE_ANTIDATEE),
     Regle("DATE_SOINS_FUTURE", "Date de soins postérieure à l'exécution", VALIDITE,
-          _date_future, None),
+          _date_future, DATE_SOINS_FUTURE),
     Regle("QUANTITE_SERVIE_EXCESSIVE", "Quantité servie supérieure à la prescrite", COHERENCE,
           _quantite_excessive, QUANTITE_EXCESSIVE),
+    Regle("QUANTITE_SERVIE_NULLE", "Rien servi malgré une prescription", COHERENCE,
+          _quantite_nulle, QUANTITE_NULLE),
     Regle("REPARTITION_INCOHERENTE", "Part CMU et part assuré ne recomposent pas la base",
-          COHERENCE, _repartition_incoherente, None),
+          COHERENCE, _repartition_incoherente, REPARTITION_FAUSSEE),
+    Regle("TAUX_HORS_BAREME", "Taux de remboursement étranger au régime", COHERENCE,
+          _taux_hors_bareme, MONTANT_HORS_BAREME),
+    Regle("PRESTATION_ORPHELINE", "Code de prestation hors référentiel", VALIDITE,
+          _prestation_orpheline, PRESTATION_ORPHELINE),
+    Regle("TYPE_CENTRE_INCONNU", "Type d'établissement hors référentiel", VALIDITE,
+          _type_centre_inconnu, TYPE_CENTRE_INCONNU),
+    Regle("CENTRE_HORS_REFERENTIEL", "Centre de santé absent du référentiel", VALIDITE,
+          _centre_hors_referentiel, None),
+    Regle("DATE_NAISSANCE_ABERRANTE", "Date de naissance impossible", VALIDITE,
+          _date_naissance_aberrante, DATE_NAISSANCE_ABERRANTE, referentielle=True),
     Regle("FACTURE_SANS_CLOTURE", "Facture ouverte jamais clôturée", COHERENCE,
           _facture_sans_cloture, None),
     Regle("FACTURE_SANS_PRESTATION", "Facture sans aucune prestation", COMPLETUDE,
