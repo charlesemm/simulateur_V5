@@ -1,0 +1,59 @@
+# ═══════════════════════════════════════════════════════════════
+# ÉCHO — Podman Compose (compatible docker compose)
+#
+# Démarre PostgreSQL et l'API en un seul geste.
+# Le dashboard compilé est servi par uvicorn via les fichiers
+# statiques — pas de conteneur Nginx séparé en dev.
+# ═══════════════════════════════════════════════════════════════
+
+services:
+  # ── Base de données ──────────────────────────────────────────
+  postgres:
+    image: docker.io/library/postgres:16-alpine
+    environment:
+      POSTGRES_DB: echo_db
+      POSTGRES_USER: echo
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-echo_dev_2026}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U echo -d echo_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # ── API + dashboard ─────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: Containerfile
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://echo:${POSTGRES_PASSWORD:-echo_dev_2026}@postgres:5432/echo_db
+      CORS_ORIGIN_REGEX: "http://(localhost|127\\.0\\.0\\.1)(:\\d+)?"
+      # Mot de passe du premier administrateur, créé au démarrage
+      ECHO_ADMIN_PASSWORD: ${ECHO_ADMIN_PASSWORD:-MotDePasseAdmin1}
+    volumes:
+      - rapports:/app/reports/output
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # ── Migrations (exécuté une fois puis s'arrête) ─────────────
+  migrations:
+    build:
+      context: .
+      dockerfile: Containerfile
+    command: ["python", "-m", "alembic", "upgrade", "head"]
+    environment:
+      DATABASE_URL: postgresql+asyncpg://echo:${POSTGRES_PASSWORD:-echo_dev_2026}@postgres:5432/echo_db
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  rapports:

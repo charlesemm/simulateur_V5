@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.pyc
+.git/
+.gitignore
+node_modules/
+dashboard/node_modules/
+dashboard/dist/
+reports/output/
+*.md
+tests/
+.env
+.claude/
