@@ -9,6 +9,8 @@ import "./Screens.css";
 
 interface AccueilPageProps {
   onVoirExecution: (simulationId: string) => void;
+  /** Ouvre l'écran de paramétrage du type choisi. */
+  onConfigurer: (typeSimulation: string) => void;
 }
 
 /**
@@ -18,13 +20,12 @@ interface AccueilPageProps {
  * peut lancer, et les dernières exécutions. Le lancement n'apparaît qu'aux
  * opérateurs et aux administrateurs.
  */
-export function AccueilPage({ onVoirExecution }: AccueilPageProps) {
+export function AccueilPage({ onVoirExecution, onConfigurer }: AccueilPageProps) {
   const { token } = useAuth();
   const [profils, setProfils] = useState<ProfilSimulation[]>([]);
   const [executions, setExecutions] = useState<SimulationRun[]>([]);
   const [statut, setStatut] = useState<SimulationStatus | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
-  const [lancement, setLancement] = useState<string | null>(null);
 
   const rafraichir = useCallback(async () => {
     try {
@@ -63,24 +64,15 @@ export function AccueilPage({ onVoirExecution }: AccueilPageProps) {
     };
   }, [token, rafraichir]);
 
-  async function lancer(code: string) {
-    setLancement(code);
-    setErreur(null);
-    try {
-      await api.startSimulation(null, null, token, code);
-      await rafraichir();
-    } catch (raison) {
-      setErreur((raison as Error).message);
-    } finally {
-      setLancement(null);
-    }
-  }
-
   const enCours = statut?.etat === "en_cours";
   const passagesCumules = executions.reduce(
     (total, execution) => total + execution.passages_reussis,
     0
   );
+  // La tuile « type en cours » emprunte la couleur du type qui tourne.
+  const couleurDuType =
+    profils.find((profil) => profil.code === statut?.type_simulation)?.couleur
+    ?? "var(--text-light)";
 
   return (
     <div className="screen">
@@ -89,16 +81,24 @@ export function AccueilPage({ onVoirExecution }: AccueilPageProps) {
       <section>
         <h2 className="screen-section-title">État</h2>
         <div className="stat-strip">
-          <div className="stat-tile">
+          {/* Le moteur en marche se voit : la pastille bat, la tuile prend la
+              couleur d'action. À l'arrêt, tout retombe en gris. */}
+          <div className={`stat-tile stat-tile--accent${enCours ? " vivante" : ""}`}>
             <span className="stat-tile-label">Moteur</span>
-            <span className="stat-tile-value">{enCours ? "En cours" : "Arrêté"}</span>
+            <span className="stat-tile-value">
+              {enCours && <span className="pouls" aria-hidden="true" />}
+              {enCours ? "En cours" : "Arrêté"}
+            </span>
             <span className="stat-tile-hint">
               {enCours
                 ? `${statut?.passages_actifs ?? 0} passage(s) en parallèle`
                 : "Aucune exécution ouverte"}
             </span>
           </div>
-          <div className="stat-tile">
+          <div
+            className="stat-tile stat-tile--accent"
+            style={{ ["--tuile-couleur" as string]: couleurDuType }}
+          >
             <span className="stat-tile-label">Type en cours</span>
             <span className="stat-tile-value">
               {enCours ? (statut?.type_simulation ?? "—") : "—"}
@@ -107,12 +107,18 @@ export function AccueilPage({ onVoirExecution }: AccueilPageProps) {
               {enCours ? `Vitesse ×${statut?.vitesse ?? 0}` : "Choisissez un type ci-dessous"}
             </span>
           </div>
-          <div className="stat-tile">
+          <div
+            className="stat-tile stat-tile--accent"
+            style={{ ["--tuile-couleur" as string]: "var(--cnam-blue-vif)" }}
+          >
             <span className="stat-tile-label">Exécutions récentes</span>
             <span className="stat-tile-value">{executions.length}</span>
             <span className="stat-tile-hint">Les cinq dernières</span>
           </div>
-          <div className="stat-tile">
+          <div
+            className="stat-tile stat-tile--accent"
+            style={{ ["--tuile-couleur" as string]: "var(--cnam-green-vif)" }}
+          >
             <span className="stat-tile-label">Passages réussis</span>
             <span className="stat-tile-value">{passagesCumules}</span>
             <span className="stat-tile-hint">Sur ces cinq exécutions</span>
@@ -121,28 +127,54 @@ export function AccueilPage({ onVoirExecution }: AccueilPageProps) {
       </section>
 
       <section>
-        <h2 className="screen-section-title">Les quatre types de simulation</h2>
+        <h2 className="screen-section-title">Types de simulation</h2>
         <div className="type-grid">
           {profils.map((profil) => (
-            <article key={profil.code} className="type-card">
-              <span className="type-card-code">{profil.code}</span>
-              <h3 className="type-card-title">{profil.libelle}</h3>
-              <p className="type-card-desc">{profil.description}</p>
-              <div className="type-card-meta">
-                <span>Vitesse ×{profil.vitesse}</span>
-                <span>{profil.passages_simultanes_max} en parallèle</span>
-              </div>
-              <RequireRole minimum="operateur">
-                <button
-                  className="btn btn-start"
-                  onClick={() => void lancer(profil.code)}
-                  disabled={enCours || lancement !== null}
-                  title={enCours ? "Une exécution est déjà en cours" : "Lancer ce type"}
+            <RequireRole
+              key={profil.code}
+              minimum="operateur"
+              sinon={
+                <article
+                  className="type-card type-card--lecture"
+                  style={{ ["--type-couleur" as string]: profil.couleur }}
                 >
-                  {lancement === profil.code ? "Lancement…" : "Lancer"}
-                </button>
-              </RequireRole>
-            </article>
+                  <span className="type-card-code">{profil.code}</span>
+                  <h3 className="type-card-title">{profil.libelle}</h3>
+                  <p className="type-card-desc">{profil.description}</p>
+                  <div className="type-card-meta">
+                    <span>Vitesse ×{profil.vitesse}</span>
+                    <span>{profil.passages_simultanes_max} en parallèle</span>
+                  </div>
+                </article>
+              }
+            >
+              {/* La carte entière est le bouton : c'est la cible la plus
+                  large et la plus évidente à cliquer. */}
+              <button
+                type="button"
+                className="type-card type-card--action"
+                style={{ ["--type-couleur" as string]: profil.couleur }}
+                onClick={() => onConfigurer(profil.code)}
+                disabled={enCours}
+                title={
+                  enCours
+                    ? "Une exécution est déjà en cours"
+                    : "Paramétrer puis lancer ce type"
+                }
+              >
+                <span className="type-card-code">{profil.code}</span>
+                <span className="type-card-title">{profil.libelle}</span>
+                <span className="type-card-desc">{profil.description}</span>
+                <span className="type-card-meta">
+                  <span>Vitesse ×{profil.vitesse}</span>
+                  <span>{profil.passages_simultanes_max} en parallèle</span>
+                </span>
+                <span className="type-card-appel">
+                  Paramétrer une simulation
+                  <span className="type-card-fleche" aria-hidden="true">→</span>
+                </span>
+              </button>
+            </RequireRole>
           ))}
           {profils.length === 0 && (
             <div className="screen-empty">Les types de simulation n'ont pas pu être chargés.</div>

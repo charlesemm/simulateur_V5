@@ -6,16 +6,36 @@
 .screen {
   display: flex;
   flex-direction: column;
-  gap: 22px;
+  gap: 26px;
+  /* Le contenu apparaît d'un souffle plutôt que d'un coup : c'est ce qui
+     fait qu'un écran se regarde au lieu de se subir. */
+  animation: ecran-entree 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes ecran-entree {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
 }
 
 .screen-section-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--text-light);
-  margin-bottom: 12px;
+  margin-bottom: 14px;
+}
+
+/* Un filet qui prolonge le titre jusqu'au bord : l'œil suit la ligne
+   et comprend l'étendue de la section. */
+.screen-section-title::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border-subtle);
 }
 
 .screen-empty {
@@ -48,9 +68,61 @@
 .stat-tile {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 16px 18px;
+  border-radius: var(--rayon-md);
+  padding: 18px 20px;
   box-shadow: var(--shadow-card);
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+.stat-tile:hover {
+  border-color: var(--border);
+  box-shadow: var(--shadow-hover);
+}
+
+/* Une tuile accentuée porte un bandeau de couleur en tête : quatre chiffres
+   alignés en gris se ressemblent tous, quatre chiffres coiffés d'une couleur
+   se distinguent au premier regard. */
+.stat-tile--accent {
+  position: relative;
+  padding-top: 21px;
+  overflow: hidden;
+}
+
+.stat-tile--accent::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: var(--tuile-couleur, var(--text-light));
+}
+
+.stat-tile--accent .stat-tile-label {
+  color: var(--tuile-couleur, var(--text-light));
+}
+
+.stat-tile--accent.vivante {
+  --tuile-couleur: var(--cnam-green);
+}
+
+.stat-tile--accent.vivante .stat-tile-value {
+  color: var(--cnam-green-dark);
+}
+
+/* Le pouls ne bat que pendant qu'une exécution tourne. */
+.pouls {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-right: 9px;
+  border-radius: 50%;
+  background: var(--cnam-green);
+  vertical-align: middle;
+  animation: pouls-battement 1.8s ease-in-out infinite;
+}
+
+@keyframes pouls-battement {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.45); }
+  60% { box-shadow: 0 0 0 7px rgba(22, 163, 74, 0); }
 }
 
 .stat-tile-label {
@@ -86,41 +158,132 @@
 }
 
 .type-card {
+  position: relative;
   display: flex;
   flex-direction: column;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 18px;
+  border-radius: var(--rayon-md);
+  padding: 20px;
   box-shadow: var(--shadow-card);
-  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+  overflow: hidden;
+  transition: box-shadow var(--transition), border-color var(--transition),
+    transform var(--transition);
 }
 
-.type-card:hover {
+/* Un liseré coloré qui se déploie au survol : la carte se déclare
+   cliquable avant même qu'on lise le bouton. */
+/* Chaque type porte sa couleur en bandeau haut : les quatre se reconnaissent
+   avant même qu'on lise leur nom. Le liseré gauche, lui, ne se déploie qu'au
+   survol — il signale que la carte se clique. */
+.type-card::after {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 4px;
+  background: var(--type-couleur, var(--cnam-green));
+}
+
+.type-card::before {
+  content: "";
+  position: absolute;
+  inset: 4px auto 0 0;
+  width: 3px;
+  background: var(--type-couleur, var(--cnam-green));
+  transform: scaleY(0);
+  transform-origin: top;
+  transition: transform var(--transition);
+}
+
+.type-card:hover,
+.type-card:focus-within {
   box-shadow: var(--shadow-hover);
-  border-color: var(--cnam-green-border);
+  border-color: var(--type-couleur, var(--cnam-green-border));
+  transform: translateY(-2px);
+}
+
+.type-card:hover::before,
+.type-card:focus-within::before {
+  transform: scaleY(1);
+}
+
+/* La carte-bouton doit se dépouiller de tout ce qu'un <button> impose :
+   fond, bordure, centrage et police héritée. */
+.type-card--action {
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+  align-items: stretch;
+}
+
+.type-card--action:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  transform: none;
+  box-shadow: var(--shadow-card);
+}
+
+.type-card--action:disabled::before {
+  transform: scaleY(0);
+}
+
+.type-card--lecture {
+  cursor: default;
+}
+
+/* L'appel à l'action, en bas de carte : le vert et la flèche disent
+   qu'il se passera quelque chose. */
+.type-card-appel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: auto;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-subtle);
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--type-couleur, var(--cnam-green-dark));
+}
+
+.type-card-fleche {
+  font-size: 1rem;
+  transition: transform var(--transition);
+}
+
+.type-card--action:hover:not(:disabled) .type-card-fleche {
+  transform: translateX(4px);
 }
 
 .type-card-title {
-  font-size: 1rem;
+  display: block;
+  font-size: 1.02rem;
   font-weight: 700;
   color: var(--text-main);
   margin-bottom: 4px;
 }
 
 .type-card-code {
+  display: inline-block;
+  align-self: flex-start;
   font-size: 0.64rem;
   font-weight: 700;
   letter-spacing: 0.12em;
-  color: var(--cnam-green);
+  color: var(--type-couleur, var(--cnam-green-dark));
+  background: color-mix(in srgb, var(--type-couleur, var(--cnam-green)) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--type-couleur, var(--cnam-green)) 28%, transparent);
+  border-radius: 100px;
+  padding: 3px 10px;
   text-transform: uppercase;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
 .type-card-desc {
-  font-size: 0.85rem;
+  display: block;
+  font-size: 0.86rem;
   color: var(--text-muted);
-  line-height: 1.55;
+  line-height: 1.6;
   flex: 1;
   margin-bottom: 14px;
 }
@@ -130,7 +293,6 @@
   gap: 14px;
   font-size: 0.74rem;
   color: var(--text-light);
-  margin-bottom: 14px;
   font-variant-numeric: tabular-nums;
 }
 
@@ -172,16 +334,32 @@
   border-bottom: none;
 }
 
+/* Une ligne cliquable le dit de trois façons : le curseur, le fond, et
+   un liseré vert qui apparaît à gauche. Une seule ne suffit pas. */
 .screen-table tbody tr.cliquable {
   cursor: pointer;
+  transition: background var(--transition), box-shadow var(--transition);
+}
+
+.screen-table tbody tr.cliquable td:first-child {
+  box-shadow: inset 0 0 0 0 var(--cnam-green);
+  transition: box-shadow var(--transition);
 }
 
 .screen-table tbody tr.cliquable:hover {
-  background: var(--surface-subtle);
+  background: var(--surface-hover);
+}
+
+.screen-table tbody tr.cliquable:hover td:first-child {
+  box-shadow: inset 3px 0 0 0 var(--cnam-green);
 }
 
 .screen-table tbody tr.selectionnee {
   background: var(--cnam-green-light);
+}
+
+.screen-table tbody tr.selectionnee td:first-child {
+  box-shadow: inset 3px 0 0 0 var(--cnam-green);
 }
 
 /* ── Pastilles de statut ── */
@@ -214,19 +392,26 @@
   background: var(--surface);
   border: 1px solid var(--border);
   border-left: 4px solid var(--famille-couleur, var(--border));
-  border-radius: 10px;
-  padding: 16px;
+  border-radius: var(--rayon-md);
+  padding: 18px;
   box-shadow: var(--shadow-card);
-  opacity: 0.62;
-  transition: opacity 0.15s ease, box-shadow 0.15s ease;
+  /* Un type coupé s'efface sans disparaître : on doit pouvoir le
+     retrouver et le rallumer sans le chercher. */
+  opacity: 0.55;
+  filter: saturate(0.35);
+  transition: opacity var(--transition), filter var(--transition),
+    box-shadow var(--transition), transform var(--transition);
 }
 
 .anomalie-carte.active {
   opacity: 1;
+  filter: none;
 }
 
 .anomalie-carte:hover {
   box-shadow: var(--shadow-hover);
+  transform: translateY(-2px);
+  opacity: 1;
 }
 
 .anomalie-carte-tete {
@@ -287,20 +472,147 @@
 
 .champ-console {
   width: 100%;
-  padding: 6px 10px;
+  padding: 8px 11px;
   border: 1px solid var(--border);
-  border-radius: 7px;
-  font-size: 0.8rem;
+  border-radius: var(--rayon-sm);
+  font-size: 0.83rem;
   color: var(--text-main);
   background: var(--surface);
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+.champ-console:hover:not(:disabled) {
+  border-color: var(--text-light);
+}
+
+/* Le champ actif se cerne d'un halo vert plutôt que d'un simple trait :
+   on voit d'un coup d'œil où l'on écrit. */
+.champ-console:focus {
+  outline: none;
+  border-color: var(--cnam-green);
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.14);
 }
 
 .champ-console:disabled {
   background: var(--surface-subtle);
   color: var(--text-light);
+  cursor: not-allowed;
 }
 
-/* ── Aléas ── */
+/* Champ de pourcentage : le signe reste collé au nombre, et le tout
+   se comporte comme un seul objet. */
+.champ-pourcentage {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.champ-pourcentage .champ-console {
+  width: 78px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.champ-pourcentage span {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+/* ── Aléas : des boutons, pas des lignes de tableau ─────────────────────
+   Un aléa se déclenche ou ne se déclenche pas. La couleur dit sa nature —
+   interruption, charge, dérive — et l'état allumé se voit de loin. */
+.alea-grille {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 12px;
+}
+
+.alea-bouton {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--rayon-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+  transition: border-color var(--transition), box-shadow var(--transition),
+    transform var(--transition);
+}
+
+.alea-bouton:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-hover);
+  border-color: var(--alea-couleur);
+}
+
+.alea-bouton.actif {
+  border-color: var(--alea-couleur);
+  box-shadow: 0 0 0 1px var(--alea-couleur), var(--shadow-card);
+}
+
+.alea-bouton-corps {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 16px 16px 14px;
+  background: none;
+  border: none;
+  border-left: 4px solid var(--alea-couleur);
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  transition: background var(--transition);
+}
+
+.alea-bouton-corps:hover {
+  background: var(--surface-hover);
+}
+
+/* Allumé, l'aléa prend sa couleur en fond très dilué : présent sans crier. */
+.alea-bouton.actif .alea-bouton-corps {
+  background: color-mix(in srgb, var(--alea-couleur) 8%, transparent);
+}
+
+.alea-nature {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--alea-couleur);
+}
+
+.alea-bouton-nom {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-main);
+  line-height: 1.35;
+}
+
+.alea-etat {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-light);
+}
+
+.alea-bouton.actif .alea-etat {
+  color: var(--alea-couleur);
+}
+
+.alea-bouton-pied {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--border-subtle);
+  background: var(--surface-subtle);
+  font-size: 0.76rem;
+  color: var(--text-muted);
+}
+
+/* ── Aléas (console) ── */
 .alea-carte {
   display: flex;
   align-items: center;
@@ -342,13 +654,311 @@
   cursor: not-allowed;
 }
 
+/* ═══════════════════════════════════════════════════════════════════════
+   Poste de pilotage — l'écran d'une simulation en cours
+   C'est le seul endroit où la couleur occupe toute la largeur : il n'existe
+   que pendant qu'une exécution tourne, et doit se distinguer au premier
+   coup d'œil de tout ce qui se consulte à froid.
+═══════════════════════════════════════════════════════════════════════ */
+.pilote-bandeau {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+  padding: 26px 28px;
+  border-radius: var(--rayon-lg);
+  color: #ffffff;
+  background:
+    linear-gradient(135deg,
+      var(--type-couleur, var(--cnam-green)) 0%,
+      color-mix(in srgb, var(--type-couleur, var(--cnam-green)) 62%, #0b1f16) 100%);
+  box-shadow: 0 14px 34px color-mix(in srgb, var(--type-couleur, var(--cnam-green)) 26%, transparent);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Une onde figée dans le fond, en écho au logo : présente, jamais lisible
+   au point de gêner le texte. */
+.pilote-bandeau::after {
+  content: "";
+  position: absolute;
+  right: -60px;
+  top: 50%;
+  width: 340px;
+  height: 340px;
+  transform: translateY(-50%);
+  border-radius: 50%;
+  border: 40px solid rgba(255, 255, 255, 0.07);
+  pointer-events: none;
+}
+
+.pilote-bandeau-gauche,
+.pilote-bandeau-droite {
+  position: relative;
+  z-index: 1;
+}
+
+.pilote-bandeau-droite {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+}
+
+.pilote-etiquette {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.pouls-clair {
+  background: #ffffff;
+  animation-name: pouls-clair-battement;
+}
+
+@keyframes pouls-clair-battement {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.5); }
+  60% { box-shadow: 0 0 0 8px rgba(255, 255, 255, 0); }
+}
+
+.pilote-titre {
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin: 8px 0 4px;
+  color: #ffffff;
+}
+
+.pilote-sous-titre {
+  font-size: 0.86rem;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.pilote-chrono {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.pilote-chrono-valeur {
+  font-size: 1.5rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.pilote-chrono-libelle {
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+/* Le bouton d'arrêt se détache sur le bandeau coloré sans lui voler sa
+   teinte : blanc plein, texte à la couleur du type. */
+.btn-arret {
+  background: #ffffff;
+  color: color-mix(in srgb, var(--type-couleur, var(--cnam-green)) 78%, #0b1f16);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+  font-weight: 700;
+}
+
+.btn-arret:hover:not(:disabled) {
+  background: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.24);
+}
+
+/* ── Aléas en actions : un clic, un crash test ── */
+.alea-action {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px 18px;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--alea-couleur);
+  border-radius: var(--rayon-md);
+  box-shadow: var(--shadow-card);
+  transition: background var(--transition), box-shadow var(--transition),
+    transform var(--transition), border-color var(--transition);
+}
+
+.alea-action:hover {
+  transform: translateY(-2px);
+  border-color: var(--alea-couleur);
+  background: color-mix(in srgb, var(--alea-couleur) 8%, transparent);
+  box-shadow: var(--shadow-hover);
+}
+
+.alea-action:active {
+  transform: translateY(1px);
+}
+
+/* Un aléa déjà déclenché garde une trace : on sait ce qu'on a fait subir
+   à l'exécution sans relire le journal. */
+.alea-action.deja {
+  border-color: var(--alea-couleur);
+  background: color-mix(in srgb, var(--alea-couleur) 12%, transparent);
+}
+
+.alea-action-pied {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 4px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--alea-couleur);
+}
+
+.alea-action-fleche {
+  font-size: 0.95rem;
+  transition: transform var(--transition);
+}
+
+.alea-action:hover .alea-action-fleche {
+  transform: scale(1.25);
+}
+
+/* ── Flux d'événements ── */
+.flux {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--rayon-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+}
+
+.flux-ligne {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 9px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 0.8rem;
+  animation: flux-entree 240ms ease-out both;
+}
+
+@keyframes flux-entree {
+  from { opacity: 0; transform: translateX(-6px); }
+  to { opacity: 1; transform: none; }
+}
+
+.flux-ligne:last-child { border-bottom: none; }
+
+.flux-heure {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-light);
+  font-size: 0.74rem;
+  flex-shrink: 0;
+}
+
+.flux-type {
+  font-weight: 600;
+  color: var(--cnam-blue-dark);
+  flex: 1;
+}
+
+/* Un événement d'aléa se repère dans le flux : c'est ce qu'on vient de
+   déclencher, on doit le voir arriver. */
+.flux-type.alea {
+  color: #b4460c;
+  font-weight: 700;
+}
+
+.flux-passage {
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 0.72rem;
+  color: var(--text-light);
+}
+
+/* ── Cellules : ce qui a été demandé, et ce qu'on a obtenu ──────────────
+   Un tableau de deux colonnes se lit ligne par ligne ; ces cellules se
+   parcourent d'un regard, et celles restées à zéro se repèrent aussitôt. */
+.cellules {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 12px;
+}
+
+.cellule {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--rayon-md);
+  border-top: 3px solid var(--cellule-couleur, var(--border));
+  transition: background var(--transition), box-shadow var(--transition);
+}
+
+/* Une cellule qui a réellement produit quelque chose s'éclaire ; celle restée
+   à zéro garde le fond gris, et c'est l'information. */
+.cellule.remplie {
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+}
+
+.cellule-titre {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
+.cellule-nombre {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--text-light);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.cellule.remplie .cellule-nombre {
+  color: var(--cellule-couleur, var(--text-main));
+}
+
+.cellule-pied {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.7rem;
+  color: var(--text-light);
+}
+
+.cellule-pied strong {
+  font-weight: 600;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
 /* ── Fiche d'exécution ── */
 .fiche {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--rayon-md);
   padding: 20px;
   box-shadow: var(--shadow-card);
+}
+
+/* La fiche de lancement porte la couleur du type en tête : on sait ce qu'on
+   s'apprête à lancer sans relire l'intitulé. */
+.fiche--type {
+  border-top: 4px solid var(--type-couleur, var(--cnam-green));
 }
 
 .fiche-tete {
@@ -396,24 +1006,111 @@
 }
 
 .onglet {
+  position: relative;
   background: none;
   border: none;
   border-bottom: 2px solid transparent;
-  padding: 9px 16px;
-  font-size: 0.86rem;
+  padding: 10px 18px;
+  font-size: 0.87rem;
   font-weight: 600;
   color: var(--text-muted);
   cursor: pointer;
-  transition: color 0.15s ease, border-color 0.15s ease;
+  border-radius: var(--rayon-sm) var(--rayon-sm) 0 0;
+  transition: color var(--transition), border-color var(--transition),
+    background var(--transition);
 }
 
 .onglet:hover {
   color: var(--text-main);
+  background: var(--surface-hover);
+  border-bottom-color: var(--border);
 }
 
 .onglet.actif {
   color: var(--cnam-green-dark);
   border-bottom-color: var(--cnam-green);
+  background: none;
+}
+
+/* ── Formulaire de lancement ── */
+.formulaire-lancement {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-end;
+  margin-top: 18px;
+}
+
+.champ-groupe {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  min-width: 240px;
+}
+
+.champ-court {
+  flex: 0 0 180px;
+  min-width: 160px;
+}
+
+.champ-libelle {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-light);
+}
+
+/* Un pourcentage se saisit, il ne se devine pas au curseur. */
+.champ-pourcentage {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.champ-pourcentage input {
+  width: 72px;
+  text-align: right;
+}
+
+.champ-pourcentage span {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.famille-bloc {
+  margin-bottom: 18px;
+}
+
+.famille-titre {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--famille-couleur, var(--text-muted));
+  margin-bottom: 8px;
+}
+
+.famille-titre .dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--famille-couleur, var(--text-muted));
+}
+
+/* La barre reste sous la main quelle que soit la longueur du formulaire. */
+.barre-lancement {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 14px 0;
+  background: linear-gradient(to top, var(--surface-subtle) 70%, transparent);
 }
 
 /* ── Pagination ── */
@@ -449,4 +1146,69 @@
   background: var(--cnam-orange-light);
   border-color: var(--cnam-orange-border);
   color: var(--cnam-orange);
+}
+
+/* ── Boutons danger (suppression, purge) ── */
+.btn-danger-outline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 7px;
+  border: 1px solid #e5484d;
+  background: transparent;
+  color: #e5484d;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 160ms ease, color 160ms ease;
+}
+.btn-danger-outline:hover { background: rgba(229, 72, 77, 0.08); }
+.btn-danger-outline:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-danger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 7px;
+  border: none;
+  background: #e5484d;
+  color: #fff;
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 160ms ease;
+}
+.btn-danger:hover { background: #f05257; }
+.btn-danger:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── Bannière de confirmation inline ── */
+.confirm-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 18px;
+  border-radius: 8px;
+  font-size: 0.84rem;
+  flex-wrap: wrap;
+}
+.confirm-danger {
+  background: rgba(229, 72, 77, 0.08);
+  border: 1px solid rgba(229, 72, 77, 0.3);
+  color: var(--text-dark, #1a1a1a);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .confirm-danger {
+    background: rgba(229, 72, 77, 0.12);
+    color: #e8e8e8;
+  }
+}
+:root[data-theme="dark"] .confirm-danger {
+  background: rgba(229, 72, 77, 0.12);
+  color: #e8e8e8;
 }

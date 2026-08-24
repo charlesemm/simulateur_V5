@@ -1,29 +1,40 @@
 // dashboard/src/components/Sidebar.tsx
 import { useAuth } from "../auth/AuthContext";
 import { RequireRole } from "../auth/RequireRole";
+import logoCnam from "../assets/logo.png";
 import type { Onglet } from "../navigation";
 import { EchoLogo } from "./EchoLogo";
 import {
-  DashboardIcon, DonneesIcon, HomeIcon, InjectionIcon, LogoutIcon,
-  QualiteIcon, ReportsIcon, SimulationsIcon, UsersIcon,
+  DashboardIcon, HomeIcon, InjectionIcon, LogoutIcon, QualiteIcon,
+  ReportsIcon, SimulationsIcon, UsersIcon,
 } from "./Icons";
 
 interface SidebarProps {
   ongletActif: Onglet;
   onNaviguer: (onglet: Onglet) => void;
+  /** Vrai tant qu'une exécution tourne : le poste de pilotage n'existe alors. */
+  moteurEnCours: boolean;
 }
 
-export function Sidebar({ ongletActif, onNaviguer }: SidebarProps) {
+export function Sidebar({ ongletActif, onNaviguer, moteurEnCours }: SidebarProps) {
   const { nomComplet, role, logout } = useAuth();
 
   return (
     <aside className="app-sidebar">
       <div className="sidebar-top">
         <div className="sidebar-brand">
-          <EchoLogo size={38} className="sidebar-logo" id="sidebar" />
+          <div className="sidebar-marques">
+            <EchoLogo size={34} className="sidebar-logo" id="sidebar" />
+            <span className="sidebar-marques-filet" />
+            <img
+              src={logoCnam}
+              alt="Caisse Nationale d'Assurance Maladie"
+              className="sidebar-logo-cnam"
+            />
+          </div>
           <div className="sidebar-brand-meta">
             <span className="sidebar-brand-title">ÉCHO</span>
-            <span className="sidebar-brand-sub">CNAM-CI</span>
+            <span className="sidebar-brand-sub">Simulateur de données · Côte d'Ivoire</span>
           </div>
         </div>
 
@@ -48,6 +59,20 @@ export function Sidebar({ ongletActif, onNaviguer }: SidebarProps) {
             </button>
           </RequireRole>
 
+          {/* N'apparaît que pendant qu'une simulation tourne : un onglet vide
+              le reste du temps n'aurait rien à montrer. */}
+          {moteurEnCours && (
+            <button
+              className={`sidebar-nav-item sidebar-nav-item--vif ${
+                ongletActif === "encours" ? "active" : ""
+              }`}
+              onClick={() => onNaviguer("encours")}
+            >
+              <span className="pouls" aria-hidden="true" />
+              <span className="nav-text">Simulation en cours</span>
+            </button>
+          )}
+
           <button
             className={`sidebar-nav-item ${ongletActif === "simulations" ? "active" : ""}`}
             onClick={() => onNaviguer("simulations")}
@@ -62,14 +87,6 @@ export function Sidebar({ ongletActif, onNaviguer }: SidebarProps) {
           >
             <QualiteIcon className="nav-icon" />
             <span className="nav-text">Qualité</span>
-          </button>
-
-          <button
-            className={`sidebar-nav-item ${ongletActif === "donnees" ? "active" : ""}`}
-            onClick={() => onNaviguer("donnees")}
-          >
-            <DonneesIcon className="nav-icon" />
-            <span className="nav-text">Données</span>
           </button>
 
           <RequireRole minimum="operateur">

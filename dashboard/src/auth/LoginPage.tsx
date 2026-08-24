@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import logoCnam from "../assets/logo.png";
 import { EchoLogo } from "../components/EchoLogo";
 import { useAuth } from "./AuthContext";
 import "./LoginPage.css";
@@ -17,8 +18,14 @@ export function LoginPage() {
     setEnCours(true);
     try {
       await login(identifiant, motDePasse);
-    } catch {
-      setErreur("Identifiant ou mot de passe incorrect.");
+    } catch (raison) {
+      // On affiche la raison telle qu'elle remonte. L'écraser par un message
+      // unique faisait passer une API éteinte ou un serveur en panne pour un
+      // mot de passe erroné : on cherchait la faute dans son clavier pendant
+      // que la panne était ailleurs.
+      setErreur(
+        raison instanceof Error ? raison.message : "La connexion a échoué."
+      );
     } finally {
       setEnCours(false);
     }
@@ -38,7 +45,12 @@ export function LoginPage() {
       <div className="lp-brand">
         <div className="lp-brand-content">
           <div className="lp-logo-wrap">
-            <EchoLogo size={120} className="lp-logo-mark" id="lp" />
+            <EchoLogo size={110} className="lp-logo-mark" id="lp" />
+            {/* Le logo CNAM est sur fond blanc : une pastille claire le
+                pose sur le fond sombre sans le dénaturer. */}
+            <span className="lp-cnam-pastille">
+              <img src={logoCnam} alt="Caisse Nationale d'Assurance Maladie" />
+            </span>
           </div>
           <h1 className="lp-brand-title">
             <span className="lp-brand-name lp-brand-highlight">ÉCHO</span><br />

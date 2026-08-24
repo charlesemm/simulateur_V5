@@ -29,10 +29,34 @@ const ETAT_VIDE: AuthState = {
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 const STORAGE_KEY = "cmu_dashboard_auth";
 
+/**
+ * Dit si un jeton JWT a dépassé sa date d'expiration.
+ *
+ * Un jeton ne vit que huit heures. Sans cette vérification au démarrage,
+ * l'application se croyait connectée avec un jeton mort : elle affichait le
+ * tableau de bord, chaque appel retournait 401, et rien ne ramenait jamais
+ * l'écran de connexion. On paraissait connecté sans l'être.
+ */
+function jetonExpire(token: string | null): boolean {
+  if (!token) return true;
+  try {
+    const charge = JSON.parse(
+      atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/"))
+    ) as { exp?: number };
+    if (!charge.exp) return false;
+    return charge.exp * 1000 <= Date.now();
+  } catch {
+    // Un jeton illisible est un jeton inutilisable.
+    return true;
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>(() => {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? { ...ETAT_VIDE, ...JSON.parse(raw) } : ETAT_VIDE;
+    if (!raw) return ETAT_VIDE;
+    const enregistre = { ...ETAT_VIDE, ...JSON.parse(raw) } as AuthState;
+    return jetonExpire(enregistre.token) ? ETAT_VIDE : enregistre;
   });
 
   useEffect(() => {
@@ -43,14 +67,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [state]);
 
+  // L'API signale un jeton refusé ; la session se ferme alors d'elle-même et
+  // l'écran de connexion revient, plutôt que de laisser un tableau de bord
+  // couvert de messages d'erreur.
+  useEffect(() => {
+    function fermerLaSession() {
+      setState(ETAT_VIDE);
+    }
+    window.addEventListener("echo:session-expiree", fermerLaSession);
+    return () => window.removeEventListener("echo:session-expiree", fermerLaSession);
+  }, []);
+
   async function login(identifiant: string, motDePasse: string) {
-    const response = await fetch(`${API_URL}/auth/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ identifiant, mot_de_passe: motDePasse }),
-    });
-    if (!response.ok) {
+    let response: Response;
+    try {
+      response = await fetch(`${API_URL}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ identifiant, mot_de_passe: motDePasse }),
+      });
+    } catch {
+      // Sans cette distinction, une API éteinte s'annonçait « mot de passe
+      // incorrect » : on cherchait la faute dans son clavier.
+      throw new Error(
+        `Le serveur ne répond pas (${API_URL}). Vérifiez que l'API est démarrée.`
+      );
+    }
+
+    if (response.status === 401) {
       throw new Error("Identifiant ou mot de passe incorrect.");
+    }
+    if (!response.ok) {
+      throw new Error(
+        `Connexion impossible : le serveur a répondu ${response.status}.`
+      );
     }
     const data = await response.json();
     setState({

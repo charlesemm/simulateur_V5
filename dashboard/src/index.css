@@ -1,40 +1,81 @@
-/* ── Enterprise Design System CNAM - Supervision Moteur ── */
+/* ═══════════════════════════════════════════════════════════════
+   ÉCHO — système visuel
+   Deux sources, et deux seulement : les couleurs d'ÉCHO et celles
+   du logo CNAM. Le reste est gris. Une interface où tout crie
+   n'attire l'œil sur rien.
+═══════════════════════════════════════════════════════════════ */
 :root {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   color: #0f172a;
-  background-color: #f8fafc;
+  background-color: #f6f8f7;
   line-height: 1.5;
   font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
 
-  /* Charte institutionnelle CNAM */
+  /* Vert : la couleur d'action. Celui d'ÉCHO pour agir, celui du
+     logo CNAM — plus clair — pour les touches vives. */
   --cnam-green: #16a34a;
   --cnam-green-dark: #15803d;
+  --cnam-green-vif: #4ca82e;
   --cnam-green-light: #f0fdf4;
   --cnam-green-border: #bbf7d0;
 
+  /* Bleu : l'information et le direct, jamais l'action. */
   --cnam-blue: #0284c7;
   --cnam-blue-dark: #0369a1;
+  --cnam-blue-vif: #159bd7;
   --cnam-blue-light: #f0f9ff;
   --cnam-blue-border: #bae6fd;
 
+  /* Orange : réservé à l'irréversible. Le voir doit rester rare. */
   --cnam-orange: #ea580c;
+  --cnam-orange-vif: #f07e14;
   --cnam-orange-light: #fff7ed;
   --cnam-orange-border: #fed7aa;
 
   --surface: #ffffff;
-  --surface-subtle: #f8fafc;
-  --border: #e2e8f0;
-  --border-subtle: #f1f5f9;
-  --text-main: #0f172a;
-  --text-muted: #64748b;
-  --text-light: #94a3b8;
+  --surface-subtle: #f6f8f7;
+  --surface-hover: #f1f5f3;
+  --border: #e3e9e6;
+  --border-subtle: #eef2f0;
+  --text-main: #10201a;
+  --text-muted: #5c6b64;
+  --text-light: #90a099;
 
-  --sidebar-width: 260px;
-  --topbar-height: 64px;
+  --sidebar-width: 268px;
+  --topbar-height: 68px;
 
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
-  --shadow-card: 0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.03);
-  --shadow-hover: 0 4px 14px rgba(0, 0, 0, 0.06);
+  --rayon-sm: 8px;
+  --rayon-md: 12px;
+  --rayon-lg: 16px;
+
+  /* Une seule durée pour toute l'interface : c'est ce qui donne
+     l'impression d'un même objet, et non d'un assemblage. */
+  --transition: 160ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  --shadow-sm: 0 1px 2px 0 rgba(16, 32, 26, 0.04);
+  --shadow-card: 0 1px 2px rgba(16, 32, 26, 0.04), 0 1px 3px rgba(16, 32, 26, 0.03);
+  --shadow-hover: 0 6px 20px rgba(16, 32, 26, 0.09), 0 2px 6px rgba(16, 32, 26, 0.05);
+  --shadow-action: 0 2px 8px rgba(22, 163, 74, 0.22);
+
+  --brand-degrade: linear-gradient(135deg, var(--cnam-green) 0%, var(--cnam-blue) 100%);
+}
+
+/* Tout ce qui se clique le montre au clavier aussi, pas seulement à
+   la souris : un anneau unique, à la couleur d'action. */
+:where(button, a, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--cnam-green);
+  outline-offset: 2px;
+  border-radius: var(--rayon-sm);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 * {
@@ -69,15 +110,43 @@ svg {
 .btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
-  padding: 8px 16px;
-  border-radius: 7px;
-  font-size: 0.82rem;
+  padding: 10px 18px;
+  border-radius: var(--rayon-sm);
+  font-size: 0.85rem;
   font-weight: 600;
+  letter-spacing: 0.01em;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background var(--transition), border-color var(--transition),
+    box-shadow var(--transition), transform var(--transition), color var(--transition);
   border: 1px solid transparent;
   white-space: nowrap;
+}
+
+/* Un bouton s'enfonce quand on le presse : c'est ce petit retour qui
+   fait la différence entre une interface et une image. */
+.btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Le bouton neutre : contour net, jamais un texte flottant qu'on
+   hésite à cliquer. */
+.btn-outline {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--text-main);
+}
+
+.btn-outline:hover:not(:disabled) {
+  border-color: var(--cnam-green);
+  color: var(--cnam-green-dark);
+  background: var(--cnam-green-light);
 }
 
 .btn svg,
@@ -92,15 +161,17 @@ svg {
 .btn-start {
   background: var(--cnam-green);
   color: #ffffff;
+  box-shadow: var(--shadow-action);
 }
 
 .btn-start:hover:not(:disabled) {
   background: var(--cnam-green-dark);
+  box-shadow: 0 4px 14px rgba(22, 163, 74, 0.32);
+  transform: translateY(-1px);
 }
 
 .btn-start:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+  box-shadow: none;
 }
 
 /* ── Layout Global à Sidebar Latérale ── */
@@ -133,30 +204,54 @@ svg {
 
 .sidebar-brand {
   display: flex;
-  align-items: center;
-  gap: 12px;
+  flex-direction: column;
+  gap: 14px;
   padding-bottom: 20px;
   border-bottom: 1px solid var(--border-subtle);
-  margin-bottom: 20px;
+  margin-bottom: 22px;
+}
+
+/* Les deux marques sur une même ligne, séparées par un filet : ÉCHO est
+   l'outil, la CNAM la maison. Ni l'une au-dessus de l'autre, ni fondues. */
+.sidebar-marques {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .sidebar-logo {
-  height: 38px;
-  width: 38px;
+  height: 34px;
+  width: 34px;
+  flex-shrink: 0;
+}
+
+.sidebar-marques-filet {
+  width: 1px;
+  height: 30px;
+  background: var(--border);
+  flex-shrink: 0;
+}
+
+.sidebar-logo-cnam {
+  height: 34px;
+  width: auto;
+  max-width: 96px;
+  object-fit: contain;
   flex-shrink: 0;
 }
 
 .sidebar-brand-meta {
   display: flex;
   flex-direction: column;
+  gap: 1px;
 }
 
 .sidebar-brand-title {
-  font-size: 0.92rem;
-  font-weight: 700;
+  font-size: 1rem;
+  font-weight: 800;
   color: var(--text-main);
   /* Le nom du produit se lit espacé, pas resserré comme un titre courant. */
-  letter-spacing: 0.12em;
+  letter-spacing: 0.16em;
 }
 
 .sidebar-brand-sub {
@@ -181,25 +276,46 @@ svg {
 }
 
 .sidebar-nav-item {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 9px 12px;
+  padding: 10px 12px 10px 14px;
   background: none;
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: var(--rayon-sm);
   color: var(--text-muted);
-  font-size: 0.84rem;
+  font-size: 0.86rem;
   font-weight: 500;
   cursor: pointer;
   text-align: left;
-  transition: all 0.15s ease;
+  transition: background var(--transition), color var(--transition),
+    border-color var(--transition);
   width: 100%;
 }
 
+/* Un repère vertical qui pousse au survol et se fige sur l'onglet
+   courant : on sait où l'on est, et où l'on peut aller. */
+.sidebar-nav-item::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 3px;
+  height: 0;
+  border-radius: 0 3px 3px 0;
+  background: var(--cnam-green);
+  transform: translateY(-50%);
+  transition: height var(--transition);
+}
+
 .sidebar-nav-item:hover {
-  background: var(--surface-subtle);
+  background: var(--surface-hover);
   color: var(--text-main);
+}
+
+.sidebar-nav-item:hover::before {
+  height: 40%;
 }
 
 .sidebar-nav-item.active {
@@ -207,6 +323,26 @@ svg {
   color: var(--cnam-green-dark);
   font-weight: 600;
   border-color: var(--cnam-green-border);
+}
+
+.sidebar-nav-item.active::before {
+  height: 60%;
+}
+
+/* L'entrée du poste de pilotage : elle n'existe que pendant l'exécution, et
+   doit se remarquer dans une liste par ailleurs sage. */
+.sidebar-nav-item--vif {
+  color: var(--cnam-green-dark);
+  font-weight: 600;
+  background: var(--cnam-green-light);
+  border-color: var(--cnam-green-border);
+}
+
+.sidebar-nav-item--vif .pouls {
+  margin: 0 0 0 2px;
+  width: 10px;
+  height: 10px;
+  flex-shrink: 0;
 }
 
 .sidebar-nav-item.active .nav-icon {
