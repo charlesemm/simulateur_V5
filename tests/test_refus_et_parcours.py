@@ -151,7 +151,10 @@ async def test_une_rafale_est_plafonnee_et_le_reste_annonce():
     total_diffuses = sum(len(payload["evenements"]) for _, payload in serveur.envois)
     total_ecartes = sum(payload["ecartes"] for _, payload in serveur.envois)
 
-    assert total_diffuses <= 10
+    # Ce qui compte n'est pas le total sur plusieurs fenêtres — il dépend du
+    # nombre de fenêtres écoulées — mais qu'aucun envoi ne dépasse le plafond.
+    assert all(len(payload["evenements"]) <= 5 for _, payload in serveur.envois)
+    assert total_ecartes > 0
     assert total_diffuses + total_ecartes == 30
 
 

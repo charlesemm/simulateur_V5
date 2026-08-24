@@ -17,7 +17,7 @@ from api.services.simulation_manager import simulation_manager
 from app.database import async_session_factory
 from auth.dependencies import require_role
 from auth.models import User
-from simulation.aleas import ALEAS, LIBELLES
+from simulation.aleas import ALEAS, COULEURS, LIBELLES, NATURES, PARAMETRES
 from simulation.commandes import DECLENCHER_ALEA, ORDRES, Commande
 from simulation.models import RefusAccueil, SimulationRun
 from simulation.profils import PROFILS
@@ -35,6 +35,7 @@ async def start_simulation(request: SimulationStartRequest,
         await simulation_manager.start(
             request.vitesse, request.nombre_passages_simultanes_max,
             utilisateur.utilisateur_uuid, request.type_simulation,
+            request.libelle, request.anomalies, request.aleas,
         )
     except RuntimeError as error:
         raise HTTPException(status_code=409, detail=str(error)) from error
@@ -78,7 +79,26 @@ async def list_profils() -> list[ProfilResponse]:
 async def list_aleas() -> list[dict]:
     """Retourne les scénarios d'aléa que le moteur sait jouer."""
 
-    return [{"code": code, "libelle": LIBELLES[code]} for code in ALEAS]
+    return [
+        {
+            "code": code,
+            "libelle": LIBELLES[code],
+            "nature": NATURES[code],
+            "couleur": COULEURS[code],
+            "parametres": [
+                {
+                    "nom": reglage.nom,
+                    "libelle": reglage.libelle,
+                    "unite": reglage.unite,
+                    "defaut": reglage.defaut,
+                    "minimum": reglage.minimum,
+                    "maximum": reglage.maximum,
+                }
+                for reglage in PARAMETRES[code]
+            ],
+        }
+        for code in ALEAS
+    ]
 
 
 @router.post("/commandes", response_model=MessageResponse,

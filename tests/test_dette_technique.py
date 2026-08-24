@@ -111,19 +111,40 @@ def test_l_affichage_du_seed_survit_a_une_console_limitee(capsys, monkeypatch):
     assert "✓" not in ecrit
 
 
-# ── X12 : les deux logos ─────────────────────────────────────────────────
+# ── X12 : un seul fichier image, et il sert ──────────────────────────────
+#
+# Le chantier X12 visait deux images concurrentes dont aucune n'avait de
+# rôle clair. La réponse n'était pas de tout supprimer : le logo CNAM a
+# retrouvé sa place à côté de la marque ÉCHO. Ce qui reste interdit, c'est
+# l'image orpheline — celle que plus personne n'affiche.
 
-def test_les_anciens_logos_ont_disparu():
+def test_l_ancienne_image_de_connexion_a_disparu():
+    """logo.jpg servait d'illustration à la page de connexion, remplacée."""
+
     assert not (RACINE / "dashboard" / "public" / "logo.jpg").exists()
-    assert not (RACINE / "dashboard" / "src" / "assets" / "logo.png").exists()
 
 
-def test_plus_aucune_source_ne_reference_les_anciens_logos():
+def test_le_logo_cnam_existe_et_sert():
+    """Un fichier image n'a le droit de rester que s'il est affiché."""
+
+    logo = RACINE / "dashboard" / "src" / "assets" / "logo.png"
+    assert logo.exists()
+
+    sources = list((RACINE / "dashboard" / "src").rglob("*.tsx"))
+    referents = [
+        fichier.name for fichier in sources
+        if "assets/logo.png" in fichier.read_text(encoding="utf-8")
+    ]
+
+    # La barre latérale et la page de connexion, toutes deux.
+    assert "Sidebar.tsx" in referents
+    assert "LoginPage.tsx" in referents
+
+
+def test_plus_aucune_source_ne_reference_l_ancienne_image():
     sources = list((RACINE / "dashboard" / "src").rglob("*.tsx"))
     sources += list((RACINE / "dashboard" / "src").rglob("*.ts"))
     sources.append(RACINE / "dashboard" / "index.html")
 
     for fichier in sources:
-        contenu = fichier.read_text(encoding="utf-8")
-        assert "logo.jpg" not in contenu, fichier
-        assert "assets/logo" not in contenu, fichier
+        assert "logo.jpg" not in fichier.read_text(encoding="utf-8"), fichier
