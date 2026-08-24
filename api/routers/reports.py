@@ -71,6 +71,21 @@ async def generate_execution(simulation_id: UUID) -> dict[str, str]:
     return {"pdf": pdf.name, "excel": excel.name}
 
 
+@router.delete("", dependencies=[Depends(require_role("administrateur"))])
+async def purge_reports() -> dict[str, int]:
+    """Supprime tous les rapports générés sur le disque.
+
+    Seul un administrateur peut le faire : la suppression est irréversible.
+    """
+
+    supprimes = 0
+    for fichier in OUTPUT_DIR.iterdir():
+        if fichier.is_file():
+            fichier.unlink()
+            supprimes += 1
+    return {"supprimes": supprimes}
+
+
 @router.get("/{nom_fichier}")
 async def download_report(nom_fichier: str) -> FileResponse:
     """Télécharge un rapport précis, en se protégeant d'un chemin détourné."""

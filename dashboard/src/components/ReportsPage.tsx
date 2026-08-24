@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
+import { RequireRole } from "../auth/RequireRole";
 import { api } from "../services/api";
 import type { SimulationRun } from "../types";
 import { dateCourte } from "./format-execution";
-import { DownloadIcon, RefreshIcon, ReportsIcon } from "./Icons";
+import { DownloadIcon, RefreshIcon, ReportsIcon, TrashIcon } from "./Icons";
 import "./Screens.css";
 
 /** Date du jour au format attendu par un champ date. */
@@ -23,6 +24,8 @@ export function ReportsPage() {
   const [dateMax, setDateMax] = useState(aujourdhui());
   const [executions, setExecutions] = useState<SimulationRun[]>([]);
   const [execution, setExecution] = useState("");
+  const [confirmPurge, setConfirmPurge] = useState(false);
+  const [purgeEnCours, setPurgeEnCours] = useState(false);
 
   async function refresh() {
     try {
@@ -82,6 +85,23 @@ export function ReportsPage() {
       setErreur((reason as Error).message);
     } finally {
       setEnCours(false);
+    }
+  }
+
+  async function viderRapports() {
+    setPurgeEnCours(true);
+    setErreur(null);
+    try {
+      const resultat = await api.viderRapports(token);
+      setConfirmPurge(false);
+      await refresh();
+      if (resultat.supprimes === 0) {
+        setErreur("Aucun fichier à supprimer.");
+      }
+    } catch (reason) {
+      setErreur((reason as Error).message);
+    } finally {
+      setPurgeEnCours(false);
     }
   }
 
@@ -177,10 +197,50 @@ export function ReportsPage() {
       <div className="reports-card">
         <div className="reports-card-header">
           <h2>Fichiers disponibles ({fichiers.length})</h2>
-          <button className="btn-icon-refresh" onClick={refresh} title="Actualiser la liste">
-            <RefreshIcon size={14} />
-          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <button className="btn-icon-refresh" onClick={refresh} title="Actualiser la liste">
+              <RefreshIcon size={14} />
+            </button>
+            <RequireRole minimum="administrateur">
+              {fichiers.length > 0 && (
+                <button
+                  className="btn btn-danger-outline"
+                  onClick={() => setConfirmPurge(true)}
+                  disabled={purgeEnCours}
+                  title="Supprimer tous les rapports générés"
+                >
+                  <TrashIcon size={14} />
+                  <span>Vider</span>
+                </button>
+              )}
+            </RequireRole>
+          </div>
         </div>
+
+        {confirmPurge && (
+          <div className="confirm-banner confirm-danger">
+            <span>
+              Supprimer les <strong>{fichiers.length}</strong> fichier(s) ?
+              Cette action est irréversible.
+            </span>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button
+                className="btn btn-outline"
+                onClick={() => setConfirmPurge(false)}
+                disabled={purgeEnCours}
+              >
+                Annuler
+              </button>
+              <button
+                className="btn btn-danger"
+                onClick={() => void viderRapports()}
+                disabled={purgeEnCours}
+              >
+                {purgeEnCours ? "Suppression…" : "Confirmer la suppression"}
+              </button>
+            </div>
+          </div>
+        )}
 
         {fichiers.length === 0 ? (
           <div className="empty-reports">
