@@ -7,9 +7,9 @@ from sqlalchemy import func, select
 
 from anomalies.models import AnomalyInjection
 from api.schema import (
-    CommandeRequest, ExecutionDetailResponse, MessageResponse, ProfilResponse,
-    SimulationRunResponse, SimulationSpeedRequest, SimulationStartRequest,
-    SimulationStatusResponse,
+    CadenceResponse, CommandeRequest, ExecutionDetailResponse, MessageResponse,
+    ProfilResponse, SimulationRunResponse, SimulationSpeedRequest,
+    SimulationStartRequest, SimulationStatusResponse,
 )
 from app.models import Invoice, InvoiceProvision, PriorAuthorization
 from events.models import EventJournal
@@ -23,6 +23,7 @@ from simulation.models import RefusAccueil, SimulationRun
 from simulation.profils import PROFILS
 from simulation.purge import compter as compter_purge
 from simulation.purge import purger
+from simulation_config import DEFAULT_CONFIG
 
 router = APIRouter(prefix="/simulation", tags=["Simulation"])
 
@@ -73,6 +74,24 @@ async def list_profils() -> list[ProfilResponse]:
     """Retourne les quatre types de simulation et leur réglage par défaut."""
 
     return [ProfilResponse.model_validate(profil) for profil in PROFILS.values()]
+
+
+@router.get("/cadence", response_model=CadenceResponse,
+            dependencies=[Depends(require_role("observateur"))])
+async def lire_cadence() -> CadenceResponse:
+    """Donne de quoi projeter un volume avant le démarrage.
+
+    Un passage arrive en moyenne toutes les `passage_arrival_mean_seconds`
+    secondes simulées ; à la vitesse v, cela fait 3600 × v / moyenne passages
+    par heure réelle. C'est la seule projection que le moteur autorise sans
+    tourner.
+    """
+
+    return CadenceResponse(
+        passage_arrival_mean_seconds=DEFAULT_CONFIG.passage_arrival_mean_seconds,
+        vitesse_par_defaut=DEFAULT_CONFIG.default_speed,
+        passages_simultanes_max=DEFAULT_CONFIG.max_concurrent_passages,
+    )
 
 
 @router.get("/aleas", dependencies=[Depends(require_role("observateur"))])
