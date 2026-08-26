@@ -12,13 +12,13 @@
 ═══════════════════════════════════════════════════════════════ */
 
 .cockpit {
-  --sol: #08110d;
-  --panneau: #101c17;
-  --panneau-clair: #16241e;
-  --bord: #22332b;
-  --texte: #e8f1ec;
-  --texte-doux: #a5b8ae;
-  --texte-faible: #6f847a;
+  --sol: #043047;
+  --panneau: #0a3d58;
+  --panneau-clair: #114a68;
+  --bord: #1d5f82;
+  --texte: #eef7fb;
+  --texte-doux: #a9c5d4;
+  --texte-faible: #7a9aab;
 
   position: fixed;
   inset: 0;
@@ -174,14 +174,14 @@
 }
 
 .cockpit-arret {
-  background: #e5484d;
+  background: #f07800;
   color: #ffffff;
   font-weight: 700;
-  box-shadow: 0 4px 18px rgba(229, 72, 77, .32);
+  box-shadow: 0 4px 18px rgba(240, 120, 0, .32);
 }
 
 .cockpit-arret:hover:not(:disabled) {
-  background: #f05257;
+  background: #d46600;
 }
 
 .cockpit-arret:disabled { opacity: .6; cursor: not-allowed; }
@@ -356,8 +356,8 @@
   flex-shrink: 0;
 }
 
-.cockpit-flux-type { color: #7fd1a3; flex: 1; }
-.cockpit-flux-type.alea { color: #ff8a5c; font-weight: 600; }
+.cockpit-flux-type { color: #8ee07a; flex: 1; }
+.cockpit-flux-type.alea { color: #ffb066; font-weight: 600; }
 .cockpit-flux-passage { color: var(--texte-faible); flex-shrink: 0; }
 
 .cockpit-vide {
@@ -381,6 +381,129 @@
   color: var(--texte-faible);
   margin: -8px 0 14px;
   max-width: 74ch;
+}
+
+/* ── Progression vers la durée visée ──
+   Un repère, pas une minuterie : rien n'arrête le moteur à l'échéance. Sans
+   objectif on ne montre rien plutôt que d'inventer une échéance. */
+.cockpit-progression {
+  background: var(--panneau);
+  border: 1px solid var(--bord);
+  border-radius: 12px;
+  padding: 18px 22px;
+}
+
+.cockpit-progression-tete {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 13px;
+}
+
+.cockpit-progression-libelle {
+  font-size: .7rem;
+  font-weight: 700;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--texte-faible);
+}
+
+.cockpit-progression-chiffres {
+  flex: 1;
+  font-size: .84rem;
+  color: var(--texte-doux);
+  font-variant-numeric: tabular-nums;
+}
+
+.cockpit-progression-chiffres b { color: var(--texte); }
+
+.cockpit-progression-part {
+  font-size: 1.35rem;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--teinte, var(--texte));
+}
+
+.cockpit-jauge {
+  height: 9px;
+  border-radius: 100px;
+  background: var(--sol);
+  border: 1px solid var(--panneau-clair);
+  overflow: hidden;
+}
+
+.cockpit-jauge-remplie {
+  height: 100%;
+  border-radius: 100px;
+  background: var(--teinte, var(--texte));
+  transition: width 600ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.cockpit-progression-bornes {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 7px;
+  font-size: .72rem;
+  color: var(--texte-faible);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Fil des aléas frappés ── */
+.cockpit-fil {
+  display: flex;
+  flex-direction: column;
+  background: var(--panneau);
+  border: 1px solid var(--bord);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.cockpit-fil-ligne {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--bord);
+  border-left: 3px solid var(--alea, var(--bord));
+}
+
+.cockpit-fil-ligne:last-child { border-bottom: none; }
+
+.cockpit-fil-heure {
+  flex: none;
+  font-size: .78rem;
+  color: var(--texte-faible);
+  font-variant-numeric: tabular-nums;
+}
+
+.cockpit-fil-puce {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--alea, var(--texte-faible));
+}
+
+.cockpit-fil-nom {
+  flex: 1;
+  font-size: .92rem;
+  font-weight: 600;
+  min-width: 0;
+}
+
+.cockpit-fil-nature {
+  flex: none;
+  font-size: .62rem;
+  font-weight: 700;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--alea, var(--texte-faible));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cockpit-jauge-remplie { transition: none; }
 }
 
 @media (max-width: 640px) {

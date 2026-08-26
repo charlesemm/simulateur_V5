@@ -296,6 +296,29 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* ── Carte grisée (en attente du cahier des charges) ── */
+.type-card--desactive {
+  opacity: 0.45;
+  filter: grayscale(0.7);
+  pointer-events: none;
+}
+.type-card--desactive::before,
+.type-card--desactive::after {
+  background: var(--text-light);
+}
+
+.type-card-attente {
+  display: inline-block;
+  align-self: flex-start;
+  font-size: 0.72rem;
+  font-style: italic;
+  color: var(--text-muted);
+  background: color-mix(in srgb, var(--text-light) 12%, transparent);
+  border-radius: 100px;
+  padding: 3px 10px;
+  margin-bottom: 10px;
+}
+
 /* ── Tableaux ── */
 .screen-table-wrap {
   background: var(--surface);
@@ -1095,6 +1118,178 @@
   margin-bottom: 8px;
 }
 
+/* ── Titre de famille sur la console d'injection ──
+   Le titre prend la couleur de sa famille et porte sa pastille : treize
+   cartes en vrac se ressemblent toutes, rangées par nature elles se
+   retrouvent. */
+.famille-section {
+  color: var(--famille-couleur, var(--text-light));
+}
+
+/* Le filet est ici un vrai élément, placé entre le nom et le compteur.
+   Celui que `.screen-section-title` dessine en `::after` ferait double. */
+.famille-section::after {
+  content: none;
+}
+
+.famille-section .dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--famille-couleur, var(--text-light));
+  flex: none;
+}
+
+.famille-section .rule {
+  flex: 1;
+  height: 1px;
+  background: var(--border-subtle);
+}
+
+.famille-section-compte {
+  flex: none;
+  letter-spacing: 0.04em;
+  color: var(--text-light);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Le titre de famille devient le bouton de pliage : la cible est la ligne
+   entière, pas une flèche de 9 pixels. */
+.famille-bascule {
+  display: flex;
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--rayon-sm);
+  padding: 9px 14px;
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: border-color var(--transition), background var(--transition);
+}
+
+.famille-bascule:hover {
+  border-color: var(--famille-couleur, var(--border));
+  background: var(--surface-hover);
+}
+
+.famille-compte {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  color: var(--text-light);
+}
+
+.famille-chevron {
+  color: var(--text-light);
+  font-size: 0.8rem;
+  letter-spacing: 0;
+}
+
+.famille-bloc .screen-table-wrap {
+  margin-top: 8px;
+}
+
+/* ── Estimation en direct ──
+   Le seul endroit de l'écran qui répond à « qu'est-ce que ça va produire ? ».
+   Il porte donc la couleur d'action, et il bat. */
+.estimation {
+  margin-top: 14px;
+  background: var(--cnam-green-light);
+  border: 1px solid var(--cnam-green-border);
+  border-radius: var(--rayon-md);
+  box-shadow: 0 6px 20px rgba(76, 175, 42, 0.13);
+  overflow: hidden;
+}
+
+.estimation-tete {
+  display: flex;
+  align-items: center;
+  padding: 13px 18px 11px;
+  border-bottom: 1px solid var(--cnam-green-border);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--cnam-green-dark);
+}
+
+.estimation-corps {
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.estimation-ligne {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.estimation-valeur {
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--cnam-green-dark);
+  white-space: nowrap;
+}
+
+.estimation-valeur--alerte {
+  color: #c2410c;
+}
+
+.estimation-quoi {
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.estimation-detail {
+  font-size: 0.76rem;
+  color: var(--text-muted);
+}
+
+.estimation-note {
+  margin: 0;
+  padding: 12px 18px 15px;
+  border-top: 1px dashed var(--cnam-green-border);
+  font-size: 0.78rem;
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+
+/* ── Récapitulatif avant départ ── */
+.recap-lancement {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  padding: 12px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--rayon-sm);
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.recap-libelle {
+  flex: none;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-light);
+}
+
+.recap-texte b {
+  color: var(--text-main);
+  font-variant-numeric: tabular-nums;
+}
+
 .famille-titre .dot {
   width: 9px;
   height: 9px;
@@ -1211,4 +1406,460 @@
 :root[data-theme="dark"] .confirm-danger {
   background: rgba(229, 72, 77, 0.12);
   color: #e8e8e8;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Bilan d'exécution
+
+   L'écran qui manquait entre le pilotage et l'analyse. Il se lit
+   à froid : rien n'y bouge, tout y est déjà joué.
+═══════════════════════════════════════════════════════════ */
+
+.bilan-bandeau {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  flex-wrap: wrap;
+  padding: 20px 24px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--cnam-green);
+  border-radius: var(--rayon-md);
+  box-shadow: var(--shadow-card);
+}
+
+.bilan-sceau {
+  flex: none;
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: var(--cnam-green-light);
+  color: var(--cnam-green-dark);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bilan-identite { flex: 1; min-width: 220px; }
+
+.bilan-etiquettes {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.bilan-etiquettes .type-card-code { margin-bottom: 0; }
+
+.bilan-nom {
+  font-size: 1.3rem;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.bilan-quand {
+  margin: 2px 0 0;
+  font-size: 0.84rem;
+  color: var(--text-muted);
+}
+
+.bilan-chiffres-cles {
+  display: flex;
+  gap: 30px;
+  flex: none;
+  text-align: right;
+}
+
+.bilan-cle-valeur {
+  display: block;
+  font-size: 1.6rem;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.bilan-cle-valeur--vert { color: var(--cnam-green-dark); }
+.bilan-cle-valeur--rouge { color: #b91c1c; }
+
+.bilan-cle-nom {
+  display: block;
+  margin-top: 6px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+/* ── Volumétrie en gros chiffres ── */
+.bilan-volumetrie {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 14px;
+}
+
+.bilan-volume {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--rayon-md);
+  padding: 18px 20px;
+  box-shadow: var(--shadow-card);
+}
+
+.bilan-volume-valeur {
+  display: block;
+  font-size: 1.85rem;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.015em;
+}
+
+.bilan-volume-nom {
+  display: block;
+  margin-top: 8px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
+/* ── Deux colonnes : familles et aléas ── */
+.bilan-colonnes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 22px;
+  align-items: start;
+}
+
+.bilan-total {
+  flex: none;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.bilan-panneau {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--rayon-md);
+  box-shadow: var(--shadow-card);
+  padding: 18px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.bilan-famille-tete {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 7px;
+}
+
+.bilan-famille-nom {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+
+.bilan-famille-compte {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.bilan-famille-compte b { color: var(--text-main); font-size: 0.92rem; }
+
+.bilan-piste {
+  height: 7px;
+  border-radius: 100px;
+  background: var(--border-subtle);
+  overflow: hidden;
+}
+
+.bilan-piste-remplie {
+  height: 100%;
+  border-radius: 100px;
+}
+
+.bilan-frappe {
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+}
+
+.bilan-frappe-heure {
+  flex: none;
+  width: 46px;
+  padding-top: 1px;
+  font-size: 0.78rem;
+  color: var(--text-light);
+  font-variant-numeric: tabular-nums;
+}
+
+.bilan-frappe-puce {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin-top: 7px;
+  border-radius: 50%;
+  background: var(--alea, var(--text-light));
+}
+
+.bilan-frappe-texte { min-width: 0; }
+
+.bilan-frappe-nom {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.bilan-frappe-nature {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--alea, var(--text-light));
+}
+
+/* ── Les deux suites ── */
+.bilan-suites {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 16px;
+}
+
+.bilan-suite {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 18px 22px;
+  border-radius: var(--rayon-md);
+  border: 1px solid transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: transform var(--transition), box-shadow var(--transition);
+}
+
+.bilan-suite:hover { transform: translateY(-2px); box-shadow: var(--shadow-hover); }
+.bilan-suite:active { transform: translateY(0); }
+
+.bilan-suite--qualite {
+  background: var(--cnam-blue-light);
+  border-color: var(--cnam-blue-border);
+  color: var(--cnam-blue-deep);
+}
+
+.bilan-suite--export {
+  background: var(--cnam-green);
+  color: #ffffff;
+  box-shadow: var(--shadow-action);
+}
+
+.bilan-suite-icone {
+  flex: none;
+  width: 42px;
+  height: 42px;
+  border-radius: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.bilan-suite--export .bilan-suite-icone { background: rgba(255, 255, 255, 0.22); }
+
+.bilan-suite-texte { flex: 1; min-width: 0; }
+
+.bilan-suite-titre {
+  display: block;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.bilan-suite-desc {
+  display: block;
+  font-size: 0.81rem;
+  opacity: 0.85;
+}
+
+.bilan-suite-fleche { flex: none; font-size: 1.15rem; }
+
+.bilan-retour { align-self: flex-start; }
+
+@media (max-width: 720px) {
+  .bilan-chiffres-cles { text-align: left; gap: 22px; }
+}
+
+/* ── Écart entre injecté et détecté ──
+   La colonne qu'on lisait de tête. Le rouge est réservé à l'écart
+   majoritaire : un taux de détection sous 100 % n'est pas en soi un
+   défaut, et tout colorer en rouge ne dirait plus rien. */
+.ecart {
+  display: inline-block;
+  min-width: 62px;
+  text-align: center;
+  padding: 2px 9px;
+  border-radius: 100px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.ecart--aucun {
+  background: var(--cnam-green-light);
+  color: var(--cnam-green-dark);
+  border: 1px solid var(--cnam-green-border);
+}
+
+.ecart--leger {
+  background: var(--surface-subtle);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+
+.ecart--notable {
+  background: var(--cnam-orange-light);
+  color: #a75600;
+  border: 1px solid var(--cnam-orange-border);
+}
+
+.ecart--fort {
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+
+.ecart--inconnu {
+  color: var(--text-light);
+  border: 1px solid transparent;
+}
+
+/* ── Retour d'un export ──
+   Un bouton qui se grise ne distingue pas « ça travaille » de « c'est
+   planté ». Le rouet tourne pendant, le bandeau parle après. */
+.rouet {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  flex: none;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #ffffff;
+  animation: rouet-tourne 700ms linear infinite;
+}
+
+@keyframes rouet-tourne {
+  to { transform: rotate(360deg); }
+}
+
+.bandeau-succes {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  margin-bottom: 18px;
+  background: var(--cnam-green-light);
+  border: 1px solid var(--cnam-green-border);
+  border-radius: var(--rayon-sm);
+  color: var(--cnam-green-dark);
+  font-size: 0.86rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+/* Le seuil où le jeu de données bascule : plus abîmé que sain. Utile pour
+   éprouver des règles, absurde pour alimenter un entrepôt. */
+.estimation-alerte {
+  margin: 0;
+  padding: 12px 18px;
+  border-top: 1px solid var(--cnam-orange-border);
+  background: var(--cnam-orange-light);
+  color: #8a4700;
+  font-size: 0.8rem;
+  line-height: 1.55;
+}
+
+.estimation-alerte b { color: #a75600; }
+
+/* ═══════════════════════════════════════════════════════════
+   Rapports par exécution
+
+   Les fichiers portent un identifiant technique illisible ; ici
+   on les range sous le nom donné à la simulation, PDF et Excel
+   dans deux colonnes distinctes.
+═══════════════════════════════════════════════════════════ */
+
+.rapports-grille {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--rayon-md);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+
+.rapports-entete,
+.rapports-ligne {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 190px 190px;
+  gap: 16px;
+  align-items: center;
+  padding: 13px 20px;
+}
+
+.rapports-entete {
+  background: var(--surface-subtle);
+  border-bottom: 1px solid var(--border);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-light);
+}
+
+.rapports-ligne {
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.rapports-ligne:last-child { border-bottom: none; }
+
+.rapports-nom { min-width: 0; }
+
+.rapports-nom strong {
+  display: block;
+  font-size: 0.95rem;
+  overflow-wrap: anywhere;
+}
+
+.rapports-meta {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.rapports-fichier { display: flex; }
+
+.rapports-absent {
+  font-size: 0.8rem;
+  font-style: italic;
+  color: var(--text-light);
+}
+
+/* Le bouton de production occupe toute la largeur sous les trois colonnes. */
+.rapports-produire {
+  grid-column: 1 / -1;
+  padding-top: 4px;
+}
+
+@media (max-width: 760px) {
+  .rapports-entete { display: none; }
+  .rapports-ligne {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    padding: 16px 18px;
+  }
 }

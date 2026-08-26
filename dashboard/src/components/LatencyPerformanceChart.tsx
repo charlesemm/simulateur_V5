@@ -79,7 +79,7 @@ export function LatencyPerformanceChart({ metrics }: LatencyPerformanceChartProp
                 type="monotone"
                 dataKey="latenceApiMs"
                 name="Latence API (ms)"
-                stroke="#0284c7"
+                stroke="#0088ce"
                 strokeWidth={2}
                 dot={false}
               />
@@ -87,7 +87,7 @@ export function LatencyPerformanceChart({ metrics }: LatencyPerformanceChartProp
                 type="monotone"
                 dataKey="latenceKpiMs"
                 name="Pipeline KPI (ms)"
-                stroke="#ea580c"
+                stroke="#f07800"
                 strokeWidth={2}
                 dot={false}
               />

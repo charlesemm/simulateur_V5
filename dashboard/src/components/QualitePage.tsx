@@ -7,6 +7,34 @@ import { dateCourte } from "./format-execution";
 import "./Screens.css";
 
 /**
+ * Ce qui a été semé et que les règles n'ont pas vu.
+ *
+ * L'écran donnait trois colonnes de chiffres et laissait faire la soustraction
+ * de tête, type par type. Or c'est l'écart qui intéresse : le reste n'est là
+ * que pour l'expliquer.
+ *
+ * Les seuils portent un jugement mesuré, à dessein. Un écart n'est pas
+ * forcément un défaut — une date antidatée de moins d'une semaine échappe
+ * légitimement à sa règle — donc seul un écart majoritaire s'affiche en rouge.
+ */
+function ecartDeLigne(injectees: number, detectees: number): {
+  niveau: "aucun" | "leger" | "notable" | "fort" | "inconnu";
+  libelle: string;
+} {
+  if (injectees === 0) return { niveau: "inconnu", libelle: "—" };
+
+  const manquantes = injectees - detectees;
+  if (manquantes <= 0) return { niveau: "aucun", libelle: "aucun" };
+
+  const part = manquantes / injectees;
+  const libelle = `−${manquantes}`;
+
+  if (part <= 0.1) return { niveau: "leger", libelle };
+  if (part <= 0.5) return { niveau: "notable", libelle };
+  return { niveau: "fort", libelle };
+}
+
+/**
  * W4 — Qualité.
  *
  * Deux confrontations que seul un simulateur peut produire : ce qui a été
@@ -127,17 +155,25 @@ export function QualitePage() {
                       <th>Taux demandé</th>
                       <th>Injectées</th>
                       <th>Détectées</th>
+                      <th>Écart</th>
                       <th>Taux de détection</th>
                       <th>Règles</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {rapport.confrontation.map((ligne) => (
+                    {rapport.confrontation.map((ligne) => {
+                      const ecart = ecartDeLigne(ligne.injectees, ligne.detectees);
+                      return (
                       <tr key={ligne.anomalie_code}>
                         <td>{ligne.anomalie_code}</td>
                         <td>{ligne.taux_demande_pourcent} %</td>
                         <td>{ligne.injectees}</td>
                         <td>{ligne.detectees}</td>
+                        <td>
+                          <span className={`ecart ecart--${ecart.niveau}`}>
+                            {ecart.libelle}
+                          </span>
+                        </td>
                         <td>
                           {ligne.taux_detection_pourcent === null
                             ? "—"
@@ -145,7 +181,8 @@ export function QualitePage() {
                         </td>
                         <td>{ligne.regles.join(", ") || "—"}</td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

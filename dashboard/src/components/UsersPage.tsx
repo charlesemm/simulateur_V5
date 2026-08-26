@@ -14,6 +14,30 @@ interface UserRow {
 
 const ROLES = ["administrateur", "operateur", "observateur"] as const;
 
+/**
+ * Tire un message lisible de la réponse d'erreur de l'API.
+ *
+ * FastAPI répond `detail` en **texte** pour nos refus métier (409, 404), mais
+ * en **liste d'objets** dès que le corps ne valide pas — un e-mail sans point
+ * après l'arobase, par exemple, que le navigateur laisse pourtant passer.
+ * Poser cette liste telle quelle dans l'état faisait rendre un objet à React,
+ * qui refuse : l'écran d'administration se vidait au lieu d'afficher la cause.
+ */
+function messageErreur(corps: unknown, defaut: string): string {
+  const detail = (corps as { detail?: unknown } | null)?.detail;
+
+  if (typeof detail === "string" && detail.trim() !== "") return detail;
+
+  if (Array.isArray(detail)) {
+    const messages = detail
+      .map((entree) => (entree as { msg?: unknown } | null)?.msg)
+      .filter((msg): msg is string => typeof msg === "string");
+    if (messages.length > 0) return messages.join(" · ");
+  }
+
+  return defaut;
+}
+
 export function UsersPage() {
   const { token } = useAuth();
   const [users, setUsers] = useState<UserRow[]>([]);
@@ -27,17 +51,33 @@ export function UsersPage() {
   const [erreur, setErreur] = useState<string | null>(null);
   const [succes, setSucces] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  // Compte dont la désactivation attend confirmation. « Désactiver » voisinait
+  // « Réinitialiser », deux boutons minuscules et sans garde-fou : on éteignait
+  // un compte en croyant lui refaire un mot de passe, et rien ne le disait.
+  const [confirmExtinction, setConfirmExtinction] = useState<string | null>(null);
 
   async function refresh() {
-    const response = await fetch(`${API_URL}/users`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (response.ok) setUsers(await response.json());
+    try {
+      const response = await fetch(`${API_URL}/users`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) {
+        const corps = await response.json().catch(() => null);
+        // Sans ce message, une liste vide voulait dire aussi bien « aucun
+        // compte » que « le jeton a expiré » — indiscernables à l'écran.
+        setErreur(messageErreur(corps, `La liste des comptes n'a pas pu être lue (${response.status}).`));
+        return;
+      }
+      setUsers(await response.json());
+    } catch (raison) {
+      setErreur((raison as Error).message);
+    }
   }
 
   useEffect(() => {
     void refresh();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
 
   async function handleCreate(event: FormEvent) {
     event.preventDefault();
@@ -59,8 +99,8 @@ export function UsersPage() {
       });
 
       if (!response.ok) {
-        const detail = await response.json().catch(() => null);
-        setErreur(detail?.detail ?? "Impossible de créer l'utilisateur.");
+        const corps = await response.json().catch(() => null);
+        setErreur(messageErreur(corps, "Impossible de créer l'utilisateur."));
         return;
       }
 
@@ -79,11 +119,26 @@ export function UsersPage() {
   }
 
   async function toggleActif(user: UserRow) {
-    await fetch(`${API_URL}/users/${user.utilisateur_uuid}`, {
+    setErreur(null);
+    setSucces(null);
+    setConfirmExtinction(null);
+    const response = await fetch(`${API_URL}/users/${user.utilisateur_uuid}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({ statut_actif: !user.statut_actif }),
     });
+    if (!response.ok) {
+      const corps = await response.json().catch(() => null);
+      setErreur(messageErreur(
+        corps, `Le statut de ${user.nom_complet} n'a pas pu être changé.`
+      ));
+      return;
+    }
+    // Une extinction silencieuse est précisément ce qui a fait perdre du temps :
+    // le compte se taisait, et la connexion refusée n'en disait pas la cause.
+    setSucces(user.statut_actif
+      ? `${user.nom_complet} est désactivé : ses connexions seront refusées.`
+      : `${user.nom_complet} est réactivé.`);
     await refresh();
   }
 
@@ -96,7 +151,8 @@ export function UsersPage() {
       { method: "POST", headers: { Authorization: `Bearer ${token}` } },
     );
     if (!response.ok) {
-      setErreur("La réinitialisation a échoué.");
+      const corps = await response.json().catch(() => null);
+      setErreur(messageErreur(corps, `La réinitialisation a échoué (${response.status}).`));
       return;
     }
     const resultat = await response.json();
@@ -177,18 +233,45 @@ export function UsersPage() {
                       )}
                     </td>
                     <td>
-                      <button
-                        className={`btn-action-toggle ${u.statut_actif ? "btn-disable" : "btn-enable"}`}
-                        onClick={() => toggleActif(u)}
-                      >
-                        {u.statut_actif ? "Désactiver" : "Réactiver"}
-                      </button>
-                      <button
-                        className="btn-action-toggle btn-enable"
-                        onClick={() => reinitialiser(u)}
-                      >
-                        Réinitialiser
-                      </button>
+                      <div className="user-actions">
+                        {confirmExtinction === u.utilisateur_uuid ? (
+                          <>
+                            <button
+                              className="btn-action-toggle btn-disable"
+                              onClick={() => void toggleActif(u)}
+                            >
+                              Confirmer la désactivation
+                            </button>
+                            <button
+                              className="btn-action-toggle btn-neutre"
+                              onClick={() => setConfirmExtinction(null)}
+                            >
+                              Annuler
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            {/* Éteindre demande confirmation ; rallumer non —
+                                seul le premier geste ferme une porte. */}
+                            <button
+                              className={`btn-action-toggle ${u.statut_actif ? "btn-disable" : "btn-enable"}`}
+                              onClick={() =>
+                                u.statut_actif
+                                  ? setConfirmExtinction(u.utilisateur_uuid)
+                                  : void toggleActif(u)
+                              }
+                            >
+                              {u.statut_actif ? "Désactiver" : "Réactiver"}
+                            </button>
+                            <button
+                              className="btn-action-toggle btn-neutre"
+                              onClick={() => reinitialiser(u)}
+                            >
+                              Réinitialiser
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

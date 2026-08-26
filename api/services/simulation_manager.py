@@ -30,7 +30,8 @@ class SimulationManager:
                     type_simulation: str | None = None,
                     libelle: str | None = None,
                     anomalies: dict[str, dict] | None = None,
-                    aleas: dict[str, dict] | None = None) -> None:
+                    aleas: dict[str, dict] | None = None,
+                    duree_visee_minutes: int | None = None) -> None:
         """Applique un profil, ouvre une exécution et démarre un flux continu.
 
         Tout ce qui est passé explicitement l'emporte sur le profil : celui-ci
@@ -67,6 +68,10 @@ class SimulationManager:
                     "graine": config.random_seed,
                     "anomalies": reglages_anomalies,
                     "aleas": scenario.en_parametres(),
+                    # Rangée avec l'exécution : le poste de pilotage la relit
+                    # au retour, ce qu'il ne pourrait pas faire d'un état
+                    # gardé dans le navigateur.
+                    "duree_visee_minutes": duree_visee_minutes,
                 },
                 utilisateur_uuid,
                 profil_retenu.code,

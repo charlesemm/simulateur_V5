@@ -211,10 +211,40 @@ class EchoPDF(FPDF):
         self.set_text_color(*GRIS_FONCE)
 
 
+# Caracteres courants absents du latin-1, et leur equivalent lisible. Sans
+# cette table, un tiret cadratin ou une apostrophe typographique — que
+# l'interface produit pourtant d'elle-meme dans les noms de simulation —
+# ressortait en « ? » au milieu du titre, ce qui fait passer le rapport
+# pour un fichier abime.
+_HORS_LATIN1 = {
+    "—": "-",   # tiret cadratin
+    "–": "-",   # tiret demi-cadratin
+    "’": "'",   # apostrophe typographique
+    "‘": "'",
+    "“": '"',
+    "”": '"',
+    "…": "...",
+    " ": " ",   # espace insecable
+    " ": " ",   # espace fine insecable
+    "œ": "oe",
+    "Œ": "OE",
+    "→": "->",
+    "·": "-",   # point median
+}
+
+
 def _lat(valeur: str) -> str:
-    """FPDF en mode standard ecrit en latin-1 : les caracteres hors jeu
-    sont replaces par un substitut plutot que de casser la sortie."""
-    return str(valeur).encode("latin-1", "replace").decode("latin-1")
+    """Prepare un texte pour FPDF, qui ecrit en latin-1.
+
+    Les caracteres frequents hors du jeu sont transcrits en equivalent
+    lisible ; ce qui reste est remplace plutot que de casser la sortie. Les
+    accents francais, eux, appartiennent au latin-1 et passent tels quels.
+    """
+
+    texte = str(valeur)
+    for absent, equivalent in _HORS_LATIN1.items():
+        texte = texte.replace(absent, equivalent)
+    return texte.encode("latin-1", "replace").decode("latin-1")
 
 
 def _fmt_nombre(n: int | float | Decimal) -> str:
@@ -279,6 +309,21 @@ def build_daily_pdf_report(jour: date) -> Path:
     )
     if total_passages > 0:
         pdf.barre_progression("Taux de reussite", reussis, total_passages, VERT_ECHO)
+        pdf.ln(2)
+    else:
+        # Ces compteurs vivent en memoire et repartent de zero a chaque
+        # redemarrage de l'API. Un zero sec se lit « le simulateur n'a rien
+        # produit », alors qu'il signifie le plus souvent « le serveur a
+        # redemarre depuis ». Le dire ici evite une fausse alerte.
+        pdf.ln(1)
+        pdf.encart(
+            "Aucun passage compte depuis le demarrage du serveur, il y a "
+            f'{int(donnees["uptime_secondes"] // 60)} min. Ces compteurs sont '
+            "tenus en memoire et repartent de zero a chaque redemarrage de "
+            "l'API : une simulation lancee AVANT ce demarrage n'y figure pas. "
+            "Pour le detail d'une execution, utilisez sa fiche dediee ou "
+            "l'export de donnees.",
+        )
         pdf.ln(2)
 
     # ── Pipeline KPI ─────────────────────────────────────────────────
@@ -369,10 +414,18 @@ async def build_execution_pdf_report(simulation_id: UUID) -> Path:
             .group_by(AnomalyInjection.anomalie_code)
         )).all())
 
-        # Familles depuis le catalogue
-        familles_map = dict((await session.execute(
-            select(AnomalyType.anomalie_code, AnomalyType.anomalie_famille)
-        )).all())
+        # Familles ET libelles depuis le catalogue : un rapport destine a
+        # etre lu par quelqu'un qui n'a jamais vu l'ecran ne peut pas se
+        # contenter de codes comme MONTANT_HORS_BAREME.
+        catalogue_rows = (await session.execute(
+            select(
+                AnomalyType.anomalie_code,
+                AnomalyType.anomalie_famille,
+                AnomalyType.anomalie_libelle,
+            )
+        )).all()
+        familles_map = {code: famille for code, famille, _ in catalogue_rows}
+        libelles_map = {code: libelle for code, _, libelle in catalogue_rows}
 
     # ── Qualite ──────────────────────────────────────────────────────
     qualite = await analyser(simulation_id, inclure_referentiel=False)
@@ -380,24 +433,24 @@ async def build_execution_pdf_report(simulation_id: UUID) -> Path:
     # ── Construction du PDF ──────────────────────────────────────────
     libelle = execution.simulation_libelle or f"Execution {simulation_id}"
     pdf = EchoPDF(
-        titre_rapport=f"Fiche d'execution",
+        titre_rapport="Rapport d'exécution",
         sous_titre=libelle,
     )
     pdf.alias_nb_pages()
     pdf.add_page()
 
     # ── 1. Identite de l'execution ───────────────────────────────────
-    pdf.titre_section("Identite de l'execution", BLEU_CNAM)
-    pdf.paire("Identifiant", str(simulation_id))
-    pdf.paire("Libelle", libelle)
+    pdf.titre_section("Identité de l'exécution", BLEU_CNAM)
+    pdf.paire("Référence technique", str(simulation_id))
+    pdf.paire("Nom donné", libelle)
     pdf.paire("Type de simulation", execution.simulation_type or "non precise")
     pdf.paire("Statut", execution.simulation_statut)
-    pdf.paire("Debut", execution.simulation_date_debut.strftime("%d/%m/%Y %H:%M:%S"))
+    pdf.paire("Début", execution.simulation_date_debut.strftime("%d/%m/%Y %H:%M:%S"))
     pdf.paire("Fin", (
         execution.simulation_date_fin.strftime("%d/%m/%Y %H:%M:%S")
         if execution.simulation_date_fin else "en cours"
     ))
-    pdf.paire("Duree", _fmt_duree(execution.simulation_date_debut, execution.simulation_date_fin))
+    pdf.paire("Durée", _fmt_duree(execution.simulation_date_debut, execution.simulation_date_fin))
 
     # Parametres
     params = execution.simulation_parametres or {}
@@ -426,7 +479,7 @@ async def build_execution_pdf_report(simulation_id: UUID) -> Path:
         pdf.ln(2)
 
     # ── 3. Volumetrie produite ───────────────────────────────────────
-    pdf.titre_section("Volumetrie produite")
+    pdf.titre_section("Ce que la simulation a produit")
     pdf.tableau(
         ["Objet", "Nombre"],
         [
@@ -441,7 +494,7 @@ async def build_execution_pdf_report(simulation_id: UUID) -> Path:
     )
 
     # ── 4. Analyse financiere ────────────────────────────────────────
-    pdf.titre_section("Analyse financiere des prestations", BLEU_CNAM)
+    pdf.titre_section("Analyse financière des prestations", BLEU_CNAM)
     pdf.paire("Montant total des depenses", f"{_fmt_nombre(total_depense)} FCFA")
     pdf.paire("Montant total rembourse (RQ)", f"{_fmt_nombre(total_rq)} FCFA")
     pdf.paire("Reste a charge assures", f"{_fmt_nombre(total_assure)} FCFA")
@@ -454,7 +507,7 @@ async def build_execution_pdf_report(simulation_id: UUID) -> Path:
 
     # ── 5. Repartition par regime ────────────────────────────────────
     if repartition_regime:
-        pdf.titre_section("Repartition par regime")
+        pdf.titre_section("Répartition par régime")
         total_regime = sum(repartition_regime.values())
         lignes_regime = []
         for code, nombre in sorted(repartition_regime.items(), key=lambda x: -x[1]):
@@ -473,7 +526,7 @@ async def build_execution_pdf_report(simulation_id: UUID) -> Path:
 
     # ── 6. Repartition par type de centre ────────────────────────────
     if repartition_centre:
-        pdf.titre_section("Repartition par type de centre de sante")
+        pdf.titre_section("Répartition par type de centre de santé")
         total_centre = sum(repartition_centre.values())
         lignes_centre = []
         for libelle_c, nombre in sorted(repartition_centre.items(), key=lambda x: -x[1]):
@@ -487,16 +540,26 @@ async def build_execution_pdf_report(simulation_id: UUID) -> Path:
 
     # ── 7. Qualite des donnees par dimension ─────────────────────────
     pdf.add_page()
-    pdf.titre_section("Qualite des donnees", VERT_ECHO)
+    pdf.titre_section("Qualité des données", VERT_ECHO)
 
-    pdf.sous_section("Constats par dimension")
+    pdf.encart(
+        "Cette partie répond à une seule question : les défauts que nous avons "
+        "volontairement introduits dans les données ont-ils été repérés par les "
+        "contrôles ? Treize règles passent sur les lignes produites et signalent "
+        "ce qui ne va pas. Chaque signalement s'appelle ici un « constat ».",
+        couleur_fond=(238, 248, 232),
+        couleur_texte=GRIS_FONCE,
+    )
+    pdf.ln(2)
+
+    pdf.sous_section("Constats répartis par nature de défaut")
     total_constats = qualite["total_constats"]
     lignes_dim = []
     for dim, nb in qualite["par_dimension"].items():
         pct = f"{100 * nb / total_constats:.1f} %" if total_constats else "—"
         lignes_dim.append([dim, _fmt_nombre(nb), pct])
     pdf.tableau(
-        ["Dimension", "Constats", "Part"],
+        ["Nature du défaut", "Constats", "Part"],
         lignes_dim,
         largeurs=[80, 55, 55],
         couleur_entete=VERT_ECHO,
@@ -508,29 +571,41 @@ async def build_execution_pdf_report(simulation_id: UUID) -> Path:
         pdf.ln(4)
 
     # ── 8. Detail des regles ─────────────────────────────────────────
-    pdf.sous_section("Detail des regles appliquees")
+    pdf.sous_section("Ce que chaque contrôle a relevé")
     lignes_regles = []
     for r in sorted(qualite["regles"], key=lambda x: -x["constats"]):
+        # Le libelle d'abord, le code ensuite : on lit ce que la regle
+        # cherche, pas son matricule.
         lignes_regles.append([
-            r["code"],
-            r["libelle"][:50],
+            r["libelle"][:58],
             r["dimension"],
             _fmt_nombre(r["constats"]),
+            r["code"],
         ])
     if lignes_regles:
         pdf.tableau(
-            ["Code", "Regle", "Dimension", "Constats"],
+            ["Contrôle effectué", "Nature", "Constats", "Réf."],
             lignes_regles,
-            largeurs=[35, 85, 35, 35],
+            largeurs=[92, 33, 30, 35],
+        )
+        pdf.ln(1)
+        pdf.encart(
+            "Un contrôle à zéro constat n'est pas un contrôle en panne : il "
+            "signifie que ce défaut-là n'a pas été rencontré dans les données "
+            "produites, le plus souvent parce qu'il n'avait pas été demandé "
+            "au lancement.",
         )
 
     # ── 9. Anomalies injectees vs detectees ──────────────────────────
     if qualite["confrontation"]:
-        pdf.titre_section("Confrontation : injectees vs detectees", ROUGE)
+        pdf.titre_section("Les défauts semés ont-ils été retrouvés ?", ROUGE)
         pdf.encart(
-            "Le taux de detection compare ce que les regles de qualite relevent a "
-            "ce que le journal d'injection dit avoir pose. C'est la seule mesure "
-            "qu'aucun outil branche sur des donnees reelles ne peut produire.",
+            "C'est le coeur du rapport. Comme c'est nous qui avons abîmé les "
+            "données, nous savons exactement combien de défauts ont été posés : "
+            "c'est la colonne « Semés ». La colonne « Retrouvés » dit combien "
+            "les contrôles en ont repéré. Le pourcentage compare les deux.\n\n"
+            "Aucun outil branché sur des données réelles ne peut produire cette "
+            "comparaison : personne n'y connaît la vérité de départ.",
             couleur_fond=(255, 230, 230),
             couleur_texte=GRIS_FONCE,
         )
@@ -538,36 +613,46 @@ async def build_execution_pdf_report(simulation_id: UUID) -> Path:
 
         lignes_conf = []
         for ligne in qualite["confrontation"]:
+            code = ligne["anomalie_code"]
             taux = ligne["taux_detection_pourcent"]
-            taux_str = f"{taux} %" if taux is not None else "N/A"
+            taux_str = f"{taux} %" if taux is not None else "non calculable"
             lignes_conf.append([
-                ligne["anomalie_code"],
+                libelles_map.get(code, code)[:52],
                 _fmt_nombre(ligne["injectees"]),
                 _fmt_nombre(ligne["detectees"]),
                 taux_str,
             ])
         pdf.tableau(
-            ["Type d'anomalie", "Injectees", "Detectees", "Taux detection"],
+            ["Défaut recherché", "Semés", "Retrouvés", "Part retrouvée"],
             lignes_conf,
-            largeurs=[60, 40, 40, 50],
+            largeurs=[85, 30, 32, 43],
             couleur_entete=ROUGE,
         )
 
-        # Barres de détection
+        # Une barre par defaut reellement seme : le vert au-dela de 80 %.
         for ligne in qualite["confrontation"]:
             if ligne["injectees"] > 0:
                 couleur_barre = VERT_ECHO if (ligne["taux_detection_pourcent"] or 0) >= 80 else ORANGE
                 pdf.barre_progression(
-                    ligne["anomalie_code"],
+                    libelles_map.get(ligne["anomalie_code"], ligne["anomalie_code"])[:40],
                     ligne["detectees"],
                     ligne["injectees"],
                     couleur_barre,
                 )
-        pdf.ln(4)
+        pdf.ln(2)
+        pdf.encart(
+            "Une part inférieure à 100 % n'est pas forcément un échec du "
+            "contrôle. Certains défauts échappent légitimement à leur règle : "
+            "une date antidatée de moins d'une semaine reste une date "
+            "plausible, et rien ne permet de la distinguer d'une vraie. "
+            "Ce sont les écarts importants, sur des défauts francs, qui "
+            "méritent l'attention.",
+        )
+        pdf.ln(3)
 
     # ── 10. Repartition des anomalies par famille ────────────────────
     if anomalies_par_type:
-        pdf.titre_section("Repartition des anomalies par famille")
+        pdf.titre_section("Défauts semés, par famille")
         par_famille: dict[str, int] = {}
         for code, nb in anomalies_par_type.items():
             famille = familles_map.get(code, "AUTRE")
@@ -589,7 +674,7 @@ async def build_execution_pdf_report(simulation_id: UUID) -> Path:
             pdf.ln(2)
 
     # ── 11. Synthese ─────────────────────────────────────────────────
-    pdf.titre_section("Synthese et recommandations", BLEU_CNAM)
+    pdf.titre_section("Synthèse", BLEU_CNAM)
 
     observations: list[str] = []
 

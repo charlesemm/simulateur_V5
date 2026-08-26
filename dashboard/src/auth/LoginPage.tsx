@@ -45,9 +45,9 @@ export function LoginPage() {
       <div className="lp-brand">
         <div className="lp-brand-content">
           <div className="lp-logo-wrap">
-            <EchoLogo size={110} className="lp-logo-mark" id="lp" />
-            {/* Le logo CNAM est sur fond blanc : une pastille claire le
-                pose sur le fond sombre sans le dénaturer. */}
+            {/* La taille finale des deux marques est réglée en CSS, sur une
+                hauteur commune : ici on ne donne que le tracé. */}
+            <EchoLogo size={56} className="lp-logo-mark" id="lp" />
             <span className="lp-cnam-pastille">
               <img src={logoCnam} alt="Caisse Nationale d'Assurance Maladie" />
             </span>

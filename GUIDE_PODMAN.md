@@ -36,12 +36,25 @@ winget install RedHat.Podman-Desktop
 Créer un fichier `.env` à la racine du projet :
 
 ```bash
+# Clé de signature des jetons — OBLIGATOIRE, l'API refuse de démarrer sans.
+# Le .env du dépôt n'entre pas dans l'image : cette valeur doit venir d'ici.
+JWT_SECRET_KEY=collez_ici_le_resultat_de_la_commande_ci_dessous
+
 # Mot de passe PostgreSQL (obligatoire en production)
 POSTGRES_PASSWORD=un_vrai_mot_de_passe_ici
 
 # Mot de passe du premier compte administrateur
 ECHO_ADMIN_PASSWORD=MotDePasseAdmin1
 ```
+
+Générez la clé :
+
+```bash
+python -c "import secrets; print(secrets.token_hex(32))"
+```
+
+> Changer cette clé plus tard invalide toutes les sessions ouvertes : chacun
+> devra se reconnecter. Ce n'est pas grave, mais il vaut mieux le savoir.
 
 > **Ne jamais committer le `.env`** — il est déjà dans le `.gitignore`.
 
@@ -87,13 +100,36 @@ Réponse attendue :
 
 ## 4. Créer le premier administrateur
 
-Au premier lancement, la base est vide. Créer un compte :
+Au premier lancement, la base est vide : **aucun compte n'existe et personne ne
+peut se connecter**. Cette étape n'est pas optionnelle.
 
 ```bash
-podman-compose exec api python -m auth.bootstrap \
+podman-compose exec api python -m auth.bootstrap --creer \
   --email admin@cnam.ci \
   --utilisateur admin \
-  --mot-de-passe "$ECHO_ADMIN_PASSWORD"
+  --nom "Administrateur ÉCHO"
+```
+
+Le mot de passe n'est **pas** passé en argument : la commande lit
+`ECHO_ADMIN_PASSWORD`, déjà transmise au conteneur par le compose. Il ne se
+retrouve ainsi ni dans l'historique du terminal, ni dans la liste des
+processus de la machine.
+
+La commande est **sans risque à relancer** : si le compte existe déjà, elle le
+dit et ne touche à rien.
+
+### Vérifier, ou repartir d'un mot de passe oublié
+
+```bash
+podman-compose exec api python -m auth.bootstrap --lister
+```
+
+`--reinitialiser` redonne un mot de passe à un compte et le réactive au
+passage — c'est la porte de secours si le dernier administrateur se retrouve
+désactivé. Elle pose ses questions au clavier, donc lancez-la avec `-it` :
+
+```bash
+podman-compose exec -it api python -m auth.bootstrap --reinitialiser
 ```
 
 ---
@@ -102,12 +138,23 @@ podman-compose exec api python -m auth.bootstrap \
 
 Le dashboard est accessible à : **http://localhost:8000**
 
-> En développement local, Vite tourne séparément (`npm run dev` dans `dashboard/`).
-> En conteneur, le dashboard compilé est servi directement par l'API.
+L'image embarque le dashboard compilé et l'API le sert lui-même : une seule
+adresse, un seul port, pas de serveur web supplémentaire à tenir.
 
-Pour servir le dashboard compilé, il faut configurer FastAPI pour servir les
-fichiers statiques de `dashboard/dist/`. En attendant, le dashboard en
-développement pointe vers `http://localhost:8000` pour l'API.
+| Adresse | Sert |
+|---|---|
+| `/` et toute route d'écran | Le tableau de bord |
+| `/docs` | La documentation de l'API |
+| `/health` | L'état du processus |
+| `/socket.io` | Le flux temps réel |
+
+Les routes de l'API sont déclarées avant le rattrapage qui rend le dashboard :
+elles gardent donc la main, et seules les adresses inconnues de l'API
+retombent sur l'interface.
+
+> En développement local, ce dossier `dashboard/dist` n'existe pas : Vite sert
+> l'interface sur son propre port (`npm run dev` dans `dashboard/`) et la
+> racine de l'API affiche alors un message d'orientation.
 
 ---
 
@@ -182,10 +229,10 @@ podman cp $(podman-compose ps -q api):/app/reports/output/. ./rapports_locaux/
 |---|---|---|---|
 | `DATABASE_URL` | Oui | — | Chaîne de connexion PostgreSQL |
 | `POSTGRES_PASSWORD` | Oui | `echo_dev_2026` | Mot de passe PostgreSQL |
-| `ECHO_ADMIN_PASSWORD` | Non | `MotDePasseAdmin1` | Mot de passe du premier admin |
+| `ECHO_ADMIN_PASSWORD` | Oui, pour créer le 1er compte | `MotDePasseAdmin1` | Lu par `auth.bootstrap --creer` (8 caractères minimum) |
 | `CORS_ORIGIN_REGEX` | Non | — | Regex des origines autorisées |
-| `JWT_SECRET` | Recommandé | généré au démarrage | Clé de signature des jetons |
-| `TAUX_COUVERTURE` | Non | `0.85` | Part des assurés avec droits ouverts |
+| `JWT_SECRET_KEY` | **Oui** | aucun — l'API refuse de démarrer sans | Clé de signature des jetons |
+| `TAUX_COUVERTURE` | Non | `0.60` | Part des assurés avec droits ouverts (lue au *seed*) |
 
 ---
 
@@ -194,11 +241,13 @@ podman cp $(podman-compose ps -q api):/app/reports/output/. ./rapports_locaux/
 En production, quelques ajustements :
 
 1. **Changer tous les mots de passe** dans le `.env`
-2. **Générer un `JWT_SECRET` solide** :
+2. **Générer un `JWT_SECRET_KEY` solide** :
    ```bash
    python -c "import secrets; print(secrets.token_hex(32))"
    ```
-3. **Ne pas exposer PostgreSQL** : retirer le `ports: "5432:5432"` du compose
+3. **PostgreSQL n'est déjà plus exposé** : aucun port publié, la base n'est
+   jointe que par les autres conteneurs. Pour l'inspecter :
+   `podman-compose exec postgres psql -U echo -d echo_db`
 4. **Placer un reverse proxy** (Nginx, Caddy, Traefik) devant le port 8000 pour le TLS
 5. **Limiter les ressources** :
    ```yaml

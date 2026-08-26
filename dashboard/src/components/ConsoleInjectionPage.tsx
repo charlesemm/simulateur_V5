@@ -1,8 +1,8 @@
 // dashboard/src/components/ConsoleInjectionPage.tsx
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { API_URL, api } from "../services/api";
-import type { InjectionJournal, SimulationStatus, TypeAnomalie } from "../types";
+import type { SimulationStatus, TypeAnomalie } from "../types";
 import "./Screens.css";
 
 const DECLENCHEMENTS: Array<{ valeur: string; libelle: string }> = [
@@ -10,6 +10,13 @@ const DECLENCHEMENTS: Array<{ valeur: string; libelle: string }> = [
   { valeur: "demarrage", libelle: "Démarrage — une salve initiale" },
   { valeur: "differe", libelle: "Différé — après un délai" },
   { valeur: "manuel", libelle: "Manuel — sur ordre en cours de route" },
+];
+
+/** Ordre d'affichage des familles, du plus courant au plus structurel.
+ *  Le même que sur l'écran de lancement : deux écrans qui rangent les mêmes
+ *  anomalies dans deux ordres différents obligent à réapprendre à chaque fois. */
+const ORDRE_FAMILLES = [
+  "MONTANTS", "DATES", "QUANTITES", "IDENTITE", "FORMAT", "REFERENTIEL",
 ];
 
 interface ReglageGlobal {
@@ -30,7 +37,6 @@ export function ConsoleInjectionPage() {
   const { token } = useAuth();
   const [global, setGlobal] = useState<ReglageGlobal | null>(null);
   const [catalogue, setCatalogue] = useState<TypeAnomalie[]>([]);
-  const [journal, setJournal] = useState<InjectionJournal[]>([]);
   const [statut, setStatut] = useState<SimulationStatus | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -46,14 +52,12 @@ export function ConsoleInjectionPage() {
 
   const rafraichir = useCallback(async () => {
     try {
-      const [liste, etat, injections] = await Promise.all([
+      const [liste, etat] = await Promise.all([
         api.getCatalogue(token),
         api.getSimulationStatus(token),
-        api.getJournalAnomalies(token, null, 20),
       ]);
       setCatalogue(liste);
       setStatut(etat);
-      setJournal(injections);
       await chargerGlobal();
       setErreur(null);
     } catch (raison) {
@@ -120,6 +124,23 @@ export function ConsoleInjectionPage() {
   const enCours = statut?.etat === "en_cours";
   const globalCoupe = !global?.enabled;
 
+  const parFamille = useMemo(() => {
+    const groupes: Record<string, TypeAnomalie[]> = {};
+    for (const type of catalogue) {
+      (groupes[type.anomalie_famille] ??= []).push(type);
+    }
+    return groupes;
+  }, [catalogue]);
+
+  // Les familles connues d'abord, dans l'ordre voulu ; toute famille ajoutée
+  // au catalogue plus tard suit derrière plutôt que de disparaître de l'écran.
+  const famillesOrdonnees = useMemo(() => {
+    const presentes = Object.keys(parFamille);
+    const connues = ORDRE_FAMILLES.filter((famille) => presentes.includes(famille));
+    const autres = presentes.filter((famille) => !ORDRE_FAMILLES.includes(famille));
+    return [...connues, ...autres.sort()];
+  }, [parFamille]);
+
   return (
     <div className="screen">
       {erreur && <p className="screen-error">{erreur}</p>}
@@ -185,10 +206,29 @@ export function ConsoleInjectionPage() {
         </div>
       </section>
 
-      <section>
-        <h2 className="screen-section-title">Types d'anomalies</h2>
+      {/* Une section par famille : treize cartes en vrac se ressemblent
+          toutes, rangées par nature elles se retrouvent. */}
+      {famillesOrdonnees.map((famille) => {
+        const types = parFamille[famille];
+        const allumes = types.filter(
+          (type) => type.anomalie_active && !globalCoupe
+        ).length;
+
+        return (
+        <section key={famille}>
+          <h2
+            className="screen-section-title famille-section"
+            style={{ ["--famille-couleur" as string]: types[0].anomalie_couleur }}
+          >
+            <span className="dot" />
+            {famille}
+            <span className="rule" />
+            <span className="famille-section-compte">
+              {allumes} / {types.length} actif(s)
+            </span>
+          </h2>
         <div className="console-grid">
-          {catalogue.map((type) => (
+          {types.map((type) => (
             <article
               key={type.anomalie_code}
               className={`anomalie-carte${type.anomalie_active && !globalCoupe ? " active" : ""}`}
@@ -300,43 +340,21 @@ export function ConsoleInjectionPage() {
             </article>
           ))}
         </div>
-      </section>
+        </section>
+        );
+      })}
+
+      {catalogue.length === 0 && (
+        <div className="screen-empty">Le catalogue d'anomalies n'a pas pu être chargé.</div>
+      )}
 
       {/* Les aléas ne sont plus ici : ils se déclenchent depuis l'écran de
           suivi, pendant l'exécution. Deux endroits pour le même geste, c'est
-          un endroit de trop — et celui-ci ne montre pas ce que l'aléa produit. */}
+          un endroit de trop — et celui-ci ne montre pas ce que l'aléa produit.
 
-      <section>
-        <h2 className="screen-section-title">Journal des injections</h2>
-        {journal.length === 0 ? (
-          <div className="screen-empty">
-            Aucune anomalie injectée pour l'instant.
-          </div>
-        ) : (
-          <div className="screen-table-wrap">
-            <table className="screen-table">
-              <thead>
-                <tr>
-                  <th>Type</th>
-                  <th>Ligne visée</th>
-                  <th>Valeur d'origine</th>
-                  <th>Valeur injectée</th>
-                </tr>
-              </thead>
-              <tbody>
-                {journal.map((injection) => (
-                  <tr key={injection.injection_id}>
-                    <td>{injection.anomalie_code}</td>
-                    <td>{injection.cible_cle ?? "—"}</td>
-                    <td>{injection.valeur_origine ?? "—"}</td>
-                    <td>{injection.valeur_injectee ?? "—"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+          Le journal des injections a suivi le même chemin : il se lit à froid,
+          après coup, et sa place est dans le contrôle qualité — pas sur une
+          console où l'on prépare. */}
     </div>
   );
 }

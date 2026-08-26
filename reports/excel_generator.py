@@ -9,9 +9,37 @@ from openpyxl import Workbook
 from sqlalchemy import select
 
 from app.database import async_session_factory
-from app.models import Invoice, InvoiceProvision, PriorAuthorization
+from app.models import InsuredPerson, Invoice, InvoiceProvision, PriorAuthorization
 from events.models import EventJournal
 from reports.paths import OUTPUT_DIR
+
+
+async def _numeros_secu(session, lignes) -> dict[UUID, str]:
+    """Associe à chaque assuré cité son numéro de sécurité sociale.
+
+    L'export identifiait les personnes par leur UUID technique — un
+    identifiant interne, illisible et sans valeur pour qui reçoit le fichier.
+    Le numéro de sécurité sociale est l'identifiant métier : c'est lui qui
+    permet de rapprocher une ligne d'un dossier réel.
+
+    `lignes` est n'importe quel mélange d'objets portant un `personne_uuid` —
+    factures, ententes — résolu en **une seule** requête : les mêmes personnes
+    reviennent d'une table à l'autre, et les interroger table par table
+    multiplierait les allers-retours sans rien apporter.
+    """
+
+    uuids = {
+        ligne.personne_uuid for ligne in lignes
+        if getattr(ligne, "personne_uuid", None)
+    }
+    if not uuids:
+        return {}
+
+    lignes = await session.execute(
+        select(InsuredPerson.personne_uuid, InsuredPerson.numero_secu)
+        .where(InsuredPerson.personne_uuid.in_(uuids))
+    )
+    return {identifiant: numero for identifiant, numero in lignes}
 
 
 def _bornes_journee(jour: date) -> tuple[datetime, datetime]:
@@ -64,14 +92,16 @@ async def build_excel_export(debut: datetime | None = None, fin: datetime | None
             _restreindre(select(Invoice), Invoice, debut, fin, simulation_id)
         )).scalars())
         compteurs["Factures"] = len(factures)
+        secu = await _numeros_secu(session, factures)
+
         feuille = classeur.create_sheet("Factures")
         feuille.append([
-            "Numéro facture", "Assuré (UUID)", "Centre", "Type facture",
-            "Date des soins", "Dossier", "Créée le",
+            "Numéro facture", "Numéro de sécurité sociale", "Centre",
+            "Type facture", "Date des soins", "Dossier", "Créée le",
         ])
         for f in factures:
             feuille.append([
-                f.facture_numero, str(f.personne_uuid), f.centre_sante_code,
+                f.facture_numero, secu.get(f.personne_uuid, "—"), f.centre_sante_code,
                 f.type_facture_code, f.facture_date_soins.isoformat(),
                 f.dossier_numero, f.date_creation.isoformat(),
             ])

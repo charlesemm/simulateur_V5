@@ -6,8 +6,11 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
+from sqlalchemy import select
 
+from app.database import async_session_factory
 from auth.dependencies import require_role
+from simulation.models import SimulationRun
 from reports.csv_generator import build_csv_export
 from reports.excel_generator import build_excel_export
 from reports.paths import OUTPUT_DIR
@@ -27,6 +30,57 @@ async def list_reports() -> list[str]:
 
     fichiers = sorted(OUTPUT_DIR.glob("*.*"), key=lambda p: p.stat().st_mtime, reverse=True)
     return [f.name for f in fichiers]
+
+
+@router.get("/executions")
+async def list_rapports_executions(jour: date | None = None) -> list[dict]:
+    """Les exécutions d'une journée, avec les rapports déjà produits pour chacune.
+
+    Les fichiers portent l'identifiant technique de l'exécution
+    (`execution_<uuid>.pdf`) : illisible, et impossible à rapprocher d'une
+    simulation sans passer par la base. On fait donc ce rapprochement ici,
+    pour que l'écran puisse les présenter sous le **nom** que l'opérateur a
+    donné au départ.
+
+    Sans jour précisé, on rend les exécutions du jour même.
+    """
+
+    vise = jour or date.today()
+    debut = datetime.combine(vise, time.min, tzinfo=timezone.utc)
+    fin = datetime.combine(vise, time.max, tzinfo=timezone.utc)
+
+    async with async_session_factory() as session:
+        executions = list((await session.execute(
+            select(SimulationRun)
+            .where(SimulationRun.simulation_date_debut.between(debut, fin))
+            .order_by(SimulationRun.simulation_date_debut.desc())
+        )).scalars())
+
+    fiches = []
+    for execution in executions:
+        base = f"execution_{execution.simulation_id}"
+        # Un fichier n'est proposé que s'il existe vraiment sur le disque :
+        # une purge des rapports laisse les exécutions en base, et proposer
+        # un téléchargement mort serait pire que ne rien proposer.
+        fichiers = {
+            "pdf": f"{base}.pdf" if (OUTPUT_DIR / f"{base}.pdf").is_file() else None,
+            "excel": f"{base}.xlsx" if (OUTPUT_DIR / f"{base}.xlsx").is_file() else None,
+            "csv": f"{base}.csv.zip" if (OUTPUT_DIR / f"{base}.csv.zip").is_file() else None,
+        }
+        fiches.append({
+            "simulation_id": str(execution.simulation_id),
+            "simulation_libelle": execution.simulation_libelle,
+            "simulation_type": execution.simulation_type,
+            "simulation_statut": execution.simulation_statut,
+            "simulation_date_debut": execution.simulation_date_debut.isoformat(),
+            "simulation_date_fin": (
+                execution.simulation_date_fin.isoformat()
+                if execution.simulation_date_fin else None
+            ),
+            "passages_reussis": execution.passages_reussis,
+            "fichiers": fichiers,
+        })
+    return fiches
 
 
 @router.post("/generate")

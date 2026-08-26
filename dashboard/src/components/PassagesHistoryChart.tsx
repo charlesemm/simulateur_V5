@@ -49,8 +49,8 @@ export function PassagesHistoryChart({ history }: PassagesHistoryChartProps) {
             <AreaChart data={points} margin={{ top: 10, right: 15, left: -20, bottom: 0 }}>
               <defs>
                 <linearGradient id="gradientPassages" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#0284c7" stopOpacity={0.28} />
-                  <stop offset="95%" stopColor="#0284c7" stopOpacity={0.0} />
+                  <stop offset="5%" stopColor="#0088ce" stopOpacity={0.28} />
+                  <stop offset="95%" stopColor="#0088ce" stopOpacity={0.0} />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
@@ -67,14 +67,14 @@ export function PassagesHistoryChart({ history }: PassagesHistoryChartProps) {
               />
               <Tooltip
                 contentStyle={TOOLTIP_STYLE}
-                itemStyle={{ color: "#0284c7", fontWeight: 600 }}
+                itemStyle={{ color: "#0088ce", fontWeight: 600 }}
                 formatter={(valeur: number) => [`${valeur.toLocaleString("fr-FR")} passages`, "Ouverts"]}
               />
               <Area
                 type="monotone"
                 dataKey="passages"
                 name="Passages ouverts"
-                stroke="#0284c7"
+                stroke="#0088ce"
                 strokeWidth={2}
                 fill="url(#gradientPassages)"
               />

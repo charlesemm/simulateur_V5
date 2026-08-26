@@ -2,10 +2,18 @@
 
 from contextlib import asynccontextmanager
 import logging
-from fastapi import FastAPI
+from pathlib import Path
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 import socketio
 import os
+
+# Le dashboard compilé, s'il a été construit. En conteneur il est copié ici
+# par l'étage 1 du Containerfile ; en développement local il n'existe pas et
+# c'est Vite qui sert l'interface, sur son propre port.
+DASHBOARD_DIST = Path(__file__).resolve().parent.parent / "dashboard" / "dist"
 
 import app
 from anomalies.repository import (
@@ -110,14 +118,21 @@ fastapi_app.include_router(moteurs_router.router)
 fastapi_app.include_router(assures_router.router)
 fastapi_app.include_router(metrics_router.router)
 
-@fastapi_app.get("/", tags=["Technique"])
-async def racine() -> dict:
-    """Dit ce qu'est cette adresse et où aller ensuite.
+@fastapi_app.get("/", tags=["Technique"], response_model=None)
+async def racine():
+    """Sert le tableau de bord s'il est compilé, sinon dit où le trouver.
 
-    Sans cette route, taper l'adresse de l'API dans un navigateur renvoyait un
-    « Not Found » nu : rien n'indiquait qu'on était au bon endroit mais sur le
-    mauvais port, ni où se trouvait le tableau de bord.
+    En conteneur, l'image embarque `dashboard/dist` : c'est la même adresse
+    qui rend l'interface et l'API, et il n'y a pas de second serveur à tenir.
+    En développement, ce dossier n'existe pas — Vite sert l'interface sur son
+    propre port — et cette route explique alors qu'on est sur l'API.
+
+    Sans elle, taper l'adresse dans un navigateur renvoyait un « Not Found »
+    nu : rien n'indiquait qu'on était au bon endroit mais sur le mauvais port.
     """
+
+    if DASHBOARD_DIST.is_dir():
+        return FileResponse(DASHBOARD_DIST / "index.html")
 
     return {
         "service": "ÉCHO — API du simulateur de données CMU",
@@ -137,6 +152,40 @@ async def health() -> HealthResponse:
     """Confirme que le processus ASGI répond."""
 
     return HealthResponse(statut="ok")
+
+# ── Tableau de bord compilé ─────────────────────────────────────────────
+#
+# Déclaré en dernier, après tous les routeurs : FastAPI teste les routes dans
+# l'ordre d'enregistrement, donc /simulation, /docs et les autres gardent la
+# main. Seul ce qui ne correspond à aucune route de l'API descend jusqu'ici.
+if DASHBOARD_DIST.is_dir():
+    fastapi_app.mount(
+        "/assets",
+        StaticFiles(directory=DASHBOARD_DIST / "assets"),
+        name="assets",
+    )
+
+    @fastapi_app.get("/{chemin:path}", include_in_schema=False)
+    async def servir_dashboard(chemin: str) -> FileResponse:
+        """Rend le fichier demandé, ou l'index pour toute route de l'interface.
+
+        Le tableau de bord est une application d'une seule page : ses adresses
+        internes n'existent pas côté serveur et doivent toutes retomber sur
+        `index.html`, faute de quoi un rafraîchissement du navigateur donnerait
+        un 404 sur un écran qui existe pourtant.
+        """
+
+        demande = (DASHBOARD_DIST / chemin).resolve()
+
+        # Un chemin remontant (« ../../etc/passwd ») sortirait du dossier
+        # servi : on vérifie l'appartenance après résolution, jamais avant.
+        if not demande.is_relative_to(DASHBOARD_DIST):
+            raise HTTPException(status_code=404)
+
+        if chemin and demande.is_file():
+            return FileResponse(demande)
+        return FileResponse(DASHBOARD_DIST / "index.html")
+
 
 # Socket.IO traite /socket.io ; toutes les autres routes vont vers FastAPI.
 app = socketio.ASGIApp(sio, other_asgi_app=fastapi_app, socketio_path="socket.io")

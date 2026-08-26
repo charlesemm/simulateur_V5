@@ -40,11 +40,54 @@ async def _refuser_doublon(
     requete = select(User).where(or_(*criteres))
     if sauf is not None:
         requete = requete.where(User.utilisateur_uuid != sauf)
-    if (await session.execute(requete)).scalar_one_or_none() is not None:
+
+    # `.first()` et non `scalar_one_or_none()` : l'e-mail et le nom demandés
+    # peuvent être pris par DEUX comptes différents, auquel cas la requête
+    # remonte deux lignes. `scalar_one_or_none()` levait alors
+    # MultipleResultsFound — une 500 au lieu du 409 attendu.
+    if (await session.execute(requete.limit(1))).scalars().first() is not None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Un compte utilise déjà cet e-mail ou ce nom d'utilisateur.",
         )
+
+
+async def _refuser_de_perdre_le_dernier_admin(
+    session: AsyncSession, user: User, *,
+    desactive: bool, nouveau_role: str | None,
+) -> None:
+    """Interdit de retirer le dernier administrateur actif.
+
+    Sans ce garde-fou, un seul clic fermait l'administration à tout le monde :
+    plus personne pour rouvrir un compte, et la seule issue restante était
+    « python -m auth.bootstrap --reinitialiser » sur la machine elle-même.
+    """
+
+    if user.role != "administrateur" or not user.statut_actif:
+        return
+
+    perd_le_role = nouveau_role is not None and nouveau_role != "administrateur"
+    if not desactive and not perd_le_role:
+        return
+
+    restants = await session.scalar(
+        select(func.count()).select_from(User).where(
+            User.role == "administrateur",
+            User.statut_actif.is_(True),
+            User.utilisateur_uuid != user.utilisateur_uuid,
+        )
+    )
+    if restants:
+        return
+
+    raise HTTPException(
+        status_code=status.HTTP_409_CONFLICT,
+        detail=(
+            "C'est le dernier administrateur actif : le désactiver ou changer "
+            "son rôle fermerait l'administration à tout le monde. Donnez "
+            "d'abord ce rôle à un autre compte actif."
+        ),
+    )
 
 
 def _valider_role(role: str) -> None:
@@ -115,6 +158,16 @@ async def update_user(
 
     if payload.role is not None:
         _valider_role(payload.role)
+
+    # Contrôlé avant toute écriture : un refus ne doit rien laisser à moitié
+    # modifié derrière lui.
+    await _refuser_de_perdre_le_dernier_admin(
+        session, user,
+        desactive=payload.statut_actif is False,
+        nouveau_role=payload.role,
+    )
+
+    if payload.role is not None:
         user.role = payload.role
     if payload.nom_utilisateur is not None:
         await _refuser_doublon(session, None, payload.nom_utilisateur, sauf=utilisateur_uuid)

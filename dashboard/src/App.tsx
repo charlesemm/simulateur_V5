@@ -16,6 +16,7 @@ import { ExecutionEnCoursCard } from "./components/ExecutionEnCoursCard";
 import { ExecutionEnCoursPage } from "./components/ExecutionEnCoursPage";
 import { ActiviteMetierSection } from "./components/ActiviteMetierSection";
 import { AccueilPage } from "./components/AccueilPage";
+import { BilanExecutionPage, type FrappeBilan } from "./components/BilanExecutionPage";
 import { AdministrationPage } from "./components/AdministrationPage";
 import { ConsoleInjectionPage } from "./components/ConsoleInjectionPage";
 import { LancementPage } from "./components/LancementPage";
@@ -33,6 +34,11 @@ function DashboardShell() {
   const [executionOuverte, setExecutionOuverte] = useState<string | null>(null);
   // Type choisi sur l'accueil, que l'écran de lancement vient paramétrer.
   const [typeAConfigurer, setTypeAConfigurer] = useState("QUALITE");
+  // Ce que le poste de pilotage lègue au bilan en s'arrêtant. Les aléas
+  // frappés ne vivent nulle part ailleurs : ils se perdraient sans ce relais.
+  const [bilan, setBilan] = useState<
+    { simulationId: string; frappes: FrappeBilan[] } | null
+  >(null);
   const [metrics, setMetrics] = useState<TechnicalMetricsSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -99,7 +105,16 @@ function DashboardShell() {
       {ongletActif === "encours" ? (
         <ExecutionEnCoursPage
           onQuitter={() => setOngletActif("accueil")}
-          onArret={() => setOngletActif("accueil")}
+          onArret={(simulationId, frappes) => {
+            // Sans exécution identifiable il n'y a pas de bilan à dresser :
+            // on retombe alors sur l'accueil plutôt que d'ouvrir un écran vide.
+            if (simulationId) {
+              setBilan({ simulationId, frappes });
+              setOngletActif("bilan");
+              return;
+            }
+            setOngletActif("accueil");
+          }}
         />
       ) : (
       <div className="enterprise-layout">
@@ -112,7 +127,7 @@ function DashboardShell() {
 
         {/* Zone de contenu principale avec Topbar */}
         <div className="enterprise-main">
-          <Header ongletActif={ongletActif} />
+          <Header ongletActif={ongletActif} onRejoindreCockpit={allerAuCockpit} />
 
           <div className="content-scrollable">
             {ongletActif === "accueil" && (
@@ -125,6 +140,8 @@ function DashboardShell() {
                   setTypeAConfigurer(type);
                   setOngletActif("lancement");
                 }}
+                onRejoindreCockpit={allerAuCockpit}
+                onVoirHistorique={() => setOngletActif("simulations")}
               />
             )}
 
@@ -138,6 +155,16 @@ function DashboardShell() {
                   onDemarre={() => allerAuCockpit()}
                 />
               </RequireRole>
+            )}
+
+            {ongletActif === "bilan" && bilan && (
+              <BilanExecutionPage
+                simulationId={bilan.simulationId}
+                frappes={bilan.frappes}
+                onVoirQualite={() => setOngletActif("qualite")}
+                onExporter={() => setOngletActif("rapports")}
+                onAccueil={() => setOngletActif("accueil")}
+              />
             )}
 
             {ongletActif === "injection" && (

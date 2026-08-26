@@ -33,8 +33,8 @@ export function EchoLogo({ size = 64, className = "", id = "echo" }: EchoLogoPro
     >
       <defs>
         <linearGradient id={degrade} x1="8" y1="8" x2="56" y2="56" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#16a34a" />
-          <stop offset="1" stopColor="#0284c7" />
+          <stop stopColor="#4caf2a" />
+          <stop offset="1" stopColor="#0088ce" />
         </linearGradient>
       </defs>
 

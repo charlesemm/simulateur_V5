@@ -140,3 +140,38 @@ async def test_l_api_ouvre_une_execution_au_nom_de_l_utilisateur(
     assert ligne["simulation_statut"] == STATUT_ARRETEE
     assert ligne["utilisateur_uuid"] == str(administrateur.utilisateur_uuid)
     assert ligne["simulation_parametres"]["passages_simultanes_max"] == 1
+
+
+async def test_la_duree_visee_est_rangee_avec_l_execution(client_api):
+    """Le poste de pilotage doit pouvoir relire l'objectif au retour.
+
+    Gardée dans le navigateur, la durée visée disparaîtrait dès qu'on quitte
+    l'écran de suivi — or c'est précisément en y revenant qu'on veut savoir
+    où en est l'exécution.
+    """
+
+    demarrage = await client_api.post("/simulation/start", json={
+        "type_simulation": "LIBRE", "libelle": "Avec objectif",
+        "vitesse": 60, "nombre_passages_simultanes_max": 1,
+        "duree_visee_minutes": 90,
+    })
+    assert demarrage.status_code == 202
+    await client_api.post("/simulation/stop")
+
+    executions = await client_api.get("/simulation/executions?limite=1")
+    parametres = executions.json()[0]["simulation_parametres"]
+    assert parametres["duree_visee_minutes"] == 90
+
+
+async def test_une_execution_sans_objectif_reste_permise(client_api):
+    """Le champ est facultatif : sans lui, le pilotage n'affiche pas de barre."""
+
+    demarrage = await client_api.post("/simulation/start", json={
+        "type_simulation": "LIBRE", "libelle": "Sans objectif",
+        "vitesse": 60, "nombre_passages_simultanes_max": 1,
+    })
+    assert demarrage.status_code == 202
+    await client_api.post("/simulation/stop")
+
+    executions = await client_api.get("/simulation/executions?limite=1")
+    assert executions.json()[0]["simulation_parametres"]["duree_visee_minutes"] is None

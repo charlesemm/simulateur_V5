@@ -71,8 +71,8 @@ export function ChargeTraitementChart({ metrics }: ChargeTraitementChartProps) {
             <AreaChart data={points} margin={{ top: 10, right: 15, left: -20, bottom: 0 }}>
               <defs>
                 <linearGradient id="gradientCnamGreen" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#16a34a" stopOpacity={0.28} />
-                  <stop offset="95%" stopColor="#16a34a" stopOpacity={0.0} />
+                  <stop offset="5%" stopColor="#4caf2a" stopOpacity={0.28} />
+                  <stop offset="95%" stopColor="#4caf2a" stopOpacity={0.0} />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
@@ -87,13 +87,13 @@ export function ChargeTraitementChart({ metrics }: ChargeTraitementChartProps) {
                   fontSize: "12px",
                   color: "#0f172a",
                 }}
-                itemStyle={{ color: "#16a34a", fontWeight: 600 }}
+                itemStyle={{ color: "#4caf2a", fontWeight: 600 }}
               />
               <Area
                 type="monotone"
                 dataKey="passagesActifs"
                 name="Passages actifs"
-                stroke="#16a34a"
+                stroke="#4caf2a"
                 strokeWidth={2}
                 fillOpacity={1}
                 fill="url(#gradientCnamGreen)"

@@ -30,19 +30,46 @@ async def _produire_une_facture() -> str:
 # ── Authentification ────────────────────────────────────────────────────
 
 async def test_la_racine_oriente_au_lieu_de_renvoyer_un_mur(client_api):
-    """Taper l'adresse de l'API dans un navigateur ne doit pas donner un 404 nu.
+    """Taper l'adresse dans un navigateur ne doit jamais donner un 404 nu.
 
-    On arrive là par erreur, en cherchant le tableau de bord : la réponse doit
-    le dire, et donner les deux adresses utiles.
+    Deux cas légitimes, selon que le tableau de bord a été compilé ou non :
+    en conteneur l'image embarque `dashboard/dist` et la racine sert
+    l'interface elle-même ; en développement ce dossier n'existe pas, Vite
+    sert l'interface sur son propre port, et la racine explique alors où
+    aller. Ce qui est interdit dans les deux cas, c'est le mur.
     """
 
-    reponse = await client_api.get("/")
+    from api.main import DASHBOARD_DIST
 
+    reponse = await client_api.get("/")
     assert reponse.status_code == 200
+
+    if DASHBOARD_DIST.is_dir():
+        assert reponse.headers["content-type"].startswith("text/html")
+        assert "<!doctype html>" in reponse.text.lower()
+        return
+
     corps = reponse.json()
     assert "ÉCHO" in corps["service"]
     assert corps["documentation"] == "/docs"
     assert corps["sante"] == "/health"
+
+
+async def test_les_routes_de_l_api_gardent_la_main_sur_le_dashboard(client_api):
+    """Le rattrapage qui sert l'interface ne doit rien avaler de l'API.
+
+    Il est déclaré en dernier pour cette raison : FastAPI teste les routes
+    dans l'ordre d'enregistrement. Une inversion rendrait `index.html` sur
+    `/health`, et la panne serait invisible jusqu'au déploiement.
+    """
+
+    sante = await client_api.get("/health")
+    assert sante.status_code == 200
+    assert sante.json() == {"statut": "ok"}
+
+    schema = await client_api.get("/openapi.json")
+    assert schema.status_code == 200
+    assert schema.json()["openapi"].startswith("3.")
 
 
 async def test_les_factures_exigent_un_jeton(client_api):

@@ -12,8 +12,10 @@ import "./Cockpit.css";
 interface ExecutionEnCoursPageProps {
   /** Quitter le suivi sans toucher au moteur : il continue de tourner. */
   onQuitter: () => void;
-  /** Appelé une fois le moteur réellement arrêté. */
-  onArret: () => void;
+  /** Appelé une fois le moteur réellement arrêté, avec de quoi dresser le
+   *  bilan : l'exécution qui vient de se clore et les aléas frappés — ces
+   *  derniers ne vivent que dans cet écran, personne d'autre ne les a vus. */
+  onArret: (simulationId: string | null, frappes: Frappe[]) => void;
 }
 
 /** Durée écoulée depuis le début, en h / min / s. */
@@ -25,6 +27,29 @@ function depuis(debut: string | null): string {
   if (heures > 0) return `${heures} h ${String(minutes).padStart(2, "0")}`;
   if (minutes > 0) return `${minutes} min ${String(secondes % 60).padStart(2, "0")}`;
   return `${secondes} s`;
+}
+
+/** Un aléa effectivement frappé, avec l'heure du geste. */
+interface Frappe {
+  code: string;
+  libelle: string;
+  nature: string;
+  couleur: string;
+  horodatage: Date;
+}
+
+/** L'heure d'une frappe, à la seconde. */
+function heure(instant: Date): string {
+  return instant.toLocaleTimeString("fr-FR", {
+    hour: "2-digit", minute: "2-digit", second: "2-digit",
+  });
+}
+
+/** Une durée en minutes, dite en heures et minutes quand elle est longue. */
+function enClair(minutes: number): string {
+  const arrondi = Math.max(0, Math.round(minutes));
+  if (arrondi < 60) return `${arrondi} min`;
+  return `${Math.floor(arrondi / 60)} h ${String(arrondi % 60).padStart(2, "0")}`;
 }
 
 const NOMS_VOLUMETRIE: Record<string, string> = {
@@ -56,7 +81,10 @@ export function ExecutionEnCoursPage({ onQuitter, onArret }: ExecutionEnCoursPag
   const [profils, setProfils] = useState<ProfilSimulation[]>([]);
   const [aleas, setAleas] = useState<ScenarioAlea[]>([]);
   const [catalogue, setCatalogue] = useState<TypeAnomalie[]>([]);
-  const [frappes, setFrappes] = useState<Record<string, number>>({});
+  // Un tableau daté, et non un compteur par code : « frappé 2 fois » ne dit
+  // ni quand, ni dans quel ordre — or c'est exactement ce qu'on cherche à
+  // relire quand on veut savoir ce qui a produit tel creux dans les chiffres.
+  const [frappes, setFrappes] = useState<Frappe[]>([]);
   const [erreur, setErreur] = useState<string | null>(null);
   const [arretEnCours, setArretEnCours] = useState(false);
   const [battement, setBattement] = useState(0);
@@ -96,10 +124,18 @@ export function ExecutionEnCoursPage({ onQuitter, onArret }: ExecutionEnCoursPag
     return () => clearInterval(minuterie);
   }, [rafraichir]);
 
-  async function frapper(code: string) {
+  async function frapper(alea: ScenarioAlea) {
     try {
-      await api.commander("declencher_alea", code, token);
-      setFrappes((courants) => ({ ...courants, [code]: (courants[code] ?? 0) + 1 }));
+      await api.commander("declencher_alea", alea.code, token);
+      // En tête de liste : le dernier geste est celui qu'on relit d'abord.
+      setFrappes((courants) => [
+        {
+          code: alea.code, libelle: alea.libelle,
+          nature: alea.nature, couleur: alea.couleur,
+          horodatage: new Date(),
+        },
+        ...courants,
+      ]);
       setErreur(null);
     } catch (raison) {
       setErreur((raison as Error).message);
@@ -110,7 +146,9 @@ export function ExecutionEnCoursPage({ onQuitter, onArret }: ExecutionEnCoursPag
     setArretEnCours(true);
     try {
       await api.stopSimulation(token);
-      onArret();
+      // L'identifiant est lu avant l'arrêt : une fois le moteur clos, le
+      // statut ne le porte plus, et le bilan n'aurait plus rien à ouvrir.
+      onArret(execution?.simulation_id ?? statut?.simulation_id ?? null, frappes);
     } catch (raison) {
       setErreur((raison as Error).message);
       setArretEnCours(false);
@@ -118,7 +156,7 @@ export function ExecutionEnCoursPage({ onQuitter, onArret }: ExecutionEnCoursPag
   }
 
   const profil = profils.find((candidat) => candidat.code === statut?.type_simulation);
-  const teinte = profil?.couleur ?? "#16a34a";
+  const teinte = profil?.couleur ?? "#4caf2a";
   const execution = detail?.execution ?? null;
 
   const injections = useMemo(() => {
@@ -138,6 +176,38 @@ export function ExecutionEnCoursPage({ onQuitter, onArret }: ExecutionEnCoursPag
 
   const derniers = evenements.slice(-16).reverse();
   void battement; // recalcule le chronomètre à chaque tour
+
+  /** Combien de fois chaque aléa a été frappé, tiré du fil lui-même. */
+  const comptes = useMemo(() => {
+    const total: Record<string, number> = {};
+    for (const frappe of frappes) total[frappe.code] = (total[frappe.code] ?? 0) + 1;
+    return total;
+  }, [frappes]);
+
+  /**
+   * Où en est l'exécution par rapport à la durée que l'opérateur visait.
+   *
+   * Rien n'arrête le moteur à l'échéance : la barre est un repère, pas une
+   * minuterie. Sans durée visée — les exécutions ouvertes avant que ce champ
+   * existe, par exemple — il n'y a pas d'objectif, donc pas de barre.
+   */
+  const progression = useMemo(() => {
+    const parametres = execution?.simulation_parametres as
+      { duree_visee_minutes?: number | null } | undefined;
+    const objectif = parametres?.duree_visee_minutes ?? null;
+    const debut = execution?.simulation_date_debut ?? null;
+    if (!objectif || !debut) return null;
+
+    const ecoulees = (Date.now() - new Date(debut).getTime()) / 60000;
+    return {
+      objectif,
+      ecoulees,
+      part: Math.min(1, Math.max(0, ecoulees / objectif)),
+      restant: objectif - ecoulees,
+      fin: new Date(new Date(debut).getTime() + objectif * 60000),
+    };
+    // `battement` fait battre le calcul au même rythme que le chronomètre.
+  }, [execution?.simulation_parametres, execution?.simulation_date_debut, battement]);
 
   return (
     <div className="cockpit" style={{ ["--teinte" as string]: teinte }}>
@@ -183,6 +253,56 @@ export function ExecutionEnCoursPage({ onQuitter, onArret }: ExecutionEnCoursPag
 
         {erreur && <p className="cockpit-erreur">{erreur}</p>}
 
+        {progression && (
+          <section className="cockpit-progression">
+            <div className="cockpit-progression-tete">
+              <span className="cockpit-progression-libelle">
+                Progression vers la durée visée
+              </span>
+              <span className="cockpit-progression-chiffres">
+                {progression.restant > 0 ? (
+                  <>
+                    Il reste <b>{enClair(progression.restant)}</b>
+                    {" · fin visée "}
+                    <b>{progression.fin.toLocaleTimeString("fr-FR",
+                      { hour: "2-digit", minute: "2-digit" })}</b>
+                  </>
+                ) : (
+                  <b>Durée visée atteinte — le moteur tourne toujours</b>
+                )}
+              </span>
+              <span
+                className="cockpit-progression-part"
+                style={{ ["--teinte" as string]: teinte }}
+              >
+                {Math.round(progression.part * 100)} %
+              </span>
+            </div>
+
+            <div
+              className="cockpit-jauge"
+              role="progressbar"
+              aria-valuenow={Math.round(progression.part * 100)}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label="Progression vers la durée visée"
+            >
+              <div
+                className="cockpit-jauge-remplie"
+                style={{
+                  width: `${progression.part * 100}%`,
+                  ["--teinte" as string]: teinte,
+                }}
+              />
+            </div>
+
+            <div className="cockpit-progression-bornes">
+              <span>{enClair(progression.ecoulees)} écoulées</span>
+              <span>objectif {enClair(progression.objectif)}</span>
+            </div>
+          </section>
+        )}
+
         <section>
           <h2 className="cockpit-titre">Ce qui se produit</h2>
           <div className="cockpit-compteurs">
@@ -225,21 +345,45 @@ export function ExecutionEnCoursPage({ onQuitter, onArret }: ExecutionEnCoursPag
               <button
                 key={alea.code}
                 type="button"
-                className={`cockpit-alea${frappes[alea.code] ? " frappe" : ""}`}
+                className={`cockpit-alea${comptes[alea.code] ? " frappe" : ""}`}
                 style={{ ["--alea" as string]: alea.couleur }}
-                onClick={() => void frapper(alea.code)}
+                onClick={() => void frapper(alea)}
               >
                 <span className="cockpit-alea-nature">{alea.nature}</span>
                 <span className="cockpit-alea-nom">{alea.libelle}</span>
                 <span className="cockpit-alea-compte">
-                  {frappes[alea.code]
-                    ? `frappé ${frappes[alea.code]} fois`
+                  {comptes[alea.code]
+                    ? `frappé ${comptes[alea.code]} fois`
                     : "cliquer pour déclencher"}
                 </span>
               </button>
             ))}
           </div>
         </section>
+
+        {frappes.length > 0 && (
+          <section>
+            <h2 className="cockpit-titre">Aléas frappés</h2>
+            <div className="cockpit-fil">
+              {frappes.map((frappe) => (
+                <div
+                  key={`${frappe.code}-${frappe.horodatage.getTime()}`}
+                  className="cockpit-fil-ligne"
+                  style={{ ["--alea" as string]: frappe.couleur }}
+                >
+                  <span className="cockpit-fil-heure">{heure(frappe.horodatage)}</span>
+                  <span className="cockpit-fil-puce" aria-hidden="true" />
+                  <span className="cockpit-fil-nom">{frappe.libelle}</span>
+                  <span className="cockpit-fil-nature">{frappe.nature}</span>
+                </div>
+              ))}
+            </div>
+            <p className="cockpit-aide">
+              Ce fil vaut pour la session en cours : il repart à vide si vous
+              quittez le poste de pilotage et y revenez.
+            </p>
+          </section>
+        )}
 
         <section>
           <h2 className="cockpit-titre">Anomalies posées</h2>

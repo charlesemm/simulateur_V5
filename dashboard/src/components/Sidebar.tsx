@@ -23,41 +23,49 @@ export function Sidebar({ ongletActif, onNaviguer, moteurEnCours }: SidebarProps
     <aside className="app-sidebar">
       <div className="sidebar-top">
         <div className="sidebar-brand">
-          <div className="sidebar-marques">
-            <EchoLogo size={34} className="sidebar-logo" id="sidebar" />
-            <span className="sidebar-marques-filet" />
+          <div className="sidebar-product">
+            <EchoLogo size={42} className="sidebar-logo" id="sidebar" />
+            <div className="sidebar-brand-meta">
+              <span className="sidebar-brand-title">ÉCHO</span>
+              <span className="sidebar-brand-sub">Simulation & qualité des données</span>
+            </div>
+          </div>
+          <div className="sidebar-cnam-lockup">
+            <span className="sidebar-cnam-caption">Une solution pour</span>
             <img
               src={logoCnam}
               alt="Caisse Nationale d'Assurance Maladie"
               className="sidebar-logo-cnam"
             />
           </div>
-          <div className="sidebar-brand-meta">
-            <span className="sidebar-brand-title">ÉCHO</span>
-            <span className="sidebar-brand-sub">Simulateur de données · Côte d'Ivoire</span>
-          </div>
         </div>
 
-        <nav className="sidebar-nav">
-          <span className="sidebar-nav-section-title">Navigation</span>
+        <nav className="sidebar-nav" aria-label="Navigation principale">
+          <div className="sidebar-nav-group">
+            <span className="sidebar-nav-section-title">Piloter</span>
 
           <button
             className={`sidebar-nav-item ${ongletActif === "accueil" ? "active" : ""}`}
             onClick={() => onNaviguer("accueil")}
           >
             <HomeIcon className="nav-icon" />
-            <span className="nav-text">Accueil</span>
+            <span className="nav-text">Vue d'ensemble</span>
           </button>
 
           <RequireRole minimum="operateur">
             <button
-              className={`sidebar-nav-item ${ongletActif === "injection" ? "active" : ""}`}
+              className={`sidebar-nav-item sidebar-nav-item--injection ${ongletActif === "injection" ? "active" : ""}`}
               onClick={() => onNaviguer("injection")}
             >
               <InjectionIcon className="nav-icon" />
-              <span className="nav-text">Console d'injection</span>
+              <span className="nav-text">Scénarios & anomalies</span>
             </button>
           </RequireRole>
+
+          </div>
+
+          <div className="sidebar-nav-group">
+            <span className="sidebar-nav-section-title">Analyser</span>
 
           {/* N'apparaît que pendant qu'une simulation tourne : un onglet vide
               le reste du temps n'aurait rien à montrer. */}
@@ -78,7 +86,7 @@ export function Sidebar({ ongletActif, onNaviguer, moteurEnCours }: SidebarProps
             onClick={() => onNaviguer("simulations")}
           >
             <SimulationsIcon className="nav-icon" />
-            <span className="nav-text">Simulations</span>
+            <span className="nav-text">Historique</span>
           </button>
 
           <button
@@ -86,7 +94,7 @@ export function Sidebar({ ongletActif, onNaviguer, moteurEnCours }: SidebarProps
             onClick={() => onNaviguer("qualite")}
           >
             <QualiteIcon className="nav-icon" />
-            <span className="nav-text">Qualité</span>
+            <span className="nav-text">Contrôle qualité</span>
           </button>
 
           <RequireRole minimum="operateur">
@@ -95,9 +103,14 @@ export function Sidebar({ ongletActif, onNaviguer, moteurEnCours }: SidebarProps
               onClick={() => onNaviguer("rapports")}
             >
               <ReportsIcon className="nav-icon" />
-              <span className="nav-text">Rapports & Exports</span>
+              <span className="nav-text">Rapports & exports</span>
             </button>
           </RequireRole>
+
+          </div>
+
+          <div className="sidebar-nav-group">
+            <span className="sidebar-nav-section-title">Gérer</span>
 
           <RequireRole minimum="operateur">
             <button
@@ -118,10 +131,15 @@ export function Sidebar({ ongletActif, onNaviguer, moteurEnCours }: SidebarProps
               <span className="nav-text">Administration</span>
             </button>
           </RequireRole>
+          </div>
         </nav>
       </div>
 
       <div className="sidebar-bottom">
+        <div className="sidebar-environment">
+          <span className="sidebar-environment-dot" aria-hidden="true" />
+          Environnement de simulation
+        </div>
         <div className="sidebar-user-card">
           <div className="sidebar-user-avatar">
             {(nomComplet ?? "U").charAt(0).toUpperCase()}

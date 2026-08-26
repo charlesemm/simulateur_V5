@@ -37,6 +37,7 @@ async def start_simulation(request: SimulationStartRequest,
             request.vitesse, request.nombre_passages_simultanes_max,
             utilisateur.utilisateur_uuid, request.type_simulation,
             request.libelle, request.anomalies, request.aleas,
+            request.duree_visee_minutes,
         )
     except RuntimeError as error:
         raise HTTPException(status_code=409, detail=str(error)) from error

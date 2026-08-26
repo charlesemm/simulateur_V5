@@ -1,12 +1,32 @@
 // Centralise les appels HTTP, le typage et les messages d'erreur français.
 
 import type {
-  ExecutionDetail, FicheGouvernance, HealthCenterList, InjectionJournal,
-  KpiHistory, KpiSnapshot, PaireMdm, ProfilSimulation, RapportQualite,
-  ScenarioAlea, SimulationRun, SimulationStatus, TypeAnomalie,
+  CadenceMoteur, ExecutionDetail, FicheGouvernance, HealthCenterList,
+  RapportExecution,
+  InjectionJournal, KpiHistory, KpiSnapshot, PaireMdm, ProfilSimulation,
+  RapportQualite, ScenarioAlea, SimulationRun, SimulationStatus, TypeAnomalie,
 } from "../types";
 
-export const API_URL = (import.meta.env.VITE_API_URL as string) ?? "http://127.0.0.1:8000";
+/**
+ * Adresse de l'API.
+ *
+ * En production, **vide** : toutes les requêtes deviennent relatives et
+ * partent vers l'origine qui a servi la page. C'est ce qui permet au même
+ * paquet compilé de fonctionner derrière n'importe quelle adresse — une IP
+ * interne, un nom de machine, un domaine — sans être recompilé.
+ *
+ * Une adresse en dur ici serait figée au moment du `npm run build` : le
+ * navigateur d'un utilisateur appellerait `127.0.0.1`, c'est-à-dire sa propre
+ * machine, et l'application serait inutilisable pour tout le monde sauf pour
+ * qui la consulte depuis le serveur lui-même.
+ *
+ * En développement, Vite sert l'interface sur son port et l'API vit ailleurs :
+ * il faut donc l'adresse complète. `VITE_API_URL` reste prioritaire dans les
+ * deux cas, pour les montages particuliers.
+ */
+export const API_URL =
+  (import.meta.env.VITE_API_URL as string | undefined)
+  ?? (import.meta.env.DEV ? "http://127.0.0.1:8000" : "");
 
 function authHeaders(token: string | null): HeadersInit {
   return token ? { Authorization: `Bearer ${token}` } : {};
@@ -98,6 +118,7 @@ export const api = {
       libelle?: string;
       vitesse?: number;
       nombre_passages_simultanes_max?: number;
+      duree_visee_minutes?: number;
       anomalies?: Record<string, Record<string, unknown>>;
       aleas?: Record<string, Record<string, unknown>>;
     }
@@ -116,6 +137,24 @@ export const api = {
       headers: authHeaders(token),
     });
     return parseOrThrow<ProfilSimulation[]>(response);
+  },
+
+  /** Les exécutions d'une journée et les rapports déjà produits pour chacune. */
+  async getRapportsExecutions(
+    jour: string, token: string | null
+  ): Promise<RapportExecution[]> {
+    const response = await fetch(
+      `${API_URL}/reports/executions?jour=${encodeURIComponent(jour)}`,
+      { headers: authHeaders(token) },
+    );
+    return parseOrThrow<RapportExecution[]>(response);
+  },
+
+  async getCadence(token: string | null): Promise<CadenceMoteur> {
+    const response = await fetch(`${API_URL}/simulation/cadence`, {
+      headers: authHeaders(token),
+    });
+    return parseOrThrow<CadenceMoteur>(response);
   },
 
   async getExecutions(token: string | null, limite = 50): Promise<SimulationRun[]> {

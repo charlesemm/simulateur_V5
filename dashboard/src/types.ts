@@ -65,6 +65,31 @@ export interface ProfilSimulation {
   aleas: Record<string, Record<string, unknown>>;
 }
 
+/** Une exécution d'une journée donnée, avec les rapports produits pour elle.
+ *
+ *  Les fichiers portent l'identifiant technique de l'exécution ; c'est le
+ *  serveur qui les rapproche du nom donné au départ, seul repère utilisable. */
+export interface RapportExecution {
+  simulation_id: string;
+  simulation_libelle: string;
+  simulation_type: string | null;
+  simulation_statut: string;
+  simulation_date_debut: string;
+  simulation_date_fin: string | null;
+  passages_reussis: number;
+  fichiers: { pdf: string | null; excel: string | null; csv: string | null };
+}
+
+/** La cadence du moteur, servie par l'API pour projeter un volume.
+ *
+ *  L'écran de lancement ne peut pas la deviner : elle vit dans la
+ *  configuration du moteur, et la recopier ici la ferait dériver. */
+export interface CadenceMoteur {
+  passage_arrival_mean_seconds: number;
+  vitesse_par_defaut: number;
+  passages_simultanes_max: number;
+}
+
 /** Une entrée du catalogue d'anomalies. */
 export interface TypeAnomalie {
   anomalie_code: string;

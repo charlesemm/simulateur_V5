@@ -10,11 +10,11 @@ interface ActesRepartitionChartProps {
 // Une couleur par famille d'actes, pour que la lecture reste stable d'un
 // rafraîchissement à l'autre même si l'ordre des barres change.
 const COULEURS: Record<string, string> = {
-  ambulatoire: "#16a34a",
-  dentaire: "#0284c7",
-  pharmacie: "#ea580c",
-  hospitalisation: "#7c3aed",
-  "biologie-imagerie": "#0891b2",
+  ambulatoire: "#4caf2a",
+  dentaire: "#0088ce",
+  pharmacie: "#f07800",
+  hospitalisation: "#005888",
+  "biologie-imagerie": "#1a9cdc",
 };
 
 const COULEUR_PAR_DEFAUT = "#94a3b8";

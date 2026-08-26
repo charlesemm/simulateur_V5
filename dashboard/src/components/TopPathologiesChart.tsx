@@ -60,7 +60,7 @@ export function TopPathologiesChart({ snapshot }: TopPathologiesChartProps) {
                   `${element.payload.code} — ${element.payload.libelleComplet}`,
                 ]}
               />
-              <Bar dataKey="nombre" name="Passages" fill="#0284c7" radius={[0, 4, 4, 0]} maxBarSize={26} />
+              <Bar dataKey="nombre" name="Passages" fill="#0088ce" radius={[0, 4, 4, 0]} maxBarSize={26} />
             </BarChart>
           </ResponsiveContainer>
         </div>

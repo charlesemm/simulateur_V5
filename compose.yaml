@@ -10,12 +10,16 @@ services:
   # ── Base de données ──────────────────────────────────────────
   postgres:
     image: docker.io/library/postgres:16-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_DB: echo_db
       POSTGRES_USER: echo
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-echo_dev_2026}
-    ports:
-      - "5432:5432"
+    # Aucun port publié : la base n'est jointe que par les autres conteneurs,
+    # sur le réseau interne. L'exposer sur la machine hôte l'offrirait à tout
+    # le réseau sans qu'aucun service n'en ait besoin. Pour l'inspecter depuis
+    # le poste, ouvrir un tunnel le temps voulu :
+    #   podman-compose exec postgres psql -U echo -d echo_db
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -29,15 +33,35 @@ services:
     build:
       context: .
       dockerfile: Containerfile
+    restart: unless-stopped
     ports:
       - "8000:8000"
     environment:
       DATABASE_URL: postgresql+asyncpg://echo:${POSTGRES_PASSWORD:-echo_dev_2026}@postgres:5432/echo_db
       CORS_ORIGIN_REGEX: "http://(localhost|127\\.0\\.0\\.1)(:\\d+)?"
-      # Mot de passe du premier administrateur, créé au démarrage
+      # Clé de signature des jetons. Sans elle l'API refuse de démarrer, et
+      # le `.env` du dépôt n'entre pas dans l'image : elle doit venir d'ici.
+      # La forme `:?` fait échouer le lancement avec ce message plutôt que
+      # de laisser un conteneur redémarrer en boucle sans qu'on sache pourquoi.
+      # La valeur est entre guillemets : le message contient un « : », que YAML
+      # lirait autrement comme une structure et rejetterait tout le fichier.
+      JWT_SECRET_KEY: "${JWT_SECRET_KEY:?obligatoire - generez-la avec la commande donnee dans GUIDE_PODMAN.md}"
+      # Lu par « python -m auth.bootstrap --creer » pour poser le premier
+      # administrateur. Le mot de passe passe par l'environnement et non par
+      # la ligne de commande : il ne se retrouve ainsi ni dans l'historique
+      # du terminal, ni dans la liste des processus.
       ECHO_ADMIN_PASSWORD: ${ECHO_ADMIN_PASSWORD:-MotDePasseAdmin1}
     volumes:
       - rapports:/app/reports/output
+    # Un processus peut tourner sans plus repondre : sans cette sonde, Podman
+    # le croirait en bonne sante indefiniment. /health ne touche pas la base,
+    # il atteste seulement que l'ASGI repond.
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4).status == 200 else 1)\""]
+      interval: 30s
+      timeout: 6s
+      retries: 3
+      start_period: 20s
     depends_on:
       postgres:
         condition: service_healthy

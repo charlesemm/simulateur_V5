@@ -38,6 +38,10 @@ class SimulationStartRequest(ApiModel):
     libelle: str | None = Field(default=None, max_length=150)
     vitesse: float | None = Field(default=None, gt=0, le=86400)
     nombre_passages_simultanes_max: int | None = Field(default=None, ge=1, le=200)
+    # Durée que l'opérateur vise, en minutes. Elle ne pilote pas le moteur —
+    # rien ne l'arrête à l'échéance — mais elle donne au poste de pilotage le
+    # repère qui lui manquait : sans objectif, aucune progression n'a de sens.
+    duree_visee_minutes: int | None = Field(default=None, ge=1, le=1440)
     # Par code d'anomalie : {"taux": 0.15, "declenchement": "continu", ...}
     anomalies: dict[str, dict[str, Any]] | None = None
     # Par code d'aléa : {"probabilite": 0.05, "taille": 50, ...}
@@ -91,6 +95,20 @@ class ProfilResponse(ApiModel):
     passages_simultanes_max: int
     anomalies: dict[str, Any]
     aleas: dict[str, Any]
+
+
+class CadenceResponse(ApiModel):
+    """Ce qu'il faut pour projeter un volume avant de lancer le moteur.
+
+    L'écran de lancement ne peut pas deviner le rythme d'arrivée : il est
+    tiré d'une loi exponentielle dont la moyenne vit dans la configuration
+    du moteur. On la sert telle quelle plutôt que de la recopier dans le
+    navigateur, où elle dériverait à la première retouche.
+    """
+
+    passage_arrival_mean_seconds: float
+    vitesse_par_defaut: float
+    passages_simultanes_max: int
 
 
 class CommandeRequest(ApiModel):

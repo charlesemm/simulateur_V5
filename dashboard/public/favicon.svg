@@ -4,11 +4,11 @@
        pour rester lisible sur un onglet de navigateur clair. -->
   <defs>
     <linearGradient id="echo-favicon" x1="8" y1="8" x2="56" y2="56" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#16a34a"/>
-      <stop offset="1" stop-color="#0284c7"/>
+      <stop stop-color="#4caf2a"/>
+      <stop offset="1" stop-color="#0088ce"/>
     </linearGradient>
   </defs>
-  <rect width="64" height="64" rx="16" fill="#0b1220"/>
+  <rect width="64" height="64" rx="16" fill="#0088ce"/>
   <circle cx="32" cy="32" r="25" stroke="url(#echo-favicon)" stroke-width="2.5" opacity="0.25"/>
   <circle cx="32" cy="32" r="18" stroke="url(#echo-favicon)" stroke-width="3" opacity="0.5"/>
   <circle cx="32" cy="32" r="11" stroke="url(#echo-favicon)" stroke-width="3.5" opacity="0.8"/>

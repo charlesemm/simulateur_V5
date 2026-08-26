@@ -21,8 +21,8 @@ export function SystemHealthDonut({ metrics }: SystemHealthDonutProps) {
   const total = success + errors;
 
   const data = [
-    { name: "Passages réussis", value: success, color: "#16a34a" },
-    { name: "Passages échoués", value: errors, color: "#dc2626" },
+    { name: "Passages réussis", value: success, color: "#4caf2a" },
+    { name: "Passages échoués", value: errors, color: "#f07800" },
   ];
 
   return (

@@ -11,6 +11,10 @@ interface AccueilPageProps {
   onVoirExecution: (simulationId: string) => void;
   /** Ouvre l'écran de paramétrage du type choisi. */
   onConfigurer: (typeSimulation: string) => void;
+  /** Rejoint le poste de pilotage tant qu'une exécution tourne. */
+  onRejoindreCockpit?: () => void;
+  /** Ouvre l'historique complet. */
+  onVoirHistorique?: () => void;
 }
 
 /**
@@ -20,7 +24,12 @@ interface AccueilPageProps {
  * peut lancer, et les dernières exécutions. Le lancement n'apparaît qu'aux
  * opérateurs et aux administrateurs.
  */
-export function AccueilPage({ onVoirExecution, onConfigurer }: AccueilPageProps) {
+export function AccueilPage({
+  onVoirExecution,
+  onConfigurer,
+  onRejoindreCockpit,
+  onVoirHistorique,
+}: AccueilPageProps) {
   const { token } = useAuth();
   const [profils, setProfils] = useState<ProfilSimulation[]>([]);
   const [executions, setExecutions] = useState<SimulationRun[]>([]);
@@ -78,40 +87,49 @@ export function AccueilPage({ onVoirExecution, onConfigurer }: AccueilPageProps)
     <div className="screen">
       {erreur && <p className="screen-error">{erreur}</p>}
 
-      <section>
-        <h2 className="screen-section-title">État</h2>
-        <div className="stat-strip">
-          {/* Le moteur en marche se voit : la pastille bat, la tuile prend la
-              couleur d'action. À l'arrêt, tout retombe en gris. */}
-          <div className={`stat-tile stat-tile--accent${enCours ? " vivante" : ""}`}>
-            <span className="stat-tile-label">Moteur</span>
-            <span className="stat-tile-value">
-              {enCours && <span className="pouls" aria-hidden="true" />}
-              {enCours ? "En cours" : "Arrêté"}
+      <section className="home-hero">
+        <div className={`home-status${enCours ? " home-status--live" : ""}`}>
+          <div>
+            <span className="home-kicker">
+              {enCours && <span className="pouls pouls-clair" aria-hidden="true" />}
+              {enCours ? "Simulation active" : "Prêt à simuler"}
             </span>
-            <span className="stat-tile-hint">
+            <h2>
               {enCours
-                ? `${statut?.passages_actifs ?? 0} passage(s) en parallèle`
-                : "Aucune exécution ouverte"}
-            </span>
+                ? `${statut?.type_simulation ?? "Simulation"} tourne actuellement`
+                : "Choisissez un type, puis lancez"}
+            </h2>
+            <p>
+              {enCours
+                ? `${statut?.passages_actifs ?? 0} passage(s) en parallèle · vitesse ×${statut?.vitesse ?? 0}`
+                : "Un seul type est opérationnel pour l'instant. Les autres attendront leur cahier des charges."}
+            </p>
           </div>
+          {enCours && onRejoindreCockpit ? (
+            <button type="button" className="btn btn-start" onClick={onRejoindreCockpit}>
+              Rejoindre le pilotage
+            </button>
+          ) : null}
+        </div>
+
+        <div className="home-kpis">
           <div
             className="stat-tile stat-tile--accent"
             style={{ ["--tuile-couleur" as string]: couleurDuType }}
           >
-            <span className="stat-tile-label">Type en cours</span>
+            <span className="stat-tile-label">Type</span>
             <span className="stat-tile-value">
               {enCours ? (statut?.type_simulation ?? "—") : "—"}
             </span>
             <span className="stat-tile-hint">
-              {enCours ? `Vitesse ×${statut?.vitesse ?? 0}` : "Choisissez un type ci-dessous"}
+              {enCours ? `Vitesse ×${statut?.vitesse ?? 0}` : "Aucun moteur ouvert"}
             </span>
           </div>
           <div
             className="stat-tile stat-tile--accent"
             style={{ ["--tuile-couleur" as string]: "var(--cnam-blue-vif)" }}
           >
-            <span className="stat-tile-label">Exécutions récentes</span>
+            <span className="stat-tile-label">Exécutions</span>
             <span className="stat-tile-value">{executions.length}</span>
             <span className="stat-tile-hint">Les cinq dernières</span>
           </div>
@@ -123,24 +141,46 @@ export function AccueilPage({ onVoirExecution, onConfigurer }: AccueilPageProps)
             <span className="stat-tile-value">{passagesCumules}</span>
             <span className="stat-tile-hint">Sur ces cinq exécutions</span>
           </div>
+          <div className={`stat-tile stat-tile--accent${enCours ? " vivante" : ""}`}>
+            <span className="stat-tile-label">Moteur</span>
+            <span className="stat-tile-value">{enCours ? "En cours" : "Arrêté"}</span>
+            <span className="stat-tile-hint">
+              {enCours
+                ? `${statut?.passages_actifs ?? 0} passage(s) en parallèle`
+                : "Aucune exécution ouverte"}
+            </span>
+          </div>
         </div>
       </section>
 
       <section>
-        <h2 className="screen-section-title">Types de simulation</h2>
+        <div className="screen-section-head">
+          <h2 className="screen-section-title">Lancer une simulation</h2>
+        </div>
+        <p className="screen-section-lead">
+          Le type LIBRE ouvre le paramétrage, puis le poste de pilotage. Les autres cartes restent visibles, sans action.
+        </p>
         <div className="type-grid">
-          {profils.map((profil) => (
+          {profils.map((profil) => {
+            // Les quatre types spécialisés sont désactivés en attendant le
+            // cahier des charges. Seul LIBRE est opérationnel.
+            const enAttente = profil.code !== "LIBRE";
+
+            return (
             <RequireRole
               key={profil.code}
               minimum="operateur"
               sinon={
                 <article
-                  className="type-card type-card--lecture"
+                  className={`type-card type-card--lecture${enAttente ? " type-card--desactive" : " type-card--featured"}`}
                   style={{ ["--type-couleur" as string]: profil.couleur }}
                 >
                   <span className="type-card-code">{profil.code}</span>
                   <h3 className="type-card-title">{profil.libelle}</h3>
                   <p className="type-card-desc">{profil.description}</p>
+                  {enAttente && (
+                    <span className="type-card-attente">En attente du cahier des charges</span>
+                  )}
                   <div className="type-card-meta">
                     <span>Vitesse ×{profil.vitesse}</span>
                     <span>{profil.passages_simultanes_max} en parallèle</span>
@@ -148,34 +188,40 @@ export function AccueilPage({ onVoirExecution, onConfigurer }: AccueilPageProps)
                 </article>
               }
             >
-              {/* La carte entière est le bouton : c'est la cible la plus
-                  large et la plus évidente à cliquer. */}
               <button
                 type="button"
-                className="type-card type-card--action"
+                className={`type-card type-card--action${enAttente ? " type-card--desactive" : " type-card--featured"}`}
                 style={{ ["--type-couleur" as string]: profil.couleur }}
                 onClick={() => onConfigurer(profil.code)}
-                disabled={enCours}
+                disabled={enCours || enAttente}
                 title={
-                  enCours
-                    ? "Une exécution est déjà en cours"
-                    : "Paramétrer puis lancer ce type"
+                  enAttente
+                    ? "En attente du cahier des charges"
+                    : enCours
+                      ? "Une exécution est déjà en cours"
+                      : "Paramétrer puis lancer ce type"
                 }
               >
                 <span className="type-card-code">{profil.code}</span>
                 <span className="type-card-title">{profil.libelle}</span>
                 <span className="type-card-desc">{profil.description}</span>
+                {enAttente && (
+                  <span className="type-card-attente">En attente du cahier des charges</span>
+                )}
                 <span className="type-card-meta">
                   <span>Vitesse ×{profil.vitesse}</span>
                   <span>{profil.passages_simultanes_max} en parallèle</span>
                 </span>
-                <span className="type-card-appel">
-                  Paramétrer une simulation
-                  <span className="type-card-fleche" aria-hidden="true">→</span>
-                </span>
+                {!enAttente && (
+                  <span className="type-card-appel">
+                    Paramétrer une simulation
+                    <span className="type-card-fleche" aria-hidden="true">→</span>
+                  </span>
+                )}
               </button>
             </RequireRole>
-          ))}
+            );
+          })}
           {profils.length === 0 && (
             <div className="screen-empty">Les types de simulation n'ont pas pu être chargés.</div>
           )}
@@ -183,7 +229,14 @@ export function AccueilPage({ onVoirExecution, onConfigurer }: AccueilPageProps)
       </section>
 
       <section>
-        <h2 className="screen-section-title">Dernières exécutions</h2>
+        <div className="screen-section-head">
+          <h2 className="screen-section-title">Dernières exécutions</h2>
+          {onVoirHistorique && executions.length > 0 && (
+            <button type="button" className="btn-text" onClick={onVoirHistorique}>
+              Tout l'historique →
+            </button>
+          )}
+        </div>
         {executions.length === 0 ? (
           <div className="screen-empty">
             Aucune exécution enregistrée pour l'instant. Lancez un type ci-dessus.

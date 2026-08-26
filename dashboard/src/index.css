@@ -5,42 +5,48 @@
    n'attire l'œil sur rien.
 ═══════════════════════════════════════════════════════════════ */
 :root {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  color: #0f172a;
-  background-color: #f6f8f7;
+  font-family: "Source Sans 3", "Segoe UI", sans-serif;
+
+  /* Toute l'échelle typographique est en rem : ce réglage-ci est donc le seul
+     endroit où se change la taille du texte de l'interface entière. 112,5 %
+     du défaut navigateur = 18 px, contre 16 auparavant — les libellés les plus
+     petits passaient sous les 10 px, illisibles à distance de bureau. */
+  font-size: 112.5%;
+
+  color: #123041;
+  background-color: #eaf4f9;
   line-height: 1.5;
   font-synthesis: none;
   -webkit-font-smoothing: antialiased;
 
-  /* Vert : la couleur d'action. Celui d'ÉCHO pour agir, celui du
-     logo CNAM — plus clair — pour les touches vives. */
-  --cnam-green: #16a34a;
-  --cnam-green-dark: #15803d;
-  --cnam-green-vif: #4ca82e;
-  --cnam-green-light: #f0fdf4;
-  --cnam-green-border: #bbf7d0;
+  /* Charte du logo CNAM : bleu (grande silhouette), vert (mot-marque),
+     orange (petite silhouette). Rien d'autre. */
+  --cnam-green: #4caf2a;
+  --cnam-green-dark: #3b9220;
+  --cnam-green-vif: #5cbc38;
+  --cnam-green-light: #eef8e8;
+  --cnam-green-border: #c6e6b4;
 
-  /* Bleu : l'information et le direct, jamais l'action. */
-  --cnam-blue: #0284c7;
-  --cnam-blue-dark: #0369a1;
-  --cnam-blue-vif: #159bd7;
-  --cnam-blue-light: #f0f9ff;
-  --cnam-blue-border: #bae6fd;
+  --cnam-blue: #0088ce;
+  --cnam-blue-dark: #0069a3;
+  --cnam-blue-vif: #1a9cdc;
+  --cnam-blue-light: #e6f5fb;
+  --cnam-blue-border: #b3dff0;
+  --cnam-blue-deep: #005888;
 
-  /* Orange : réservé à l'irréversible. Le voir doit rester rare. */
-  --cnam-orange: #ea580c;
-  --cnam-orange-vif: #f07e14;
-  --cnam-orange-light: #fff7ed;
-  --cnam-orange-border: #fed7aa;
+  --cnam-orange: #f07800;
+  --cnam-orange-vif: #f08a1c;
+  --cnam-orange-light: #fff4e8;
+  --cnam-orange-border: #ffd2a8;
 
   --surface: #ffffff;
-  --surface-subtle: #f6f8f7;
-  --surface-hover: #f1f5f3;
-  --border: #e3e9e6;
-  --border-subtle: #eef2f0;
-  --text-main: #10201a;
-  --text-muted: #5c6b64;
-  --text-light: #90a099;
+  --surface-subtle: #f3f8fb;
+  --surface-hover: #eaf4f9;
+  --border: #d4e5ef;
+  --border-subtle: #e8f1f6;
+  --text-main: #123041;
+  --text-muted: #5a7380;
+  --text-light: #8aa0ab;
 
   --sidebar-width: 268px;
   --topbar-height: 68px;
@@ -56,7 +62,7 @@
   --shadow-sm: 0 1px 2px 0 rgba(16, 32, 26, 0.04);
   --shadow-card: 0 1px 2px rgba(16, 32, 26, 0.04), 0 1px 3px rgba(16, 32, 26, 0.03);
   --shadow-hover: 0 6px 20px rgba(16, 32, 26, 0.09), 0 2px 6px rgba(16, 32, 26, 0.05);
-  --shadow-action: 0 2px 8px rgba(22, 163, 74, 0.22);
+  --shadow-action: 0 2px 8px rgba(76, 175, 42, 0.28);
 
   --brand-degrade: linear-gradient(135deg, var(--cnam-green) 0%, var(--cnam-blue) 100%);
 }
@@ -557,13 +563,13 @@ svg {
 
 /* DÉMARRER — vert vif, pulsant quand actif */
 .btn-engine-start {
-  background: linear-gradient(135deg, #16a34a, #15803d);
+  background: linear-gradient(135deg, #5cbc38, #3b9220);
   color: #ffffff;
-  box-shadow: 0 3px 12px rgba(22, 163, 74, 0.4);
+  box-shadow: 0 3px 12px rgba(76, 175, 42, 0.4);
 }
 .btn-engine-start:hover:not(:disabled) {
-  background: linear-gradient(135deg, #22c55e, #16a34a);
-  box-shadow: 0 6px 20px rgba(22, 163, 74, 0.55);
+  background: linear-gradient(135deg, #6bc84a, #4caf2a);
+  box-shadow: 0 6px 20px rgba(76, 175, 42, 0.5);
   transform: translateY(-1px);
 }
 .btn-engine-start:active:not(:disabled) {
@@ -580,13 +586,13 @@ svg {
 
 /* ARRÊTER — rouge vif, bien visible */
 .btn-engine-stop {
-  background: linear-gradient(135deg, #ef4444, #dc2626);
+  background: linear-gradient(135deg, #f08a1c, #d46600);
   color: #ffffff;
-  box-shadow: 0 3px 12px rgba(239, 68, 68, 0.35);
+  box-shadow: 0 3px 12px rgba(240, 120, 0, 0.35);
 }
 .btn-engine-stop:hover:not(:disabled) {
-  background: linear-gradient(135deg, #f87171, #ef4444);
-  box-shadow: 0 6px 20px rgba(239, 68, 68, 0.5);
+  background: linear-gradient(135deg, #f0a04a, #f07800);
+  box-shadow: 0 6px 20px rgba(240, 120, 0, 0.45);
   transform: translateY(-1px);
 }
 .btn-engine-stop:active:not(:disabled) {
@@ -1826,6 +1832,24 @@ svg {
   border-color: #fecaca;
 }
 
+/* Les actions d'une ligne respirent : « Désactiver » et « Réinitialiser »
+   étaient collés, et le second portait la même couleur que « Réactiver ». */
+.user-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Neutre, pour que le vert reste réservé à ce qui rouvre un accès. */
+.btn-neutre {
+  color: var(--text-muted);
+}
+.btn-neutre:hover {
+  background: var(--surface-hover);
+  border-color: var(--border);
+  color: var(--text-main);
+}
+
 .btn-enable {
   color: var(--cnam-green);
 }
@@ -1927,5 +1951,494 @@ svg {
 @media (max-width: 600px) {
   .tech-metric-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ÉCHO — refonte cockpit
+   Le contenu reste clair et calme ; les couleurs des deux marques sont
+   réservées aux actions, à l'état du moteur et aux repères de navigation.
+═══════════════════════════════════════════════════════════════ */
+:root {
+  --sidebar-width: 252px;
+  --topbar-height: 84px;
+  --surface-subtle: #f5f8f7;
+  --border: #dce7e2;
+  --border-subtle: #eaf0ed;
+  --text-main: #12231c;
+  --text-muted: #617169;
+  --text-light: #91a098;
+  --shadow-card: 0 1px 2px rgba(18, 35, 28, 0.03), 0 8px 24px rgba(18, 35, 28, 0.04);
+  --shadow-hover: 0 12px 30px rgba(18, 35, 28, 0.1), 0 3px 8px rgba(18, 35, 28, 0.05);
+}
+
+body {
+  background: #eef3f1;
+}
+
+.enterprise-layout {
+  background: #eef3f1;
+}
+
+.app-sidebar {
+  background: #0d1b19;
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+  color: #f5faf7;
+  box-shadow: 14px 0 35px rgba(5, 22, 16, 0.08);
+}
+
+.sidebar-top {
+  padding: 24px 15px 18px;
+}
+
+.sidebar-brand {
+  padding: 0 9px 24px;
+  border-bottom-color: rgba(255, 255, 255, 0.1);
+  margin-bottom: 24px;
+}
+
+.sidebar-marques {
+  gap: 10px;
+}
+
+.sidebar-logo {
+  width: 38px;
+  height: 38px;
+  padding: 6px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.sidebar-marques-filet {
+  height: 28px;
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.sidebar-logo-cnam {
+  width: 92px;
+  height: 32px;
+  padding: 4px 7px;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.sidebar-brand-title {
+  color: #f7fbf8;
+  font-size: 1.05rem;
+  letter-spacing: 0.2em;
+}
+
+.sidebar-brand-sub {
+  color: #9fb2a9;
+}
+
+.sidebar-nav {
+  gap: 20px;
+}
+
+.sidebar-nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sidebar-nav-section-title {
+  padding: 0 11px 6px;
+  color: #71887e;
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+}
+
+.sidebar-nav-item {
+  min-height: 42px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  color: #b6c7bf;
+  font-size: 0.84rem;
+  font-weight: 500;
+}
+
+.sidebar-nav-item::before {
+  left: 0;
+  width: 3px;
+  background: #48b93d;
+}
+
+.sidebar-nav-item:hover {
+  background: rgba(255, 255, 255, 0.07);
+  color: #ffffff;
+}
+
+.sidebar-nav-item.active {
+  background: linear-gradient(90deg, rgba(60, 169, 74, 0.23), rgba(60, 169, 74, 0.07));
+  border-color: rgba(90, 193, 88, 0.23);
+  color: #ecfff0;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.sidebar-nav-item--vif {
+  color: #d9ffe1;
+  background: rgba(60, 169, 74, 0.14);
+  border-color: rgba(90, 193, 88, 0.3);
+}
+
+.nav-icon {
+  color: #7f998e;
+}
+
+.sidebar-nav-item:hover .nav-icon,
+.sidebar-nav-item.active .nav-icon {
+  color: #62c653;
+}
+
+.sidebar-bottom {
+  padding: 15px;
+  border-top-color: rgba(255, 255, 255, 0.1);
+}
+
+.sidebar-user-card {
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+}
+
+.sidebar-user-avatar {
+  background: linear-gradient(135deg, #4ca82e, #0284c7);
+  box-shadow: 0 0 0 3px rgba(76, 168, 46, 0.13);
+}
+
+.sidebar-user-name {
+  color: #eff8f2;
+}
+
+.sidebar-user-role {
+  color: #8fa89b;
+}
+
+.sidebar-logout-btn {
+  color: #8fa89b;
+}
+
+.sidebar-logout-btn:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.enterprise-main {
+  background: #eef3f1;
+}
+
+.topbar {
+  height: var(--topbar-height);
+  padding: 0 34px;
+  background: rgba(255, 255, 255, 0.94);
+  border-bottom-color: #dfe9e5;
+  box-shadow: 0 1px 0 rgba(18, 35, 28, 0.02);
+  backdrop-filter: blur(14px);
+}
+
+.topbar-left {
+  gap: 12px;
+}
+
+.topbar-context-mark {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #168d45, #078ac2);
+  color: #ffffff;
+  font-size: 1.15rem;
+  font-weight: 800;
+  box-shadow: 0 5px 14px rgba(2, 132, 199, 0.18);
+}
+
+.topbar-title-group {
+  gap: 2px;
+}
+
+.topbar-eyebrow {
+  color: #789087;
+  font-size: 0.59rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+
+.topbar-title {
+  color: #11251d;
+  font-size: 1.15rem;
+  letter-spacing: -0.025em;
+}
+
+.topbar-subtitle {
+  color: #718178;
+  font-size: 0.73rem;
+}
+
+.topbar-right {
+  gap: 12px;
+}
+
+.topbar-user-context {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 11px;
+  border: 1px solid #e0eae5;
+  border-radius: 999px;
+  color: #6b7c74;
+  font-size: 0.7rem;
+  font-weight: 600;
+  background: #f7faf8;
+}
+
+.topbar-user-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: #47ad38;
+  box-shadow: 0 0 0 3px rgba(71, 173, 56, 0.13);
+}
+
+.content-scrollable {
+  padding: 32px 34px 48px;
+  scroll-behavior: smooth;
+}
+
+.dashboard-content-space,
+.screen,
+.page-container {
+  width: min(100%, 1480px);
+  margin: 0 auto;
+}
+
+.dashboard-content-space {
+  gap: 24px;
+}
+
+.tech-metric-grid {
+  gap: 16px;
+}
+
+.tech-metric-card,
+.chart-card,
+.reports-card,
+.screen-table-wrap,
+.alea-carte,
+.type-card,
+.stat-tile {
+  border-radius: 16px;
+  border-color: #dce7e2;
+  box-shadow: var(--shadow-card);
+}
+
+.tech-metric-card {
+  min-height: 132px;
+  padding: 20px;
+  background: #ffffff;
+}
+
+.tech-metric-card:hover,
+.type-card--action:hover {
+  border-color: rgba(76, 168, 46, 0.45);
+  box-shadow: var(--shadow-hover);
+  transform: translateY(-2px);
+}
+
+.card-label,
+.screen-section-title {
+  color: #64766d;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.card-value {
+  color: #10281d;
+  font-size: 1.5rem;
+  letter-spacing: -0.04em;
+}
+
+.card-subtext {
+  color: #7d8e85;
+}
+
+.dashboard-row-2,
+.dashboard-row-3 {
+  gap: 20px;
+}
+
+.chart-card {
+  background: #ffffff;
+  padding: 22px;
+}
+
+.screen {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.screen-section-title {
+  margin-bottom: 14px;
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.stat-strip {
+  gap: 16px;
+}
+
+.stat-tile {
+  min-height: 132px;
+  padding: 20px;
+  background: #ffffff;
+}
+
+.stat-tile:hover {
+  box-shadow: var(--shadow-hover);
+  transform: translateY(-2px);
+}
+
+.type-grid {
+  gap: 16px;
+}
+
+.type-card {
+  min-height: 218px;
+  padding: 22px;
+  background: #ffffff;
+}
+
+.type-card--action {
+  cursor: pointer;
+  text-align: left;
+  transition: border-color var(--transition), box-shadow var(--transition), transform var(--transition);
+}
+
+.type-card-title {
+  color: #10281d;
+}
+
+.type-card-desc {
+  color: #687970;
+}
+
+.page-title {
+  color: #10281d;
+  font-size: 1.55rem;
+  letter-spacing: -0.035em;
+}
+
+.page-subtitle {
+  color: #708078;
+}
+
+.info-banner {
+  border-radius: 14px;
+  padding: 14px 16px;
+}
+
+.btn-start {
+  border-radius: 10px;
+  background: #208b43;
+  box-shadow: 0 6px 15px rgba(32, 139, 67, 0.18);
+}
+
+.btn-start:hover:not(:disabled) {
+  background: #176f35;
+}
+
+@media (max-width: 960px) {
+  .app-sidebar {
+    position: sticky;
+    top: 0;
+    width: 100%;
+    min-width: 0;
+    height: auto;
+    border-right: 0;
+  }
+
+  .sidebar-top {
+    padding: 14px 16px 10px;
+  }
+
+  .sidebar-brand {
+    flex-direction: row;
+    align-items: center;
+    padding: 0 4px 13px;
+    margin-bottom: 13px;
+  }
+
+  .sidebar-brand-meta {
+    margin-left: 2px;
+  }
+
+  .sidebar-nav {
+    flex-direction: row;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+
+  .sidebar-nav-group {
+    flex-direction: row;
+    align-items: center;
+    flex-shrink: 0;
+    gap: 4px;
+  }
+
+  .sidebar-nav-section-title {
+    display: none;
+  }
+
+  .sidebar-nav-item {
+    width: auto;
+    min-height: 38px;
+    white-space: nowrap;
+  }
+
+  .sidebar-bottom {
+    display: none;
+  }
+
+  .topbar {
+    padding: 0 20px;
+  }
+
+  .topbar-user-context {
+    display: none;
+  }
+
+  .content-scrollable {
+    padding: 24px 20px 36px;
+  }
+}
+
+@media (max-width: 600px) {
+  .topbar {
+    height: 72px;
+    padding: 0 16px;
+  }
+
+  .topbar-subtitle,
+  .topbar-eyebrow {
+    display: none;
+  }
+
+  .topbar-title {
+    font-size: 1rem;
+  }
+
+  .content-scrollable {
+    padding: 20px 14px 28px;
+  }
+
+  .tech-metric-card,
+  .chart-card,
+  .type-card,
+  .stat-tile {
+    border-radius: 13px;
   }
 }

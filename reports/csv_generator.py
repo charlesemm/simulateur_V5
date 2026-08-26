@@ -16,8 +16,9 @@ from uuid import UUID
 from sqlalchemy import select
 
 from app.database import async_session_factory
-from app.models import Invoice, InvoiceProvision, PriorAuthorization
+from app.models import InsuredPerson, Invoice, InvoiceProvision, PriorAuthorization
 from events.models import EventJournal
+from reports.excel_generator import _numeros_secu
 from reports.paths import OUTPUT_DIR
 
 
@@ -62,12 +63,20 @@ async def build_csv_export(
         factures = list((await session.execute(
             _restreindre(select(Invoice), Invoice, debut, fin, simulation_id)
         )).scalars())
+        ententes = list((await session.execute(
+            _restreindre(select(PriorAuthorization), PriorAuthorization, debut, fin, simulation_id)
+        )).scalars())
+
+        # Les deux tables citent des assurés, parfois les mêmes : on résout
+        # leurs numéros en une fois, avant d'écrire quoi que ce soit.
+        secu = await _numeros_secu(session, [*factures, *ententes])
+
         fichiers_csv["factures.csv"] = _csv_bytes(
-            ["numero_facture", "assure_uuid", "centre_sante_code", "type_facture",
+            ["numero_facture", "numero_secu", "centre_sante_code", "type_facture",
              "regime_code", "regime_taux", "date_soins", "dossier_numero",
              "centre_type_code", "centre_type_libelle", "date_creation"],
             [[
-                f.facture_numero, str(f.personne_uuid), f.centre_sante_code,
+                f.facture_numero, secu.get(f.personne_uuid, ""), f.centre_sante_code,
                 f.type_facture_code, f.regime_code or "", str(f.regime_taux or ""),
                 f.facture_date_soins.isoformat(), f.dossier_numero or "",
                 f.centre_sante_type_code or "", f.centre_sante_type_libelle or "",
@@ -95,14 +104,12 @@ async def build_csv_export(
         )
 
         # ── Ententes préalables ──────────────────────────────────────
-        ententes = list((await session.execute(
-            _restreindre(select(PriorAuthorization), PriorAuthorization, debut, fin, simulation_id)
-        )).scalars())
         fichiers_csv["ententes_prealables.csv"] = _csv_bytes(
-            ["numero_entente", "centre_sante_code", "assure_uuid",
+            ["numero_entente", "centre_sante_code", "numero_secu",
              "dossier_numero", "type_demande", "date_debut", "facture_liee"],
             [[
-                e.entente_prealable_numero, e.centre_sante_code, str(e.personne_uuid),
+                e.entente_prealable_numero, e.centre_sante_code,
+                secu.get(e.personne_uuid, ""),
                 e.dossier_numero or "", e.type_demande_code or "",
                 e.entente_prealable_date_debut.isoformat(), e.facture_numero or "",
             ] for e in ententes],

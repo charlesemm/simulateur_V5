@@ -3,15 +3,19 @@
     python -m auth.bootstrap                  crée le premier administrateur
     python -m auth.bootstrap --lister         liste les comptes existants
     python -m auth.bootstrap --reinitialiser  redonne un mot de passe à un compte
+    python -m auth.bootstrap --creer ...      crée un administrateur sans invite
 
 Le mot de passe n'est jamais passé en argument : il se saisit à l'invite, sans
 écho, pour qu'il ne reste ni dans l'historique du terminal ni dans la liste des
-processus.
+processus. En conteneur, où aucun clavier n'est branché, `--creer` le lit dans
+la variable d'environnement `ECHO_ADMIN_PASSWORD` — même principe : la valeur
+ne transite pas par la ligne de commande.
 """
 from __future__ import annotations
 
 import asyncio
 import getpass
+import os
 import sys
 import uuid
 
@@ -120,8 +124,65 @@ def _demander_mot_de_passe() -> str | None:
     return mot_de_passe
 
 
+VARIABLE_MOT_DE_PASSE = "ECHO_ADMIN_PASSWORD"
+
+
+def _creer_sans_invite(arguments: list[str]) -> None:
+    """Crée le premier administrateur sans poser de question.
+
+    C'est le seul chemin praticable en conteneur : aucun clavier n'y est
+    branché, et les invites de `input()` échouent sur une fin de fichier.
+    Sans cette porte, on déployait une base neuve dans laquelle personne ne
+    pouvait entrer.
+
+    Relancer la commande sur un compte déjà présent ne fait rien et le dit :
+    c'est ce qui permet de la laisser dans une procédure de démarrage sans
+    craindre de l'exécuter deux fois.
+    """
+
+    valeurs: dict[str, str] = {}
+    attendu = {"--email": "email", "--utilisateur": "nom_utilisateur", "--nom": "nom_complet"}
+    reste = list(arguments)
+    while reste:
+        drapeau = reste.pop(0)
+        if drapeau not in attendu:
+            print(f"Option inconnue : {drapeau}.")
+            print("Attendu : --creer --email <e-mail> --utilisateur <nom> --nom <nom complet>")
+            return
+        if not reste:
+            print(f"L'option {drapeau} attend une valeur.")
+            return
+        valeurs[attendu[drapeau]] = reste.pop(0).strip()
+
+    manquants = [d for d, cle in attendu.items() if not valeurs.get(cle)]
+    if manquants:
+        print(f"Options obligatoires manquantes : {', '.join(manquants)}.")
+        return
+
+    if len(valeurs["nom_utilisateur"]) < 3:
+        print("Nom d'utilisateur trop court, operation annulee.")
+        return
+
+    mot_de_passe = os.environ.get(VARIABLE_MOT_DE_PASSE, "")
+    if len(mot_de_passe) < LONGUEUR_MINIMALE:
+        print(
+            f"La variable {VARIABLE_MOT_DE_PASSE} est vide ou trop courte "
+            f"({LONGUEUR_MINIMALE} caracteres minimum). Operation annulee."
+        )
+        return
+
+    asyncio.run(_create_admin(
+        valeurs["email"], valeurs["nom_utilisateur"],
+        mot_de_passe, valeurs["nom_complet"],
+    ))
+
+
 def main() -> None:
     option = sys.argv[1] if len(sys.argv) > 1 else ""
+
+    if option == "--creer":
+        _creer_sans_invite(sys.argv[2:])
+        return
 
     if option == "--lister":
         asyncio.run(_lister())

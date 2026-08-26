@@ -10,6 +10,8 @@ import { ConnectionBadge } from "./ConnectionBadge";
 
 interface TopbarProps {
   ongletActif: Onglet;
+  /** Pendant une exécution, ouvre le poste de pilotage depuis n'importe quel écran. */
+  onRejoindreCockpit?: () => void;
 }
 
 /**
@@ -20,7 +22,7 @@ interface TopbarProps {
  * choisi ne voulait pas dire grand-chose. Seul l'arrêt reste ici, et
  * seulement quand il y a quelque chose à arrêter.
  */
-export function Header({ ongletActif }: TopbarProps) {
+export function Header({ ongletActif, onRejoindreCockpit }: TopbarProps) {
   const { connectionStatus } = useKpiSocket();
   const { token } = useAuth();
   const [status, setStatus] = useState<SimulationStatus | null>(null);
@@ -70,6 +72,9 @@ export function Header({ ongletActif }: TopbarProps) {
     <header className="topbar">
       <div className="topbar-left">
         <div className="topbar-title-group">
+          <span className="topbar-eyebrow">
+            Espace de travail <span aria-hidden="true">/</span> {title}
+          </span>
           <h1 className="topbar-title">{title}</h1>
           <span className="topbar-subtitle">{subtitle}</span>
         </div>
@@ -86,6 +91,12 @@ export function Header({ ongletActif }: TopbarProps) {
               <strong>×{status?.vitesse ?? 0}</strong> ·{" "}
               <strong>{status?.passages_actifs ?? 0}</strong> passage(s)
             </span>
+
+            {ongletActif !== "encours" && onRejoindreCockpit && (
+              <button type="button" className="btn btn-outline" onClick={onRejoindreCockpit}>
+                Pilotage
+              </button>
+            )}
 
             <RequireRole minimum="operateur">
               <button

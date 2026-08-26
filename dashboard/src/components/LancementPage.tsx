@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { api } from "../services/api";
-import type { ProfilSimulation, TypeAnomalie } from "../types";
+import type { CadenceMoteur, ProfilSimulation, TypeAnomalie } from "../types";
 import "./Screens.css";
 
 interface LancementPageProps {
@@ -56,17 +56,29 @@ export function LancementPage({ typeSimulation, onAnnuler, onDemarre }: Lancemen
   const [limite, setLimite] = useState(20);
   const [reglages, setReglages] = useState<Record<string, ReglageAnomalie>>({});
 
+  // La cadence du moteur vient de l'API : la recopier ici la ferait dériver
+  // à la première retouche de la configuration.
+  const [cadence, setCadence] = useState<CadenceMoteur | null>(null);
+  // Durée que l'opérateur vise, en minutes. Elle ne pilote pas le moteur —
+  // elle ne sert qu'à projeter un volume avant de partir.
+  const [dureeVisee, setDureeVisee] = useState(60);
+  // Familles repliées. Une famille sans anomalie active n'a rien à montrer :
+  // six tableaux dépliés d'un coup, c'est ce qui rendait l'écran illisible.
+  const [repliees, setRepliees] = useState<Set<string>>(new Set());
+
   const preparer = useCallback(async () => {
     try {
-      const [profils, liste] = await Promise.all([
+      const [profils, liste, rythme] = await Promise.all([
         api.getProfils(token),
         api.getCatalogue(token),
+        api.getCadence(token),
       ]);
       const retenu = profils.find((candidat) => candidat.code === typeSimulation)
         ?? profils[0] ?? null;
 
       setProfil(retenu);
       setCatalogue(liste);
+      setCadence(rythme);
 
       if (retenu) {
         setVitesse(retenu.vitesse);
@@ -88,6 +100,17 @@ export function LancementPage({ typeSimulation, onAnnuler, onDemarre }: Lancemen
           };
         }
         setReglages(depart);
+
+        // On ne déplie que les familles qui ont quelque chose à montrer.
+        const allumees = new Set<string>();
+        for (const type of liste) {
+          if (depart[type.anomalie_code]?.active) allumees.add(type.anomalie_famille);
+        }
+        setRepliees(new Set(
+          liste
+            .map((type) => type.anomalie_famille)
+            .filter((famille) => !allumees.has(famille))
+        ));
       }
       setErreur(null);
     } catch (raison) {
@@ -99,11 +122,28 @@ export function LancementPage({ typeSimulation, onAnnuler, onDemarre }: Lancemen
     void preparer();
   }, [preparer]);
 
+  /** Taux de repli quand ni le profil ni le catalogue n'en proposent un. */
+  const TAUX_PAR_DEFAUT = 5;
+
   function modifier(code: string, modification: Partial<ReglageAnomalie>) {
-    setReglages((courants) => ({
-      ...courants,
-      [code]: { ...courants[code], ...modification },
-    }));
+    setReglages((courants) => {
+      const suivant = { ...courants[code], ...modification };
+
+      // Activer un type sans lui donner de taux n'injecte rien : la case
+      // cochée promettrait une anomalie que le moteur ne poserait jamais, et
+      // l'estimation resterait à zéro sans qu'on comprenne pourquoi. Le mode
+      // LIBRE ne préréglant aucune anomalie, c'est le cas de départ de tous
+      // les types — on reprend donc le taux du catalogue, à défaut un repli.
+      if (modification.active === true && suivant.pourcentage <= 0) {
+        const duCatalogue = catalogue
+          .find((type) => type.anomalie_code === code)?.anomalie_taux ?? 0;
+        suivant.pourcentage = duCatalogue > 0
+          ? Math.round(duCatalogue * 100)
+          : TAUX_PAR_DEFAUT;
+      }
+
+      return { ...courants, [code]: suivant };
+    });
   }
 
   async function demarrer() {
@@ -128,6 +168,9 @@ export function LancementPage({ typeSimulation, onAnnuler, onDemarre }: Lancemen
         libelle: nom,
         vitesse,
         nombre_passages_simultanes_max: limite,
+        // Elle n'arrête pas le moteur : elle sert de repère au poste de
+        // pilotage, qui n'avait jusqu'ici aucun objectif à afficher.
+        duree_visee_minutes: dureeVisee,
         anomalies,
         aleas: {},
       });
@@ -151,11 +194,50 @@ export function LancementPage({ typeSimulation, onAnnuler, onDemarre }: Lancemen
     (reglage) => reglage.active && reglage.pourcentage > 0
   ).length;
 
+  function basculerFamille(famille: string) {
+    setRepliees((courantes) => {
+      const suivantes = new Set(courantes);
+      if (suivantes.has(famille)) suivantes.delete(famille);
+      else suivantes.add(famille);
+      return suivantes;
+    });
+  }
+
+  /**
+   * Ce que ces réglages produiront, avant de partir.
+   *
+   * Le moteur fait arriver un passage toutes les
+   * `passage_arrival_mean_seconds` secondes simulées ; à la vitesse v, cela
+   * fait 3600 × v / moyenne passages par heure réelle. C'est la seule
+   * projection que le moteur autorise sans tourner — le nombre de factures,
+   * lui, dépend des droits ouverts dans les données semées, qu'on ne peut
+   * pas connaître d'ici.
+   */
+  const estimation = useMemo(() => {
+    const moyenne = cadence?.passage_arrival_mean_seconds ?? 0;
+    if (moyenne <= 0 || vitesse <= 0) return null;
+
+    const parHeure = (3600 * vitesse) / moyenne;
+    const surLaDuree = parHeure * (dureeVisee / 60);
+
+    // Chaque type actif tire indépendamment : la part du flux épargnée est le
+    // produit des « aucune injection », et le reste porte une anomalie.
+    const partSaine = Object.values(reglages)
+      .filter((reglage) => reglage.active && reglage.pourcentage > 0)
+      .reduce((reste, reglage) => reste * (1 - reglage.pourcentage / 100), 1);
+    const partTouchee = 1 - partSaine;
+
+    return { parHeure, surLaDuree, partTouchee, anomalies: surLaDuree * partTouchee };
+  }, [cadence, vitesse, dureeVisee, reglages]);
+
+  const entier = (valeur: number) => Math.round(valeur).toLocaleString("fr-FR");
+
   return (
     <div className="screen">
       {erreur && <p className="screen-error">{erreur}</p>}
 
-      <section>
+      <div className="launch-grid">
+      <section className="launch-setup">
         <div
           className="fiche fiche--type"
           style={{ ["--type-couleur" as string]: profil?.couleur ?? "var(--cnam-green)" }}
@@ -206,8 +288,86 @@ export function LancementPage({ typeSimulation, onAnnuler, onDemarre }: Lancemen
                 onChange={(evenement) => setLimite(Number(evenement.target.value))}
               />
             </label>
+
+            <label className="champ-groupe champ-court">
+              <span className="champ-libelle">Durée visée (min)</span>
+              <input
+                type="number"
+                className="champ-console"
+                min={1}
+                max={1440}
+                value={dureeVisee}
+                onChange={(evenement) =>
+                  setDureeVisee(Math.max(1, Number(evenement.target.value)))
+                }
+              />
+            </label>
           </div>
         </div>
+
+        {/* L'estimation se tient sous les réglages, dans la colonne collante :
+            elle doit rester sous les yeux pendant qu'on bouge les curseurs,
+            sans quoi on règle de nouveau à l'aveugle. */}
+        {estimation && (
+          <div className="estimation">
+            <div className="estimation-tete">
+              <span className="pouls" aria-hidden="true" />
+              Estimation en direct
+            </div>
+
+            <div className="estimation-corps">
+              <div className="estimation-ligne">
+                <span className="estimation-valeur">≈ {entier(estimation.parHeure)}</span>
+                <div>
+                  <div className="estimation-quoi">passages par heure</div>
+                  <div className="estimation-detail">au rythme d’arrivée du moteur</div>
+                </div>
+              </div>
+
+              <div className="estimation-ligne">
+                <span className="estimation-valeur">≈ {entier(estimation.surLaDuree)}</span>
+                <div>
+                  <div className="estimation-quoi">passages en tout</div>
+                  <div className="estimation-detail">
+                    sur les {dureeVisee} min visées
+                  </div>
+                </div>
+              </div>
+
+              <div className="estimation-ligne">
+                <span className="estimation-valeur estimation-valeur--alerte">
+                  ≈ {entier(estimation.anomalies)}
+                </span>
+                <div>
+                  <div className="estimation-quoi">porteront une anomalie</div>
+                  <div className="estimation-detail">
+                    soit {(estimation.partTouchee * 100).toFixed(1)} % du flux
+                    &nbsp;·&nbsp; {actives} type(s) actif(s)
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Les taux se cumulent : la part saine est le produit des « pas
+                touché », donc sept types à 10 % suffisent à dépasser la moitié
+                du flux. Sans ce garde-fou, on fabrique un jeu majoritairement
+                abîmé sans l'avoir voulu. */}
+            {estimation.partTouchee >= 0.5 && (
+              <p className="estimation-alerte">
+                <b>Plus d’une ligne sur deux</b> portera une anomalie. C’est
+                utile pour éprouver les règles de contrôle, mais un tel jeu ne
+                ressemble plus à des données réelles — évitez-le pour alimenter
+                le MDM ou l’entrepôt.
+              </p>
+            )}
+
+            <p className="estimation-note">
+              Recalculé à chaque réglage. Le nombre de <b>factures</b> sera
+              inférieur : les assurés sans droits ouverts sont refusés à
+              l’accueil et ne produisent aucune facture.
+            </p>
+          </div>
+        )}
       </section>
 
       <section>
@@ -215,18 +375,35 @@ export function LancementPage({ typeSimulation, onAnnuler, onDemarre }: Lancemen
           Anomalies à injecter — {actives} type(s) actif(s)
         </h2>
 
-        {ORDRE_FAMILLES.filter((famille) => parFamille[famille]).map((famille) => (
+        {ORDRE_FAMILLES.filter((famille) => parFamille[famille]).map((famille) => {
+          const typesFamille = parFamille[famille];
+          const allumes = typesFamille.filter(
+            (type) => reglages[type.anomalie_code]?.active
+          ).length;
+          const repliee = repliees.has(famille);
+
+          return (
           <div key={famille} className="famille-bloc">
-            <div
-              className="famille-titre"
+            <button
+              type="button"
+              className="famille-titre famille-bascule"
+              aria-expanded={!repliee}
+              onClick={() => basculerFamille(famille)}
               style={{
-                ["--famille-couleur" as string]: parFamille[famille][0].anomalie_couleur,
+                ["--famille-couleur" as string]: typesFamille[0].anomalie_couleur,
               }}
             >
               <span className="dot" />
               {famille}
-            </div>
+              <span className="famille-compte">
+                {allumes} / {typesFamille.length}
+              </span>
+              <span className="famille-chevron" aria-hidden="true">
+                {repliee ? "▸" : "▾"}
+              </span>
+            </button>
 
+            {!repliee && (
             <div className="screen-table-wrap">
               <table className="screen-table">
                 <thead>
@@ -328,15 +505,39 @@ export function LancementPage({ typeSimulation, onAnnuler, onDemarre }: Lancemen
                 </tbody>
               </table>
             </div>
+            )}
           </div>
-        ))}
+          );
+        })}
       </section>
+      </div>
 
       <section className="bandeau-info">
         Les scénarios d'aléa ne se règlent pas ici : ce sont des actions que
         vous déclencherez à la main, pendant l'exécution, depuis l'écran de
         suivi qui s'ouvrira au démarrage.
       </section>
+
+      {/* Le dernier coup d'œil avant le départ : une erreur de saisie coûte
+          encore zéro ici, et deux heures une fois le moteur parti. */}
+      <div className="recap-lancement">
+        <span className="recap-libelle">Au départ</span>
+        <span className="recap-texte">
+          <b style={{ color: profil?.couleur ?? "var(--cnam-green-dark)" }}>
+            {typeSimulation}
+          </b>
+          {" · vitesse "}<b>×{vitesse}</b>
+          {" · "}<b>{limite}</b>{" passages en parallèle"}
+          {" · "}<b>{actives}</b>{" type(s) d’anomalie"}
+          {estimation && (
+            <>
+              {" pour "}
+              <b>{(estimation.partTouchee * 100).toFixed(1)} %</b>
+              {" du flux · durée visée "}<b>{dureeVisee} min</b>
+            </>
+          )}
+        </span>
+      </div>
 
       <div className="barre-lancement">
         <button className="btn btn-outline" onClick={onAnnuler} disabled={demarrage}>
