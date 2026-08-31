@@ -90,6 +90,18 @@ export function Sidebar({ ongletActif, onNaviguer, moteurEnCours }: SidebarProps
           </button>
 
           <button
+            className={`sidebar-nav-item ${
+              ongletActif === "campagnes" || ongletActif === "campagne-nouvelle"
+                ? "active"
+                : ""
+            }`}
+            onClick={() => onNaviguer("campagnes")}
+          >
+            <QualiteIcon className="nav-icon" />
+            <span className="nav-text">Campagnes de test</span>
+          </button>
+
+          <button
             className={`sidebar-nav-item ${ongletActif === "qualite" ? "active" : ""}`}
             onClick={() => onNaviguer("qualite")}
           >

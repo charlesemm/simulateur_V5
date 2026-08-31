@@ -25,6 +25,10 @@ GOUVERNANCE = "GOUVERNANCE"
 
 TYPES = (LIBRE, QUALITE, MDM, ENTREPOT, GOUVERNANCE)
 
+# Les deux parcours qu'une carte de l'accueil peut ouvrir.
+PARCOURS_MOTEUR = "moteur"
+PARCOURS_CAMPAGNE = "campagne"
+
 
 @dataclass(frozen=True, slots=True)
 class ProfilSimulation:
@@ -46,6 +50,14 @@ class ProfilSimulation:
     # démarre. C'est ce qui fait que quatre boutons ne sont pas quatre
     # habillages du même moteur.
     preparation: dict[str, int] = field(default_factory=dict)
+    # Ouvert ou en attente de son cahier des charges. C'est le serveur qui le
+    # dit : l'accueil grisait les types dans son propre code, si bien qu'en
+    # ouvrir un demandait de retoucher le navigateur.
+    disponible: bool = False
+    # Où mène la carte quand on la clique. MOTEUR ouvre le paramétrage d'une
+    # exécution du moteur temps réel ; CAMPAGNE ouvre une campagne de test du
+    # module Qualité des données, qui ne passe pas par le moteur.
+    parcours: str | None = None
 
     def config_moteur(self, base: SimulationConfig = DEFAULT_CONFIG) -> SimulationConfig:
         """Applique le profil à la configuration du moteur."""
@@ -72,13 +84,15 @@ PROFILS: dict[str, ProfilSimulation] = {
         # Rien de pré-coché : c'est le principe du mode libre.
         anomalies={},
         aleas={},
+        disponible=True,
+        parcours=PARCOURS_MOTEUR,
     ),
     QUALITE: ProfilSimulation(
         code=QUALITE,
         libelle="Qualité des données",
         description=(
-            "Produit un flux courant, largement corrompu, pour éprouver la "
-            "détection : complétude, validité, unicité, cohérence."
+            "Fabrique un jeu de données piégé et son corrigé, le transmet à "
+            "l'outil de qualité à tester, puis note ce qu'il a su détecter."
         ),
         couleur="#16a34a",
         vitesse=60,
@@ -91,6 +105,11 @@ PROFILS: dict[str, ProfilSimulation] = {
             EMAIL_INVALIDE: {"taux": 0.05, "declenchement": DECLENCHEMENT_CONTINU},
         },
         aleas={},
+        # Ouvert depuis le cahier des charges du 2026-08-28. Ce type ne lance
+        # pas le moteur : il ouvre une campagne de test, où ÉCHO fabrique un
+        # jeu piégé pour noter un outil de qualité extérieur.
+        disponible=True,
+        parcours=PARCOURS_CAMPAGNE,
     ),
     MDM: ProfilSimulation(
         code=MDM,

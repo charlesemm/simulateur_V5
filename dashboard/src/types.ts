@@ -63,6 +63,91 @@ export interface ProfilSimulation {
   passages_simultanes_max: number;
   anomalies: Record<string, Record<string, unknown>>;
   aleas: Record<string, Record<string, unknown>>;
+  /** Ouvert, ou en attente de son cahier des charges. Le serveur en décide. */
+  disponible: boolean;
+  /** Où mène la carte : le moteur temps réel, ou une campagne de test. */
+  parcours: "moteur" | "campagne" | null;
+}
+
+/** Un palier de charge du banc d'essai. */
+export interface PalierCampagne {
+  code: string;
+  libelle: string;
+  volume_propose: number;
+  description: string;
+}
+
+/** Une des huit dimensions de qualité du cahier des charges. */
+export interface DimensionQualite {
+  code: string;
+  libelle: string;
+  description: string;
+  /** Zéro : la dimension est décrite, mais rien ne sait encore l'injecter. */
+  types_disponibles: number;
+}
+
+/** Un type d'anomalie qu'une campagne peut poser. */
+export interface TypeAnomalieCampagne {
+  code: string;
+  libelle: string;
+  famille: string;
+  couleur: string;
+  dimension: string;
+  dimension_libelle: string;
+  table_cible: string;
+  colonne_cible: string;
+  severite: string;
+}
+
+/** Une campagne de test du module Qualité des données.
+ *
+ *  Ce n'est pas une exécution du moteur : pas de vitesse ni de passages
+ *  simultanés, mais un volume, une graine, et à terme un score. */
+export interface Campagne {
+  campagne_id: string;
+  campagne_reference: string;
+  campagne_libelle: string;
+  campagne_statut: string;
+  campagne_graine: number;
+  campagne_palier: string;
+  campagne_volume_cible: number;
+  campagne_parametres: Record<string, unknown>;
+  date_creation: string;
+  campagne_date_fin: string | null;
+  /** Nuls tant que le jeu n'a pas été généré. */
+  campagne_date_generation: string | null;
+  campagne_lignes_generees: number;
+  campagne_anomalies_posees: number;
+  campagne_empreinte: string | null;
+  campagne_fichier: string | null;
+}
+
+/** Où en est la génération d'un jeu de campagne. */
+export interface ProgressionCampagne {
+  statut: string;
+  volume_cible: number;
+  lignes_generees: number;
+  anomalies_posees: number;
+  pourcentage: number;
+  terminee: boolean;
+  erreur: string | null;
+}
+
+/** Une anomalie posée, telle que le corrigé la consigne. */
+export interface LigneCorrige {
+  corrige_ligne: number;
+  corrige_champ: string;
+  anomalie_code: string;
+  corrige_valeur_origine: string;
+  corrige_valeur_injectee: string;
+}
+
+/** Un extrait du corrigé, avec le compte complet par type. */
+export interface Corrige {
+  campagne_id: string;
+  total: number;
+  par_anomalie: Record<string, number>;
+  lignes: LigneCorrige[];
 }
 
 /** Une exécution d'une journée donnée, avec les rapports produits pour elle.
