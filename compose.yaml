@@ -65,6 +65,11 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      # L'API lit le catalogue d'anomalies dès son démarrage : sans les
+      # tables, elle s'effondre. Attendre la base ne suffisait pas — elle
+      # partait en même temps que les migrations et arrivait la première.
+      migrations:
+        condition: service_completed_successfully
 
   # ── Migrations (exécuté une fois puis s'arrête) ─────────────
   migrations:

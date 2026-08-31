@@ -11,7 +11,16 @@ FROM docker.io/library/node:22-alpine AS dashboard
 
 WORKDIR /app/dashboard
 COPY dashboard/package.json dashboard/package-lock.json* ./
-RUN npm ci --ignore-scripts
+
+# `--legacy-peer-deps` : recharts 2.13 declare ne supporter React que jusqu'a
+# la version 18, alors que le dashboard tourne en React 19. Le conflit est
+# theorique — les graphiques fonctionnent — mais `npm ci` refuse d'installer
+# sans cette tolerance, et la construction de l'image echouait.
+#
+# Le verrou (package-lock.json) reste souverain : l'arbre installe ici est
+# exactement celui du poste de developpement, ni plus ni moins. A revoir en
+# passant a recharts 3, qui accepte React 19 officiellement.
+RUN npm ci --ignore-scripts --legacy-peer-deps
 COPY dashboard/ ./
 RUN npm run build
 
