@@ -1,13 +1,33 @@
 # .github/workflows/ci.yml
-# Vérifie que le code compile, que le frontend build, et que l'API démarre.
+#
+# Le pipeline complet du projet, en deux temps :
+#
+#   1. VÉRIFIER (CI)  — le code compile, les migrations passent sur une base
+#      vierge, les tests sont verts, l'API démarre, le dashboard se construit.
+#      Ce temps-là tourne pour toute branche et toute pull request.
+#
+#   2. LIVRER (CD)    — l'image du Containerfile est construite et publiée sur
+#      GHCR, l'entrepôt d'images de GitHub. Ce temps-là ne tourne que pour
+#      « main » et les tags de version, et seulement si le temps 1 est vert.
+#
+# Rien n'est déployé sur un serveur : le projet n'a pas encore de cible de
+# production (chantier X2). Le pipeline s'arrête donc à une image prête à
+# être tirée, ce qui suffit déjà à installer la bonne version n'importe où.
+#
+# Documentation : GUIDE_CICD.md
 
-name: CI — Tests & Build
+name: CI/CD — Tests, Build & Image
 
 on:
   push:
-    branches: [main, develop, "feature/**"]
+    # « develop » a été retirée : cette branche n'existe pas dans le dépôt et
+    # laissait croire à un flux de travail qui n'est pas le nôtre.
+    branches: [main, "feature/**"]
+    # Un tag « v1.0.0 » déclenche aussi le pipeline : c'est ainsi qu'on fige
+    # une version, avec une image étiquetée à son numéro.
+    tags: ["v*"]
   pull_request:
-    branches: [main, develop]
+    branches: [main]
 
 env:
   POSTGRES_USER: postgres
@@ -100,7 +120,12 @@ jobs:
 
       - name: Installer les dépendances npm
         working-directory: dashboard
-        run: npm ci
+        # `--legacy-peer-deps` pour la même raison que dans le Containerfile :
+        # recharts 2.13 se déclare incompatible avec React 19 alors qu'il
+        # fonctionne. Sans cette tolérance, les deux installations divergeraient
+        # et la CI passerait au vert sur un projet dont l'image ne se construit
+        # pas — le pire des cas.
+        run: npm ci --legacy-peer-deps
 
       - name: Lint
         working-directory: dashboard
@@ -111,3 +136,112 @@ jobs:
         env:
           VITE_API_URL: http://127.0.0.1:8000
         run: npm run build
+
+  # ════════════════════════════════════════════════════════════════════════
+  # TEMPS 2 — LIVRER
+  #
+  # Construit l'image du Containerfile et la publie sur GHCR.
+  # ════════════════════════════════════════════════════════════════════════
+
+  image:
+    name: Image — construction et publication sur GHCR
+    runs-on: ubuntu-latest
+
+    # La barrière du pipeline. Sans ce `needs`, les trois jobs partiraient en
+    # même temps et une image pourrait être publiée pendant que les tests
+    # échouent — c'est-à-dire du code cassé mis à disposition.
+    needs: [backend, frontend]
+
+    # Une pull request propose du code, elle ne le livre pas : elle ne publie
+    # donc aucune image. Seules deux situations en produisent une — l'arrivée
+    # sur « main » (la version courante) et un tag « v… » (une version figée).
+    if: >-
+      github.event_name == 'push' &&
+      (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+
+    permissions:
+      contents: read
+      # Indispensable : le jeton que GitHub prête au job ne sait que lire par
+      # défaut, et l'envoi vers ghcr.io serait refusé en 403.
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Aligner l'exclusion de contexte sur celle de Podman
+        # Podman lit « .containerignore » ; le moteur de construction de
+        # GitHub, lui, ne connaît que « .dockerignore ». Sans cette copie,
+        # .git/, .venv/ et node_modules/ partiraient dans le contexte de
+        # construction : envoi bien plus lourd, et le « COPY . . » de l'étage
+        # final embarquerait tout cela dans l'image publiée.
+        # On copie plutôt que de tenir deux listes, qui finiraient par diverger.
+        run: cp .containerignore .dockerignore
+
+      - name: Calculer le nom de l'image en minuscules
+        id: nom
+        # GHCR n'accepte que des minuscules, or le dépôt s'appelle
+        # « simulateur_V5 » : repris tel quel, l'envoi échouerait sur un nom
+        # invalide. « ${VAR,,} » est la mise en minuscules de bash.
+        run: echo "image=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+
+      - name: Ouvrir la session sur GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          # Jeton fabriqué par GitHub pour cette exécution et périmé à la fin
+          # du job. Rien à créer, rien à renouveler, rien à mettre en secret.
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Décider des étiquettes de l'image
+        id: etiquettes
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.nom.outputs.image }}
+          # « latest » suit main et bouge donc en permanence : pratique, mais
+          # il ne désigne aucune version en particulier. « sha-… » nomme le
+          # commit exact — c'est le seul repère fiable pour dire « la machine
+          # tourne sur celle-ci ». Un tag « v1.2.3 » ajoute « 1.2.3 » et
+          # « 1.2 », pour suivre une version mineure sans la figer.
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,prefix=sha-
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+
+      - name: Préparer le constructeur
+        # Buildx sait réutiliser les étages déjà construits d'une exécution à
+        # l'autre ; la construction classique en est incapable.
+        uses: docker/setup-buildx-action@v3
+
+      - name: Construire et publier l'image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Containerfile
+          push: true
+          tags: ${{ steps.etiquettes.outputs.tags }}
+          labels: ${{ steps.etiquettes.outputs.labels }}
+          # Le cache conserve les étages intermédiaires entre deux exécutions.
+          # Sans lui, « npm ci » et « pip install » seraient refaits en entier
+          # à chaque poussée, pour un résultat identique.
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Récapituler l'adresse de l'image
+        # S'affiche en clair sur la page de l'exécution : on y lit la commande
+        # à lancer sans avoir à fouiller les journaux de construction.
+        run: |
+          {
+            echo "### Image publiée"
+            echo
+            echo '```'
+            echo "${{ steps.etiquettes.outputs.tags }}"
+            echo '```'
+            echo
+            echo "Pour la récupérer :"
+            echo
+            echo '```'
+            echo "podman pull ${{ steps.nom.outputs.image }}:latest"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

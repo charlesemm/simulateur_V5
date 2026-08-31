@@ -64,7 +64,7 @@ simulateur_v5/
 ├── seed/                    ← Scripts d'alimentation des données de santé
 ├── simulation/              ← Moteur de simulation (passages de soins, agents, files)
 ├── alembic/                 ← Migrations de schéma PostgreSQL
-└── .github/workflows/       ← Pipeline CI GitHub Actions (tests & build)
+└── .github/workflows/       ← Pipeline CI/CD GitHub Actions (tests, build, image)
 ```
 
 ---
@@ -120,10 +120,18 @@ Le tableau de bord est un **cockpit de supervision et d'observabilité 100% tech
 
 ---
 
-## 🚀 Déploiement Production
+## 🚀 Conteneurisation, CI/CD et déploiement
 
-La conteneurisation a été retirée du projet. Un guide de mise en production
-sera écrit à la fin des chantiers de refonte, sur la base de **Podman**.
+**Lancer le projet en conteneurs** (PostgreSQL + API + dashboard, en une
+commande) : voir **[GUIDE_PODMAN.md](GUIDE_PODMAN.md)**. Le `Containerfile` et
+le `compose.yaml` sont à la racine.
 
-En attendant, la CI GitHub Actions (`.github/workflows/ci.yml`) vérifie à
-chaque poussée que le backend démarre et que le frontend compile.
+**Le pipeline** (`.github/workflows/ci.yml`) : voir **[GUIDE_CICD.md](GUIDE_CICD.md)**.
+À chaque poussée, il vérifie que le code compile, que les migrations passent sur
+une base vierge, que les tests sont verts, que l'API démarre et que le dashboard
+se construit. Sur `main` et sur les tags de version, il publie en plus l'image
+sur GHCR (`ghcr.io/charlesemm/simulateur_v5`).
+
+**Déploiement sur un serveur** : pas encore en place — le projet n'a pas de
+cible de production (chantier X2). Le pipeline s'arrête à une image prête à être
+tirée, ce qui suffit à installer la bonne version sur n'importe quelle machine.
