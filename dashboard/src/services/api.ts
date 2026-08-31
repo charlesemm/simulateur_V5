@@ -1,8 +1,9 @@
 // Centralise les appels HTTP, le typage et les messages d'erreur français.
 
 import type {
-  CadenceMoteur, ExecutionDetail, FicheGouvernance, HealthCenterList,
-  RapportExecution,
+  CadenceMoteur, Campagne, Corrige, DimensionQualite, ExecutionDetail,
+  FicheGouvernance, HealthCenterList, PalierCampagne, ProgressionCampagne,
+  RapportExecution, TypeAnomalieCampagne,
   InjectionJournal, KpiHistory, KpiSnapshot, PaireMdm, ProfilSimulation,
   RapportQualite, ScenarioAlea, SimulationRun, SimulationStatus, TypeAnomalie,
 } from "../types";
@@ -137,6 +138,104 @@ export const api = {
       headers: authHeaders(token),
     });
     return parseOrThrow<ProfilSimulation[]>(response);
+  },
+
+  /** Les quatre paliers de charge du banc d'essai. */
+  async getPaliers(token: string | null): Promise<PalierCampagne[]> {
+    const response = await fetch(`${API_URL}/campagnes/paliers`, {
+      headers: authHeaders(token),
+    });
+    return parseOrThrow<PalierCampagne[]>(response);
+  },
+
+  /** Les huit dimensions de qualité, et ce que chacune éprouve. */
+  async getDimensions(token: string | null): Promise<DimensionQualite[]> {
+    const response = await fetch(`${API_URL}/campagnes/dimensions`, {
+      headers: authHeaders(token),
+    });
+    return parseOrThrow<DimensionQualite[]>(response);
+  },
+
+  /** Les types d'anomalies qu'une campagne peut poser. */
+  async getTypesCampagne(token: string | null): Promise<TypeAnomalieCampagne[]> {
+    const response = await fetch(`${API_URL}/campagnes/anomalies`, {
+      headers: authHeaders(token),
+    });
+    return parseOrThrow<TypeAnomalieCampagne[]>(response);
+  },
+
+  /** Les libellés français des statuts de campagne, tenus par le serveur. */
+  async getStatutsCampagne(token: string | null): Promise<Record<string, string>> {
+    const response = await fetch(`${API_URL}/campagnes/statuts`, {
+      headers: authHeaders(token),
+    });
+    return parseOrThrow<Record<string, string>>(response);
+  },
+
+  /** Ouvre une campagne. Rien n'est généré à ce stade. */
+  async creerCampagne(
+    token: string | null,
+    corps: {
+      libelle?: string;
+      palier?: string;
+      volume_cible?: number;
+      graine?: number | null;
+      anomalies?: Record<string, { taux: number }>;
+    }
+  ): Promise<Campagne> {
+    const response = await fetch(`${API_URL}/campagnes`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders(token) },
+      body: JSON.stringify(corps),
+    });
+    return parseOrThrow<Campagne>(response);
+  },
+
+  async getCampagnes(token: string | null, limite = 50): Promise<Campagne[]> {
+    const response = await fetch(`${API_URL}/campagnes?limite=${limite}`, {
+      headers: authHeaders(token),
+    });
+    return parseOrThrow<Campagne[]>(response);
+  },
+
+  async getCampagne(campagneId: string, token: string | null): Promise<Campagne> {
+    const response = await fetch(`${API_URL}/campagnes/${campagneId}`, {
+      headers: authHeaders(token),
+    });
+    return parseOrThrow<Campagne>(response);
+  },
+
+  /** Lance la production du jeu piégé. Retourne aussitôt : la suite se suit
+   *  par `getProgression`. */
+  async genererCampagne(
+    campagneId: string, token: string | null
+  ): Promise<ProgressionCampagne> {
+    const response = await fetch(`${API_URL}/campagnes/${campagneId}/generer`, {
+      method: "POST",
+      headers: authHeaders(token),
+    });
+    return parseOrThrow<ProgressionCampagne>(response);
+  },
+
+  async getProgression(
+    campagneId: string, token: string | null
+  ): Promise<ProgressionCampagne> {
+    const response = await fetch(
+      `${API_URL}/campagnes/${campagneId}/progression`,
+      { headers: authHeaders(token) }
+    );
+    return parseOrThrow<ProgressionCampagne>(response);
+  },
+
+  async getCorrige(
+    campagneId: string, token: string | null, limite = 50, decalage = 0
+  ): Promise<Corrige> {
+    const response = await fetch(
+      `${API_URL}/campagnes/${campagneId}/corrige`
+      + `?limite=${limite}&decalage=${decalage}`,
+      { headers: authHeaders(token) }
+    );
+    return parseOrThrow<Corrige>(response);
   },
 
   /** Les exécutions d'une journée et les rapports déjà produits pour chacune. */

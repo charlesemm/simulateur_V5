@@ -40,6 +40,65 @@ FAMILLES: dict[str, str] = {
 
 # « douce » : la valeur passe les contraintes SQL mais ment sur le métier.
 # « dure » : la valeur est manifestement invalide au premier regard.
+# ── Les huit dimensions de qualité du cahier des charges ─────────────────
+#
+# Elles ne remplacent pas les familles : une famille dit *où* l'anomalie est
+# posée (montants, dates, identité), une dimension dit *ce qu'elle éprouve*
+# chez l'outil testé. C'est la dimension que le cahier des charges emploie, et
+# c'est donc elle que la campagne affiche et que le score reprendra.
+UNICITE = "UNICITE"
+COMPLETUDE = "COMPLETUDE"
+VALIDITE = "VALIDITE"
+EXACTITUDE = "EXACTITUDE"
+TEMPORELLE = "TEMPORELLE"
+REFERENTIELLE = "REFERENTIELLE"
+CROISEE = "CROISEE"
+TECHNIQUE = "TECHNIQUE"
+
+# L'ordre est celui du cahier des charges : il ne se trie pas par nombre de
+# types disponibles, sans quoi la liste se réorganiserait à chaque ajout.
+DIMENSIONS: dict[str, tuple[str, str]] = {
+    UNICITE: (
+        "Unicité",
+        "Doublons stricts et flous : deux fiches pour la même personne, à une "
+        "variation orthographique près.",
+    ),
+    COMPLETUDE: (
+        "Complétude",
+        "Champs obligatoires manquants : une immatriculation absente, un nom "
+        "de famille vide.",
+    ),
+    VALIDITE: (
+        "Validité (format)",
+        "Formats hors normes : une immatriculation qui n'a pas ses treize "
+        "chiffres, une adresse électronique mal formée.",
+    ),
+    EXACTITUDE: (
+        "Exactitude (domaine)",
+        "Valeurs hors limites : un montant négatif, un taux de prise en "
+        "charge étranger au régime de l'assuré.",
+    ),
+    TEMPORELLE: (
+        "Cohérence temporelle",
+        "Séquences illogiques : une date de soins antidatée, ou postérieure "
+        "au jour de la facture.",
+    ),
+    REFERENTIELLE: (
+        "Intégrité référentielle",
+        "Liens rompus entre tables : un code de prestation ou un type "
+        "d'établissement qui n'existe dans aucun référentiel.",
+    ),
+    CROISEE: (
+        "Cohérence croisée",
+        "Contradictions entre champs : une quantité servie sans prescription, "
+        "des soins hors de la période de droits.",
+    ),
+    TECHNIQUE: (
+        "Conformité technique",
+        "Caractères cassés à l'import : « N'Guessan » devenu « N?Guessan ».",
+    ),
+}
+
 SEVERITE_DOUCE = "douce"
 SEVERITE_DURE = "dure"
 
@@ -80,6 +139,18 @@ class TypeAnomalie:
         """Couleur de la famille, celle du bouton dans la console."""
 
         return FAMILLES[self.famille]
+
+    @property
+    def dimension(self) -> str:
+        """Dimension de qualité que ce type éprouve chez l'outil testé."""
+
+        return DIMENSION_PAR_CODE[self.code]
+
+    @property
+    def dimension_libelle(self) -> str:
+        """Nom lisible de la dimension, tel que le cahier des charges l'écrit."""
+
+        return DIMENSIONS[self.dimension][0]
 
 
 CATALOGUE_INITIAL: tuple[TypeAnomalie, ...] = (
@@ -189,5 +260,30 @@ CATALOGUE_INITIAL: tuple[TypeAnomalie, ...] = (
         SEVERITE_DURE,
     ),
 )
+
+# La dimension éprouvée par chaque type. Elle vit ici et non dans la table :
+# c'est une lecture du catalogue, pas un réglage — la changer en base n'aurait
+# aucun sens et la ferait diverger du cahier des charges.
+#
+# Trois dimensions n'ont encore aucun type : l'unicité, la complétude et la
+# conformité technique. Leurs injecteurs arrivent au module M5.
+DIMENSION_PAR_CODE: dict[str, str] = {
+    MONTANT_ABERRANT: EXACTITUDE,
+    MONTANT_HORS_BAREME: EXACTITUDE,
+    DATE_NAISSANCE_ABERRANTE: EXACTITUDE,
+    DATE_ANTIDATEE: TEMPORELLE,
+    DATE_SOINS_FUTURE: TEMPORELLE,
+    # Des soins hors période de droits, ce n'est pas une date mal formée :
+    # c'est la facture qui contredit les droits de l'assuré.
+    DATE_HORS_DROITS: CROISEE,
+    REPARTITION_FAUSSEE: CROISEE,
+    QUANTITE_EXCESSIVE: CROISEE,
+    QUANTITE_NULLE: CROISEE,
+    NUMERO_SECU_INVALIDE: VALIDITE,
+    EMAIL_INVALIDE: VALIDITE,
+    TYPE_CENTRE_INCONNU: REFERENTIELLE,
+    PRESTATION_ORPHELINE: REFERENTIELLE,
+}
+
 
 CODES = tuple(type_anomalie.code for type_anomalie in CATALOGUE_INITIAL)

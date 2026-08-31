@@ -22,6 +22,7 @@ from anomalies.repository import (
 from api.routers import centres, factures, kpi, parcours, simulation
 from api.schema import HealthResponse
 from api.routers import anomalies as anomalies_router
+from api.routers import campagnes as campagnes_router
 from api.routers import metrics as metrics_router
 from api.routers import assures as assures_router
 from api.routers import moteurs as moteurs_router
@@ -114,6 +115,7 @@ fastapi_app.include_router(users_router.router)
 fastapi_app.include_router(reports_router.router)
 fastapi_app.include_router(anomalies_router.router)
 fastapi_app.include_router(qualite_router.router)
+fastapi_app.include_router(campagnes_router.router)
 fastapi_app.include_router(moteurs_router.router)
 fastapi_app.include_router(assures_router.router)
 fastapi_app.include_router(metrics_router.router)

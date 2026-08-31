@@ -404,6 +404,28 @@
 .pastille-arretee { background: #f1f5f9; color: #475569; border: 1px solid var(--border); }
 .pastille-echouee { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
 
+/* Statuts d'une campagne de test. Le gris dit « rien n'est encore joué »,
+   le bleu « le jeu existe », le vert « c'est noté », l'orange l'échec
+   d'échange — qui n'est pas un mauvais score mais un incident. */
+.pastille-creee { background: #f1f5f9; color: #475569; border: 1px solid var(--border); }
+.pastille-generation { background: var(--cnam-green-light); color: var(--cnam-green-dark); border: 1px solid var(--cnam-green-border); }
+.pastille-generee { background: var(--cnam-blue-light); color: var(--cnam-blue-dark); border: 1px solid var(--cnam-blue-border); }
+.pastille-transmise { background: var(--cnam-blue-light); color: var(--cnam-blue-dark); border: 1px solid var(--cnam-blue-border); }
+.pastille-rapport_recu { background: var(--cnam-blue-light); color: var(--cnam-blue-dark); border: 1px solid var(--cnam-blue-border); }
+.pastille-notee { background: var(--cnam-green-light); color: var(--cnam-green-dark); border: 1px solid var(--cnam-green-border); }
+.pastille-echec_echange { background: #fff7ed; color: #c2410c; border: 1px solid #fed7aa; }
+
+/* Carte choisie dans une grille de choix — les paliers de charge. La
+   sélection doit se voir sans lire : l'anneau, pas seulement la teinte. */
+.type-card--choisi {
+  border-color: var(--cnam-green);
+  box-shadow: 0 0 0 2px var(--cnam-green-light), var(--shadow-card);
+}
+
+.type-card--choisi::before {
+  transform: scaleY(1);
+}
+
 /* ── Console d'injection ── */
 .console-grid {
   display: grid;
@@ -1862,4 +1884,182 @@
     gap: 10px;
     padding: 16px 18px;
   }
+}
+
+
+/* ── Assistant en trois étapes (campagne de test) ──────────────────────
+   Le fil dit où l'on est et ce qui reste : sans lui, trois écrans qui se
+   remplacent donnent l'impression de tourner en rond. */
+.fil-etapes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  list-style: none;
+  margin: 0 0 4px;
+  padding: 0;
+}
+
+.fil-etape {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 200px;
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--rayon-md);
+  background: var(--surface);
+  color: var(--text-muted);
+  transition: border-color var(--transition), color var(--transition);
+}
+
+.fil-etape-rang {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  flex: 0 0 26px;
+  border-radius: 50%;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  font-weight: 700;
+  font-size: .82rem;
+}
+
+.fil-etape--active {
+  border-color: var(--cnam-green);
+  color: var(--text);
+  box-shadow: 0 0 0 2px var(--cnam-green-light);
+}
+
+.fil-etape--active .fil-etape-rang {
+  background: var(--cnam-green);
+  border-color: var(--cnam-green);
+  color: #fff;
+}
+
+.fil-etape--faite {
+  color: var(--cnam-green-dark);
+  border-color: var(--cnam-green-border);
+}
+
+.fil-etape--faite .fil-etape-rang {
+  background: var(--cnam-green-light);
+  border-color: var(--cnam-green-border);
+  color: var(--cnam-green-dark);
+}
+
+.fil-etape-libelle {
+  font-size: .92rem;
+  font-weight: 600;
+}
+
+/* Compteur discret à droite d'un titre de section. */
+.screen-section-compte {
+  font-size: .86rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* La case d'activation d'un type d'anomalie : assez grande pour se cliquer
+   sans viser, et verte quand elle est cochée. */
+.case-anomalie {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--cnam-green);
+  cursor: pointer;
+}
+
+/* Le taux et son signe pourcent restent solidaires. */
+.champ-taux {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.champ-taux .champ-console {
+  width: 84px;
+}
+
+/* ── Génération d'un jeu de campagne ───────────────────────────────────
+   La barre n'est pas décorative : sur un palier élevé, c'est la seule chose
+   qui distingue « ça travaille » de « c'est bloqué ». */
+.progression-bloc {
+  margin-top: 18px;
+  padding: 14px 16px;
+  border: 1px solid var(--cnam-green-border);
+  border-radius: var(--rayon-md);
+  background: var(--cnam-green-light);
+}
+
+.progression-tete {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: .92rem;
+  color: var(--cnam-green-dark);
+  margin-bottom: 10px;
+}
+
+.progression-tete b {
+  margin-left: auto;
+}
+
+.progression-piste {
+  height: 8px;
+  border-radius: 999px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.progression-avance {
+  height: 100%;
+  background: var(--brand-degrade, var(--cnam-green));
+  transition: width var(--transition);
+}
+
+/* L'empreinte se lit et se compare de l'œil : elle a droit à sa propre
+   respiration, en chiffres à chasse fixe. */
+.empreinte-bloc {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 18px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--rayon-md);
+  background: var(--surface-subtle);
+}
+
+.empreinte-libelle {
+  font-size: .78rem;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--text-muted);
+}
+
+.empreinte-valeur {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: .95rem;
+  word-break: break-all;
+  color: var(--text);
+}
+
+.empreinte-aide {
+  font-size: .84rem;
+  color: var(--text-muted);
+}
+
+.cellule-empreinte {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: .84rem;
+  color: var(--text-muted);
+}
+
+/* En-tête de fiche : le statut et l'action de génération côte à côte. */
+.fiche-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }

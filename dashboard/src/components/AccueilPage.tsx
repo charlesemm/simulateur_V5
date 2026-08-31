@@ -9,8 +9,8 @@ import "./Screens.css";
 
 interface AccueilPageProps {
   onVoirExecution: (simulationId: string) => void;
-  /** Ouvre l'écran de paramétrage du type choisi. */
-  onConfigurer: (typeSimulation: string) => void;
+  /** Ouvre le parcours du type choisi : paramétrage moteur ou campagne. */
+  onConfigurer: (typeSimulation: string, parcours: string | null) => void;
   /** Rejoint le poste de pilotage tant qu'une exécution tourne. */
   onRejoindreCockpit?: () => void;
   /** Ouvre l'historique complet. */
@@ -158,13 +158,18 @@ export function AccueilPage({
           <h2 className="screen-section-title">Lancer une simulation</h2>
         </div>
         <p className="screen-section-lead">
-          Le type LIBRE ouvre le paramétrage, puis le poste de pilotage. Les autres cartes restent visibles, sans action.
+          LIBRE ouvre le paramétrage puis le poste de pilotage ; QUALITE ouvre
+          une campagne de test. Les types encore fermés restent visibles, sans
+          action.
         </p>
         <div className="type-grid">
           {profils.map((profil) => {
-            // Les quatre types spécialisés sont désactivés en attendant le
-            // cahier des charges. Seul LIBRE est opérationnel.
-            const enAttente = profil.code !== "LIBRE";
+            // C'est le serveur qui dit ce qui est ouvert : grisage écrit ici,
+            // il fallait retoucher le navigateur pour ouvrir un type.
+            const enAttente = !profil.disponible;
+            // Une campagne n'a ni vitesse ni passages simultanés : afficher
+            // ces deux chiffres sur sa carte serait mentir sur ce qu'elle est.
+            const estCampagne = profil.parcours === "campagne";
 
             return (
             <RequireRole
@@ -182,8 +187,14 @@ export function AccueilPage({
                     <span className="type-card-attente">En attente du cahier des charges</span>
                   )}
                   <div className="type-card-meta">
-                    <span>Vitesse ×{profil.vitesse}</span>
-                    <span>{profil.passages_simultanes_max} en parallèle</span>
+                    {estCampagne ? (
+                      <span>Jeu piégé, corrigé et note de l'outil testé</span>
+                    ) : (
+                      <>
+                        <span>Vitesse ×{profil.vitesse}</span>
+                        <span>{profil.passages_simultanes_max} en parallèle</span>
+                      </>
+                    )}
                   </div>
                 </article>
               }
@@ -192,14 +203,16 @@ export function AccueilPage({
                 type="button"
                 className={`type-card type-card--action${enAttente ? " type-card--desactive" : " type-card--featured"}`}
                 style={{ ["--type-couleur" as string]: profil.couleur }}
-                onClick={() => onConfigurer(profil.code)}
-                disabled={enCours || enAttente}
+                onClick={() => onConfigurer(profil.code, profil.parcours)}
+                disabled={enAttente || (enCours && !estCampagne)}
                 title={
                   enAttente
                     ? "En attente du cahier des charges"
-                    : enCours
-                      ? "Une exécution est déjà en cours"
-                      : "Paramétrer puis lancer ce type"
+                    : estCampagne
+                      ? "Ouvrir une campagne de test"
+                      : enCours
+                        ? "Une exécution est déjà en cours"
+                        : "Paramétrer puis lancer ce type"
                 }
               >
                 <span className="type-card-code">{profil.code}</span>
@@ -209,12 +222,18 @@ export function AccueilPage({
                   <span className="type-card-attente">En attente du cahier des charges</span>
                 )}
                 <span className="type-card-meta">
-                  <span>Vitesse ×{profil.vitesse}</span>
-                  <span>{profil.passages_simultanes_max} en parallèle</span>
+                  {estCampagne ? (
+                    <span>Jeu piégé, corrigé et note de l'outil testé</span>
+                  ) : (
+                    <>
+                      <span>Vitesse ×{profil.vitesse}</span>
+                      <span>{profil.passages_simultanes_max} en parallèle</span>
+                    </>
+                  )}
                 </span>
                 {!enAttente && (
                   <span className="type-card-appel">
-                    Paramétrer une simulation
+                    {estCampagne ? "Ouvrir une campagne de test" : "Paramétrer une simulation"}
                     <span className="type-card-fleche" aria-hidden="true">→</span>
                   </span>
                 )}

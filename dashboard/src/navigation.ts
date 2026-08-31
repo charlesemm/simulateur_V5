@@ -10,6 +10,8 @@ export type Onglet =
   | "injection"
   | "simulations"
   | "qualite"
+  | "campagnes"
+  | "campagne-nouvelle"
   | "rapports"
   | "dashboard"
   | "administration";
@@ -42,6 +44,14 @@ export const TITRES: Record<Onglet, { titre: string; sousTitre: string }> = {
   qualite: {
     titre: "Contrôle qualité",
     sousTitre: "Comparez les anomalies demandées, injectées et détectées",
+  },
+  campagnes: {
+    titre: "Campagnes de test",
+    sousTitre: "Éprouvez un outil de qualité des données avec un jeu piégé",
+  },
+  "campagne-nouvelle": {
+    titre: "Nouvelle campagne",
+    sousTitre: "Volume à générer et graine de reproduction",
   },
   dashboard: {
     titre: "Supervision technique",

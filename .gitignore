@@ -32,8 +32,11 @@ yarn-error.log*
 
 # ── Rapports générés à l'exécution ──────────────────────────────────────────
 reports/output/
+campagnes/output/
 
 # ── Système ─────────────────────────────────────────────────────────────────
 Thumbs.db
 desktop.ini
 .DS_Store
+FSE.pptx
+assuré

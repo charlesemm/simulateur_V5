@@ -16,6 +16,8 @@ import { ExecutionEnCoursCard } from "./components/ExecutionEnCoursCard";
 import { ExecutionEnCoursPage } from "./components/ExecutionEnCoursPage";
 import { ActiviteMetierSection } from "./components/ActiviteMetierSection";
 import { AccueilPage } from "./components/AccueilPage";
+import { CampagnesPage } from "./components/CampagnesPage";
+import { NouvelleCampagnePage } from "./components/NouvelleCampagnePage";
 import { BilanExecutionPage, type FrappeBilan } from "./components/BilanExecutionPage";
 import { AdministrationPage } from "./components/AdministrationPage";
 import { ConsoleInjectionPage } from "./components/ConsoleInjectionPage";
@@ -33,7 +35,9 @@ function DashboardShell() {
   // Simulations, qui l'affiche d'emblée.
   const [executionOuverte, setExecutionOuverte] = useState<string | null>(null);
   // Type choisi sur l'accueil, que l'écran de lancement vient paramétrer.
-  const [typeAConfigurer, setTypeAConfigurer] = useState("QUALITE");
+  const [typeAConfigurer, setTypeAConfigurer] = useState("LIBRE");
+  // Campagne créée à l'instant : l'écran des campagnes l'ouvre d'emblée.
+  const [campagneOuverte, setCampagneOuverte] = useState<string | null>(null);
   // Ce que le poste de pilotage lègue au bilan en s'arrêtant. Les aléas
   // frappés ne vivent nulle part ailleurs : ils se perdraient sans ce relais.
   const [bilan, setBilan] = useState<
@@ -136,7 +140,13 @@ function DashboardShell() {
                   setExecutionOuverte(simulationId);
                   setOngletActif("simulations");
                 }}
-                onConfigurer={(type) => {
+                onConfigurer={(type, parcours) => {
+                  // Deux parcours derrière les cartes : le moteur temps réel,
+                  // et la campagne de test, qui ne le traverse jamais.
+                  if (parcours === "campagne") {
+                    setOngletActif("campagne-nouvelle");
+                    return;
+                  }
                   setTypeAConfigurer(type);
                   setOngletActif("lancement");
                 }}
@@ -178,6 +188,25 @@ function DashboardShell() {
             )}
 
             {ongletActif === "qualite" && <QualitePage />}
+
+            {ongletActif === "campagnes" && (
+              <CampagnesPage
+                campagneInitiale={campagneOuverte}
+                onNouvelle={() => setOngletActif("campagne-nouvelle")}
+              />
+            )}
+
+            {ongletActif === "campagne-nouvelle" && (
+              <RequireRole minimum="operateur">
+                <NouvelleCampagnePage
+                  onAnnuler={() => setOngletActif("campagnes")}
+                  onCreee={(campagneId) => {
+                    setCampagneOuverte(campagneId);
+                    setOngletActif("campagnes");
+                  }}
+                />
+              </RequireRole>
+            )}
 
             {ongletActif === "dashboard" && (
               <div className="dashboard-content-space">

@@ -95,6 +95,130 @@ class ProfilResponse(ApiModel):
     passages_simultanes_max: int
     anomalies: dict[str, Any]
     aleas: dict[str, Any]
+    # Le serveur dit lui-même ce qui est ouvert et où cela mène. L'écran
+    # d'accueil grisait les types dans son propre code : chaque ouverture
+    # demandait alors de retoucher le navigateur.
+    disponible: bool
+    parcours: str | None
+
+
+class PalierResponse(ApiModel):
+    """Un palier de charge du banc d'essai."""
+
+    code: str
+    libelle: str
+    volume_propose: int
+    description: str
+
+
+class DimensionResponse(ApiModel):
+    """Une des huit dimensions de qualité du cahier des charges."""
+
+    code: str
+    libelle: str
+    description: str
+    # Nombre de types d'anomalies capables de l'éprouver aujourd'hui. Zéro
+    # signifie que la dimension est décrite mais pas encore injectable.
+    types_disponibles: int
+
+
+class TypeAnomalieCampagneResponse(ApiModel):
+    """Un type d'anomalie tel qu'une campagne le propose.
+
+    Servi depuis le catalogue en code, et non depuis la table : une campagne
+    porte ses propres taux, le réglage de la console d'injection ne la
+    concerne pas.
+    """
+
+    code: str
+    libelle: str
+    famille: str
+    couleur: str
+    dimension: str
+    dimension_libelle: str
+    table_cible: str
+    colonne_cible: str
+    severite: str
+
+
+class ReglageAnomalieCampagne(ApiModel):
+    """Le taux d'un type d'anomalie pour une campagne donnée."""
+
+    # Le taux est une part entre 0 et 1 ; l'écran le saisit en pourcentage et
+    # le convertit. Un taux nul est refusé : activer un type sans en injecter
+    # aucun produirait une ligne de score toujours vide.
+    taux: float = Field(gt=0.0, le=1.0)
+
+
+class CampagneCreateRequest(ApiModel):
+    """Ouvre une campagne de test.
+
+    Tout est facultatif : sans libellé la campagne prend son horodatage, sans
+    volume celui que propose le palier, et sans graine une graine tirée — que
+    la réponse renvoie, car c'est elle qui rend la campagne rejouable.
+    """
+
+    libelle: str | None = Field(default=None, max_length=150)
+    palier: str | None = None
+    volume_cible: int | None = Field(default=None, ge=100, le=5_000_000)
+    graine: int | None = Field(default=None, ge=1, le=2_147_483_647)
+    # Les types retenus et leur taux. Un type absent ne sera pas injecté :
+    # l'écran envoie exactement ce qu'il affiche, jamais un réglage implicite.
+    anomalies: dict[str, ReglageAnomalieCampagne] | None = None
+
+
+class CampagneResponse(ApiModel):
+    """Une campagne de test et son état."""
+
+    campagne_id: UUID
+    campagne_reference: str
+    campagne_libelle: str
+    campagne_statut: str
+    campagne_graine: int
+    campagne_palier: str
+    campagne_volume_cible: int
+    campagne_parametres: dict[str, Any]
+    date_creation: datetime
+    campagne_date_fin: datetime | None
+    # Ce que la génération a laissé. Nuls tant qu'elle n'a pas eu lieu.
+    campagne_date_generation: datetime | None = None
+    campagne_lignes_generees: int = 0
+    campagne_anomalies_posees: int = 0
+    campagne_empreinte: str | None = None
+    campagne_fichier: str | None = None
+
+
+class ProgressionResponse(ApiModel):
+    """Où en est la génération d'un jeu de campagne."""
+
+    statut: str
+    volume_cible: int
+    lignes_generees: int
+    anomalies_posees: int
+    pourcentage: float
+    terminee: bool
+    # Renseignée quand la génération s'est interrompue : la campagne repasse
+    # alors à « créée », un jeu à moitié produit n'ayant aucune valeur.
+    erreur: str | None = None
+
+
+class LigneCorrigeResponse(ApiModel):
+    """Une anomalie posée, telle que le corrigé la consigne."""
+
+    corrige_ligne: int
+    corrige_champ: str
+    anomalie_code: str
+    corrige_valeur_origine: str
+    corrige_valeur_injectee: str
+
+
+class CorrigeResponse(ApiModel):
+    """Un extrait du corrigé, et le compte complet par type."""
+
+    campagne_id: UUID
+    total: int
+    par_anomalie: dict[str, int]
+    lignes: list[LigneCorrigeResponse]
 
 
 class CadenceResponse(ApiModel):

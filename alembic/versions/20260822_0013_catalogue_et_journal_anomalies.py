@@ -11,7 +11,7 @@ from alembic import op
 from sqlalchemy import inspect, text
 from sqlalchemy.dialects.postgresql import UUID as PostgreSQLUUID
 
-from anomalies.catalogue import CATALOGUE_INITIAL
+from anomalies.catalogue import CATALOGUE_INITIAL, DECLENCHEMENT_CONTINU
 
 revision = "20260822_0013"
 down_revision = "20260821_0012"
@@ -85,26 +85,56 @@ def upgrade() -> None:
     )).scalar()
     taux_global = 0 if taux_global is None else taux_global
 
+    # La table peut déjà porter les colonnes que la migration 0014 ajoutera :
+    # sur une base neuve, la migration 0001 crée le schéma tel que les modèles
+    # le décrivent AUJOURD'HUI, famille comprise et non nulle. L'insertion doit
+    # donc s'adapter aux colonnes réellement présentes, faute de quoi elle
+    # échoue sur toute base créée de zéro — et seulement sur celles-là.
+    # Inspecteur relu : la table vient peut-être d'être créée juste au-dessus,
+    # et celui du début de la fonction ne la connaîtrait pas.
+    colonnes_presentes = {
+        colonne["name"]
+        for colonne in inspect(op.get_bind()).get_columns(TABLE_CATALOGUE)
+    }
+    # Les trois colonnes que 0014 ajoutera plus tard, toutes non nulles. Le
+    # declenchement n'est pas porte par le catalogue : il vaut « continu » a
+    # l'origine, ce que 0014 pose aussi comme defaut.
+    colonnes_tardives = {
+        "ANOMALIE_FAMILLE": lambda type_anomalie: type_anomalie.famille,
+        "ANOMALIE_COULEUR": lambda type_anomalie: type_anomalie.couleur,
+        "ANOMALIE_DECLENCHEMENT": lambda _: DECLENCHEMENT_CONTINU,
+    }
+    supplements = [nom for nom in colonnes_tardives if nom in colonnes_presentes]
+
+    noms = [
+        "ANOMALIE_CODE", "ANOMALIE_LIBELLE", "ANOMALIE_TABLE_CIBLE",
+        "ANOMALIE_COLONNE_CIBLE", "ANOMALIE_SEVERITE", "ANOMALIE_ACTIVE",
+        "ANOMALIE_TAUX", "UTILISATEUR_ID_CREATION", *supplements,
+    ]
+    valeurs = [
+        ":code", ":libelle", ":table_cible", ":colonne_cible", ":severite",
+        "true", ":taux", "'migration'",
+        *(f":{nom.lower()}" for nom in supplements),
+    ]
+    colonnes_sql = ", ".join('"{}"'.format(nom) for nom in noms)
+    requete = text(
+        f'INSERT INTO "{TABLE_CATALOGUE}" ({colonnes_sql}) '
+        f'VALUES ({", ".join(valeurs)}) '
+        'ON CONFLICT ("ANOMALIE_CODE") DO NOTHING'
+    )
+
     for type_anomalie in CATALOGUE_INITIAL:
-        connexion.execute(
-            text(
-                f'INSERT INTO "{TABLE_CATALOGUE}" '
-                '("ANOMALIE_CODE", "ANOMALIE_LIBELLE", "ANOMALIE_TABLE_CIBLE", '
-                '"ANOMALIE_COLONNE_CIBLE", "ANOMALIE_SEVERITE", "ANOMALIE_ACTIVE", '
-                '"ANOMALIE_TAUX", "UTILISATEUR_ID_CREATION") '
-                "VALUES (:code, :libelle, :table_cible, :colonne_cible, :severite, "
-                "true, :taux, 'migration') "
-                'ON CONFLICT ("ANOMALIE_CODE") DO NOTHING'
-            ),
-            {
-                "code": type_anomalie.code,
-                "libelle": type_anomalie.libelle,
-                "table_cible": type_anomalie.table_cible,
-                "colonne_cible": type_anomalie.colonne_cible,
-                "severite": type_anomalie.severite,
-                "taux": taux_global,
-            },
-        )
+        parametres = {
+            "code": type_anomalie.code,
+            "libelle": type_anomalie.libelle,
+            "table_cible": type_anomalie.table_cible,
+            "colonne_cible": type_anomalie.colonne_cible,
+            "severite": type_anomalie.severite,
+            "taux": taux_global,
+        }
+        for nom in supplements:
+            parametres[nom.lower()] = colonnes_tardives[nom](type_anomalie)
+        connexion.execute(requete, parametres)
 
 
 def downgrade() -> None:
