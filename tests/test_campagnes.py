@@ -752,7 +752,7 @@ async def test_un_doublon_exact_recopie_une_identite_deja_ecrite(tmp_path):
 
     entete, par_numero = _relire_csv(fichier)
     champs = (
-        "NUMERO_IMMATRICULATION", "ASSURE_NOM", "ASSURE_PRENOMS",
+        "ASSURE_NUMERO_IDENTIFIANT", "ASSURE_NOM", "ASSURE_PRENOMS",
         "ASSURE_DATE_NAISSANCE",
     )
     rangs = [entete.index(nom) for nom in champs]
@@ -769,9 +769,11 @@ async def test_un_doublon_exact_recopie_une_identite_deja_ecrite(tmp_path):
         assert jumelles, f"ligne {constat.ligne} : doublon sans jumelle"
 
 
-async def test_les_immatriculations_commencent_par_394_et_sont_uniques(tmp_path):
-    """Chaque numéro fait treize caractères, commence par 394, et le fichier
-    n'en répète jamais deux — le trou que le générateur laissait avant."""
+async def test_les_identifiants_commencent_par_cmu_et_sont_uniques(tmp_path):
+    """Chaque identifiant fait treize caractères, commence par CMU — le
+    format ASSURE_NUMERO_IDENTIFIANT de la vraie base (seed/runner.py) — et
+    le fichier n'en répète jamais deux. Le numéro de sécu, lui, garde le
+    format numérique à treize chiffres, préfixe 384."""
 
     from campagnes.generateur import produire
 
@@ -779,12 +781,20 @@ async def test_les_immatriculations_commencent_par_394_et_sont_uniques(tmp_path)
     produire(202, 3_000, {}, fichier, "C-TEST-061")
 
     entete, par_numero = _relire_csv(fichier)
-    rang = entete.index("NUMERO_IMMATRICULATION")
-    numeros = [ligne[rang] for ligne in par_numero.values()]
+    rang_identifiant = entete.index("ASSURE_NUMERO_IDENTIFIANT")
+    rang_secu = entete.index("NUMERO_SECU")
+    identifiants = [ligne[rang_identifiant] for ligne in par_numero.values()]
+    numeros_secu = [ligne[rang_secu] for ligne in par_numero.values()]
 
-    assert len(numeros) == len(set(numeros)), "des numéros se répètent"
-    for numero in numeros:
-        assert numero.startswith("394"), numero
+    assert len(identifiants) == len(set(identifiants)), "des identifiants se répètent"
+    for identifiant in identifiants:
+        assert identifiant.startswith("CMU"), identifiant
+        assert len(identifiant) == 13, identifiant
+        assert identifiant[3:].isdigit(), identifiant
+
+    assert len(numeros_secu) == len(set(numeros_secu)), "des numéros de sécu se répètent"
+    for numero in numeros_secu:
+        assert numero.startswith("384"), numero
         assert len(numero) == 13, numero
         assert numero.isdigit(), numero
 
@@ -810,8 +820,11 @@ async def test_agent_email_vient_de_la_liste_des_agents_accueil(tmp_path):
         assert ligne[rang_email].endswith("@cmu.demo.ci")
 
 
-async def test_facture_numero_et_centre_sont_des_entiers_sans_prefixe(tmp_path):
-    """Fini le « F- » et le « CI-CMU- » : ce sont des entiers à l'écran."""
+async def test_facture_numero_est_un_entier_et_centre_suit_le_format_reel(tmp_path):
+    """FACTURE_NUMERO reste un entier nu ; CENTRE_SANTE_CODE, lui, suit
+    « CSxxx » — le format de TB_REF_CENTRES_SANTE.CENTRE_SANTE_CODE
+    (seed/runner.py), pas un entier nu qui n'existe nulle part côté vraie
+    base."""
 
     from campagnes.generateur import FACTURE_NUMERO_BASE, produire
 
@@ -828,11 +841,12 @@ async def test_facture_numero_et_centre_sont_des_entiers_sans_prefixe(tmp_path):
 
     for ligne in par_numero.values():
         assert ligne[rang_facture].isdigit()
-        assert ligne[rang_centre].isdigit()
-        assert 1 <= int(ligne[rang_centre]) <= 250
+        code_centre = ligne[rang_centre]
+        assert code_centre.startswith("CS"), code_centre
+        assert 1 <= int(code_centre[2:]) <= 250
 
 
-async def test_les_immatriculations_sont_stables_a_graine_egale(tmp_path):
+async def test_les_identifiants_sont_stables_a_graine_egale(tmp_path):
     """Rejouer une campagne à graine identique doit produire les mêmes
     numéros — sinon deux campagnes de même graine n'ont plus la même
     empreinte, ce que le chapitre 3 du cahier exige."""
@@ -846,16 +860,16 @@ async def test_les_immatriculations_sont_stables_a_graine_egale(tmp_path):
 
     _, par_numero_1 = _relire_csv(premier)
     _, par_numero_2 = _relire_csv(second)
-    rang = _relire_csv(premier)[0].index("NUMERO_IMMATRICULATION")
+    rang = _relire_csv(premier)[0].index("ASSURE_NUMERO_IDENTIFIANT")
 
     for numero in par_numero_1:
         assert par_numero_1[numero][rang] == par_numero_2[numero][rang]
 
 
 async def test_un_doublon_approchant_garde_un_numero_distinct(tmp_path):
-    """C'est tout le cas difficile : deux numéros pour une seule personne.
+    """C'est tout le cas difficile : deux identifiants pour une seule personne.
 
-    Copier aussi l'immatriculation rendrait la détection triviale, et le test
+    Copier aussi l'identifiant rendrait la détection triviale, et le test
     sans valeur pour l'outil examiné.
     """
 
@@ -870,7 +884,7 @@ async def test_un_doublon_approchant_garde_un_numero_distinct(tmp_path):
     for constat in constats:
         avant = constat.valeur_origine.split(" | ")
         apres = constat.valeur_injectee.split(" | ")
-        assert avant[0] == apres[0], "l'immatriculation ne doit pas être copiée"
+        assert avant[0] == apres[0], "l'identifiant ne doit pas être copié"
         assert constat.valeur_origine != constat.valeur_injectee
 
 
@@ -936,7 +950,13 @@ async def test_une_date_mal_ecrite_reste_une_date_juste(tmp_path):
     assert constats
 
     for constat in constats:
-        origine = date.fromisoformat(constat.valeur_origine)
+        # DROITS_DATE_DEBUT est horodaté (DateTime(timezone=True), comme la
+        # vraie base) : son origine porte l'heure et le fuseau, les deux
+        # autres champs restent des dates nues.
+        try:
+            origine = date.fromisoformat(constat.valeur_origine)
+        except ValueError:
+            origine = datetime.fromisoformat(constat.valeur_origine).date()
         relue = None
         for motif in FORMATS_DATE_CONCURRENTS:
             try:

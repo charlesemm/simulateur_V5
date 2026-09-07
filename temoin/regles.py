@@ -30,9 +30,9 @@ from seed.constants import HEALTH_CENTER_TYPES, MEDICAL_ACTS
 # que qualite/regles.py, pour que témoin et moteur jugent pareil.
 SEUIL_MONTANT_DEMESURE = Decimal("1000000")
 
-TAUX_PAR_REGIME = {"RAM": Decimal("1.00"), "RGB": Decimal("0.70")}
-
-FORMAT_DATE_ATTENDU = "%Y-%m-%d"
+# En pourcentage (100/70), pas une fraction — même échelle que
+# REGIME_TAUX et PRESTATION_TAUX_REMBOURSEMENT sur la vraie base.
+TAUX_PAR_REGIME = {"RAM": Decimal("100"), "RGB": Decimal("70")}
 
 CHAMPS_DATE_ATTENDUS = (
     "FACTURE_DATE_SOINS", "FACTURE_DATE_EMISSION",
@@ -66,10 +66,20 @@ def _decimal(valeur: str | None) -> Decimal | None:
 
 
 def _date_iso(valeur: str | None) -> date | None:
+    """Une date ISO simple (`2026-01-03`) ou complète, avec heure et fuseau
+    (`2025-01-01T00:00:00+00:00`) — les droits sont horodatés comme
+    DateTime(timezone=True) sur la vraie base (TB_ASSURES_DROITS), les autres
+    dates restent nues. Les deux formats doivent passer par la même règle.
+    """
+
     if not valeur:
         return None
     try:
-        return datetime.strptime(valeur, FORMAT_DATE_ATTENDU).date()
+        return date.fromisoformat(valeur)
+    except ValueError:
+        pass
+    try:
+        return datetime.fromisoformat(valeur).date()
     except ValueError:
         return None
 
@@ -170,11 +180,23 @@ def _quantites(ligne: dict[str, str], numero: int) -> Iterable[Constat]:
                       "Quantité servie nulle malgré une prescription")
 
 
-def _immatriculation(ligne: dict[str, str], numero: int) -> Iterable[Constat]:
-    valeur = ligne.get("NUMERO_IMMATRICULATION", "")
-    if not re.match(r"^394\d{10}$", valeur):
-        yield Constat(numero, "NUMERO_IMMATRICULATION",
-                      "Numéro d'immatriculation mal formé")
+def _identifiant(ligne: dict[str, str], numero: int) -> Iterable[Constat]:
+    valeur = ligne.get("ASSURE_NUMERO_IDENTIFIANT", "")
+    if not re.match(r"^CMU\d{10}$", valeur):
+        yield Constat(numero, "ASSURE_NUMERO_IDENTIFIANT",
+                      "Identifiant assuré mal formé")
+
+
+def _numero_secu(ligne: dict[str, str], numero: int) -> Iterable[Constat]:
+    """Même règle que `qualite/regles.py:_numero_secu_invalide`, côté fichier :
+    un numéro qui n'a pas 13 ou 14 chiffres, ou la sentinelle du moteur temps
+    réel (`00000000000000`) — un numéro qui ne peut appartenir à personne.
+    """
+
+    valeur = ligne.get("NUMERO_SECU", "")
+    if not re.match(r"^\d{13,14}$", valeur) or valeur == "00000000000000":
+        yield Constat(numero, "NUMERO_SECU",
+                      "Numéro de sécurité sociale mal formé")
 
 
 def _email(ligne: dict[str, str], numero: int) -> Iterable[Constat]:
@@ -213,7 +235,7 @@ def _texte(ligne: dict[str, str], numero: int) -> Iterable[Constat]:
 
 REGLES_PAR_LIGNE = (
     _montant, _taux, _naissance, _dates_de_soins, _formats_de_date,
-    _quantites, _immatriculation, _email, _referentiels,
+    _quantites, _identifiant, _numero_secu, _email, _referentiels,
     _champs_obligatoires, _texte,
 )
 
@@ -258,7 +280,7 @@ def _doublons(lignes: list[dict[str, str]]) -> list[Constat]:
         approchee = _identite_approchee(ligne)
 
         if stricte in vues_strictes:
-            constats.append(Constat(numero, "NUMERO_IMMATRICULATION",
+            constats.append(Constat(numero, "ASSURE_NUMERO_IDENTIFIANT",
                                      "Doublon strict d'une fiche déjà vue"))
         elif approchee in vues_approchees:
             constats.append(Constat(numero, "ASSURE_NOM",

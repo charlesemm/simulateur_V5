@@ -294,7 +294,7 @@ CATALOGUE_INITIAL: tuple[TypeAnomalie, ...] = (
         "Deux fiches strictement identiques pour la même personne",
         "IDENTITE",
         "TB_REF_ASSURES",
-        "NUMERO_IMMATRICULATION",
+        "ASSURE_NUMERO_IDENTIFIANT",
         SEVERITE_DURE,
         PORTEE_CAMPAGNE,
     ),

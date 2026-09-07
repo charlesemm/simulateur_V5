@@ -12,28 +12,31 @@ from temoin.service import analyser_fichier
 # Une ligne saine, telle qu'un DictReader la rendrait : tout est du texte.
 # Construite à la main plutôt qu'avec `ligne_saine` de campagnes/generateur —
 # le témoin ne doit dépendre que du format du fichier, jamais du générateur
-# qui l'a produit.
+# qui l'a produit. Les formats (identifiant CMU, taux en pourcentage, code de
+# centre, droits horodatés) sont ceux de la vraie base, pas des inventions du
+# générateur — voir campagnes/generateur.py et app/models/schema.py.
 LIGNE_SAINE: dict[str, str] = {
     "LIGNE_ID": "1",
-    "NUMERO_IMMATRICULATION": "3940000000001",
+    "ASSURE_NUMERO_IDENTIFIANT": "CMU0000000001",
+    "NUMERO_SECU": "3840000000001",
     "ASSURE_NOM": "Kouassi",
     "ASSURE_PRENOMS": "Awa",
     "ASSURE_DATE_NAISSANCE": "1990-05-12",
     "AGENT_EMAIL": "awa.kouassi.1@cmu.demo.ci",
     "REGIME_CODE": "RAM",
-    "DROITS_DATE_DEBUT": "2025-01-01",
-    "DROITS_DATE_FIN": "2027-01-01",
+    "DROITS_DATE_DEBUT": "2025-01-01T00:00:00+00:00",
+    "DROITS_DATE_FIN": "2027-01-01T00:00:00+00:00",
     "FACTURE_NUMERO": "100000",
     "FACTURE_DATE_EMISSION": "2026-01-05",
     "FACTURE_DATE_SOINS": "2026-01-03",
-    "CENTRE_SANTE_CODE": "12",
+    "CENTRE_SANTE_CODE": "CS012",
     "CENTRE_SANTE_TYPE_CODE": "CHR",
     "PRESTATION_CODE": "CONS-001",
     "PRESTATION_QUANTITE_PRESCRITE": "2",
     "PRESTATION_QUANTITE_SERVIE": "2",
     "PRESTATION_MONTANT_DEPENSE": "5000.00",
-    "PRESTATION_TAUX_REMBOURSEMENT": "1.00",
-    "PRESTATION_MONTANT_CMU": "5000.00",
+    "PRESTATION_TAUX_REMBOURSEMENT": "100.00",
+    "PRESTATION_MONTANT_RQ": "5000.00",
     "PRESTATION_MONTANT_ASSURE": "0.00",
     "DONNEE_FICTIVE": "FICTIF-ECHO",
     "CAMPAGNE_REFERENCE": "C-2026-001",
@@ -57,7 +60,7 @@ def test_un_montant_negatif_est_detecte():
 
 
 def test_un_taux_etranger_au_regime_est_detecte():
-    constats = analyser([_ligne(PRESTATION_TAUX_REMBOURSEMENT="0.42")])
+    constats = analyser([_ligne(PRESTATION_TAUX_REMBOURSEMENT="42.00")])
 
     assert len(constats) == 1
     assert constats[0].champ == "PRESTATION_TAUX_REMBOURSEMENT"
@@ -98,11 +101,29 @@ def test_une_quantite_servie_nulle_est_detectee():
     assert constats[0].type == "Quantité servie nulle malgré une prescription"
 
 
-def test_une_immatriculation_mal_formee_est_detectee():
-    constats = analyser([_ligne(NUMERO_IMMATRICULATION="12345")])
+def test_un_identifiant_assure_mal_forme_est_detecte():
+    constats = analyser([_ligne(ASSURE_NUMERO_IDENTIFIANT="12345")])
 
     assert constats == [
-        Constat(1, "NUMERO_IMMATRICULATION", "Numéro d'immatriculation mal formé")
+        Constat(1, "ASSURE_NUMERO_IDENTIFIANT", "Identifiant assuré mal formé")
+    ]
+
+
+def test_un_numero_secu_mal_forme_est_detecte():
+    constats = analyser([_ligne(NUMERO_SECU="12345")])
+
+    assert constats == [
+        Constat(1, "NUMERO_SECU", "Numéro de sécurité sociale mal formé")
+    ]
+
+
+def test_la_sentinelle_du_moteur_temps_reel_est_reconnue():
+    """00000000000000 a la bonne longueur : seule la valeur le trahit."""
+
+    constats = analyser([_ligne(NUMERO_SECU="00000000000000")])
+
+    assert constats == [
+        Constat(1, "NUMERO_SECU", "Numéro de sécurité sociale mal formé")
     ]
 
 
@@ -152,14 +173,14 @@ def test_un_doublon_strict_est_detecte_a_la_deuxieme_occurrence():
     constats = analyser(lignes)
 
     assert constats == [
-        Constat(2, "NUMERO_IMMATRICULATION", "Doublon strict d'une fiche déjà vue")
+        Constat(2, "ASSURE_NUMERO_IDENTIFIANT", "Doublon strict d'une fiche déjà vue")
     ]
 
 
 def test_un_doublon_approchant_est_detecte():
     lignes = [
         _ligne(LIGNE_ID="1"),
-        _ligne(LIGNE_ID="2", NUMERO_IMMATRICULATION="3940000000099",
+        _ligne(LIGNE_ID="2", ASSURE_NUMERO_IDENTIFIANT="CMU0000000099",
                ASSURE_NOM="KOUASSI"),
     ]
 

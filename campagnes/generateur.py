@@ -97,7 +97,8 @@ FACTURE_NUMERO_BASE = 100_000
 # fichier, donc l'empreinte, donc la comparaison entre deux campagnes.
 COLONNES = (
     "LIGNE_ID",
-    "NUMERO_IMMATRICULATION",
+    "ASSURE_NUMERO_IDENTIFIANT",
+    "NUMERO_SECU",
     "ASSURE_NOM",
     "ASSURE_PRENOMS",
     "ASSURE_DATE_NAISSANCE",
@@ -115,7 +116,7 @@ COLONNES = (
     "PRESTATION_QUANTITE_SERVIE",
     "PRESTATION_MONTANT_DEPENSE",
     "PRESTATION_TAUX_REMBOURSEMENT",
-    "PRESTATION_MONTANT_CMU",
+    "PRESTATION_MONTANT_RQ",
     "PRESTATION_MONTANT_ASSURE",
 )
 
@@ -140,9 +141,11 @@ COLONNES_MARQUAGE = (COLONNE_MARQUE, COLONNE_CAMPAGNE)
 # Les colonnes réellement écrites dans le fichier, marquage compris.
 COLONNES_FICHIER = COLONNES_MARQUAGE + COLONNES
 
-# Taux de prise en charge par régime : le RAM (assistance médicale) couvre
-# tout, le RGB laisse un ticket modérateur de 30 %.
-TAUX_PAR_REGIME = {"RAM": Decimal("1.00"), "RGB": Decimal("0.70")}
+# Taux de prise en charge par régime, en pourcentage — même échelle que
+# REGIME_TAUX et PRESTATION_TAUX_REMBOURSEMENT sur la vraie base
+# (seed/runner.py, app/models/schema.py), pas une fraction. Le RAM (assistance
+# médicale) couvre tout, le RGB laisse un ticket modérateur de 30 %.
+TAUX_PAR_REGIME = {"RAM": Decimal("100"), "RGB": Decimal("70")}
 
 TYPES_CENTRE = tuple(code for code, _ in HEALTH_CENTER_TYPES)
 CODES_ACTES = tuple(code for code, *_ in MEDICAL_ACTS)
@@ -188,34 +191,53 @@ def _formater(valeur: Any) -> str:
     return str(valeur)
 
 
-IMMATRICULATION_PREFIXE = "394"
+# Les deux identifiants de la vraie base (app/models/schema.py), pas un seul
+# « numéro d'immatriculation » inventé : ASSURE_NUMERO_IDENTIFIANT (préfixe
+# CMU) et NUMERO_SECU (préfixe 384) désignent des choses différentes sur
+# TB_REF_ASSURES, et NUMERO_SECU_INVALIDE ne vise que le second. Les
+# confondre en un seul champ, comme la première version de ce générateur le
+# faisait, faisait cibler cette anomalie sur un champ qui n'existe nulle
+# part côté vraie base.
+IDENTIFIANT_PREFIXE = "CMU"
+SECU_PREFIXE = "384"
 
-# Bijection affine, comme `numero_securite_sociale` dans `seed/runner.py` :
-# le multiplicateur est fixé, impair et non multiple de 5, donc premier avec
-# le modulo 10**10 — la transformation ne peut alors jamais reboucler sur un
-# suffixe déjà attribué. Le décalage, lui, est tiré une fois par génération à
-# partir de la graine de la campagne : deux campagnes ne partagent pas la
-# même série, mais une campagne rejouée à graine identique produit toujours
-# les mêmes numéros.
-IMMATRICULATION_MULTIPLICATEUR = 7_919_990_071
-IMMATRICULATION_MODULO = 10 ** 10
+# Bijections affines, comme `numero_securite_sociale` dans `seed/runner.py` :
+# chaque multiplicateur est impair et non multiple de 5, donc premier avec le
+# modulo 10**10 — la transformation ne peut alors jamais reboucler sur un
+# suffixe déjà attribué. Deux multiplicateurs distincts, pour que les deux
+# séries ne se recopient pas l'une l'autre. Le décalage, lui, est tiré une
+# fois par génération à partir de la graine de la campagne : deux campagnes
+# ne partagent pas la même série, mais une campagne rejouée à graine
+# identique produit toujours les mêmes numéros.
+IDENTIFIANT_MULTIPLICATEUR = 7_919_990_071
+IDENTIFIANT_MODULO = 10 ** 10
+SECU_MULTIPLICATEUR = 6_700_417_023
+SECU_MODULO = 10 ** 10
 
 
-def _immatriculation(numero: int, decalage: int) -> str:
-    """Un numéro d'immatriculation à treize chiffres : préfixe 394 (CMU),
-    puis dix chiffres qui paraissent tirés au hasard mais restent uniques
-    dans tout le fichier — deux lignes ne peuvent mathématiquement pas
-    partager un numéro, ce qui compte pour la dimension Unicité du cahier.
+def _identifiant_assure(numero: int, decalage: int) -> str:
+    """Un identifiant CMU à treize caractères, format ASSURE_NUMERO_IDENTIFIANT
+    de la vraie base : préfixe CMU, puis dix chiffres uniques dans tout le
+    fichier — deux lignes ne peuvent mathématiquement pas partager un
+    identifiant, ce qui compte pour la dimension Unicité du cahier.
     """
 
-    suffixe = (
-        IMMATRICULATION_MULTIPLICATEUR * numero + decalage
-    ) % IMMATRICULATION_MODULO
-    return f"{IMMATRICULATION_PREFIXE}{suffixe:010d}"
+    suffixe = (IDENTIFIANT_MULTIPLICATEUR * numero + decalage) % IDENTIFIANT_MODULO
+    return f"{IDENTIFIANT_PREFIXE}{suffixe:010d}"
+
+
+def _numero_secu(numero: int, decalage: int) -> str:
+    """Un numéro de sécurité sociale à treize chiffres, même format que
+    `numero_securite_sociale()` côté seed : préfixe 384, puis dix chiffres
+    uniques, indépendants de la série d'identifiants CMU.
+    """
+
+    suffixe = (SECU_MULTIPLICATEUR * numero + decalage) % SECU_MODULO
+    return f"{SECU_PREFIXE}{suffixe:010d}"
 
 
 def ligne_saine(
-    rng: random.Random, numero: int, decalage_immatriculation: int
+    rng: random.Random, numero: int, decalage_identifiant: int, decalage_secu: int
 ) -> dict[str, Any]:
     """Compose une ligne cohérente, avant toute corruption.
 
@@ -231,6 +253,14 @@ def ligne_saine(
     naissance = DATE_REFERENCE - timedelta(days=rng.randint(6_570, 25_550))
     debut_droits = DATE_REFERENCE - timedelta(days=rng.randint(200, 900))
     fin_droits = debut_droits + timedelta(days=rng.choice((365, 730, 1095)))
+    # DateTime(timezone=True) côté vraie base (TB_ASSURES_DROITS) : une date
+    # nue changerait de type de colonne d'un système à l'autre. Minuit UTC
+    # plutôt qu'une heure tirée — l'heure exacte n'a aucun sens ici, seul le
+    # jour en a, et la garder fixe évite un tirage de plus à chaque ligne.
+    debut_droits_horodate = datetime.combine(debut_droits, datetime.min.time(),
+                                             tzinfo=timezone.utc)
+    fin_droits_horodate = datetime.combine(fin_droits, datetime.min.time(),
+                                           tzinfo=timezone.utc)
 
     date_soins = DATE_REFERENCE - timedelta(days=rng.randint(0, AMPLITUDE_JOURS))
     date_emission = date_soins + timedelta(days=rng.randint(0, 5))
@@ -239,11 +269,15 @@ def ligne_saine(
     quantite = rng.randint(1, 4)
     montant = MONTANTS_ACTES[code_acte] * quantite
     taux = TAUX_PAR_REGIME[regime]
-    part_cmu = (montant * taux).quantize(Decimal("0.01"))
+    # Le taux est en pourcentage (100/70), pas une fraction : diviser par 100
+    # avant de l'appliquer au montant, sans quoi la part recomposerait le
+    # montant multiplié par cent.
+    part_rq = (montant * taux / Decimal("100")).quantize(Decimal("0.01"))
 
     return {
         "LIGNE_ID": numero,
-        "NUMERO_IMMATRICULATION": _immatriculation(numero, decalage_immatriculation),
+        "ASSURE_NUMERO_IDENTIFIANT": _identifiant_assure(numero, decalage_identifiant),
+        "NUMERO_SECU": _numero_secu(numero, decalage_secu),
         "ASSURE_NOM": nom,
         "ASSURE_PRENOMS": prenom,
         "ASSURE_DATE_NAISSANCE": naissance,
@@ -251,23 +285,25 @@ def ligne_saine(
         # se faire soigner — voir AGENTS_ACCUEIL.
         "AGENT_EMAIL": rng.choice(AGENTS_ACCUEIL)["email"],
         "REGIME_CODE": regime,
-        "DROITS_DATE_DEBUT": debut_droits,
-        "DROITS_DATE_FIN": fin_droits,
+        "DROITS_DATE_DEBUT": debut_droits_horodate,
+        "DROITS_DATE_FIN": fin_droits_horodate,
         # Un entier, sans préfixe : six chiffres pour les volumes courants
         # (jusqu'à 900 000 lignes), davantage seulement si le palier l'exige
         # — jamais tronqué, jamais répété entre deux lignes.
         "FACTURE_NUMERO": FACTURE_NUMERO_BASE + numero - 1,
         "FACTURE_DATE_EMISSION": date_emission,
         "FACTURE_DATE_SOINS": date_soins,
-        "CENTRE_SANTE_CODE": rng.randint(1, 250),
+        # Format CSxxx de TB_REF_CENTRES_SANTE.CENTRE_SANTE_CODE
+        # (seed/runner.py), pas un entier nu.
+        "CENTRE_SANTE_CODE": f"CS{rng.randint(1, 250):03d}",
         "CENTRE_SANTE_TYPE_CODE": rng.choice(TYPES_CENTRE),
         "PRESTATION_CODE": code_acte,
         "PRESTATION_QUANTITE_PRESCRITE": quantite,
         "PRESTATION_QUANTITE_SERVIE": quantite,
         "PRESTATION_MONTANT_DEPENSE": montant,
         "PRESTATION_TAUX_REMBOURSEMENT": taux,
-        "PRESTATION_MONTANT_CMU": part_cmu,
-        "PRESTATION_MONTANT_ASSURE": (montant - part_cmu).quantize(Decimal("0.01")),
+        "PRESTATION_MONTANT_RQ": part_rq,
+        "PRESTATION_MONTANT_ASSURE": (montant - part_rq).quantize(Decimal("0.01")),
         # Colonne technique, hors du fichier : la ville sert à donner un code
         # de centre plausible sans multiplier les tirages.
         "_VILLE": rng.choice(IVORIAN_CITIES),
@@ -305,9 +341,11 @@ def _montant_aberrant(rng, ligne):
 
 def _taux_hors_bareme(rng, ligne):
     origine = ligne["PRESTATION_TAUX_REMBOURSEMENT"]
-    # Un taux étranger au régime : 100 % pour un RGB, ou une valeur qui
-    # n'existe dans aucun barème.
-    injectee = Decimal("1.00") if origine != Decimal("1.00") else Decimal("0.42")
+    # Le taux de l'autre régime : plausible pris isolément — 70 % comme
+    # 100 % sont des taux qui existent réellement — seule la confrontation au
+    # régime de la ligne révèle l'incohérence. Même logique que
+    # `anomalies/config.py:tirer_taux`, côté moteur temps réel.
+    injectee = Decimal("70") if ligne["REGIME_CODE"] == "RAM" else Decimal("100")
     ligne["PRESTATION_TAUX_REMBOURSEMENT"] = injectee
     return "PRESTATION_TAUX_REMBOURSEMENT", origine, injectee
 
@@ -338,7 +376,12 @@ def _date_soins_future(rng, ligne):
 
 def _date_hors_droits(rng, ligne):
     origine = ligne["FACTURE_DATE_SOINS"]
-    injectee = ligne["DROITS_DATE_FIN"] + timedelta(days=rng.randint(1, 400))
+    # DROITS_DATE_FIN est un datetime (horodaté, timezone UTC) ; FACTURE_DATE_SOINS
+    # reste une date nue — .date() ramène le résultat au bon type, sinon la
+    # colonne mélangerait les deux d'une ligne à l'autre.
+    injectee = (
+        ligne["DROITS_DATE_FIN"] + timedelta(days=rng.randint(1, 400))
+    ).date()
     ligne["FACTURE_DATE_SOINS"] = injectee
     return "FACTURE_DATE_SOINS", origine, injectee
 
@@ -363,15 +406,23 @@ def _quantite_nulle(rng, ligne):
     return "PRESTATION_QUANTITE_SERVIE", origine, 0
 
 
-def _numero_invalide(rng, ligne):
-    origine = ligne["NUMERO_IMMATRICULATION"]
+def _numero_secu_invalide(rng, ligne):
+    """Vise NUMERO_SECU, pas l'identifiant CMU : c'est ce champ que la vraie
+    base protège par une contrainte d'unicité (app/models/schema.py), et
+    c'est lui que `anomalies/config.py:tirer_numero_secu` corrompt côté
+    moteur temps réel — les deux simulations doivent viser le même champ.
+    """
+
+    origine = ligne["NUMERO_SECU"]
     if rng.random() < 0.5:
+        # La même sentinelle que le moteur temps réel : un numéro qui passe
+        # la contrainte de longueur mais ne peut appartenir à personne.
+        injectee = "00000000000000"
+    else:
         # Trop court : le défaut le plus courant à la saisie.
         injectee = origine[: rng.randint(6, 12)]
-    else:
-        injectee = origine[:-1] + rng.choice("ABCDEFGH")
-    ligne["NUMERO_IMMATRICULATION"] = injectee
-    return "NUMERO_IMMATRICULATION", origine, injectee
+    ligne["NUMERO_SECU"] = injectee
+    return "NUMERO_SECU", origine, injectee
 
 
 def _email_invalide(rng, ligne):
@@ -411,7 +462,7 @@ def _prestation_orpheline(rng, ligne):
 
 # Les champs qui, ensemble, désignent une personne. Un doublon les copie.
 CHAMPS_IDENTITE = (
-    "NUMERO_IMMATRICULATION",
+    "ASSURE_NUMERO_IDENTIFIANT",
     "ASSURE_NOM",
     "ASSURE_PRENOMS",
     "ASSURE_DATE_NAISSANCE",
@@ -419,7 +470,7 @@ CHAMPS_IDENTITE = (
 
 # Ce qu'un dossier ne peut pas laisser vide.
 CHAMPS_OBLIGATOIRES = (
-    "NUMERO_IMMATRICULATION",
+    "ASSURE_NUMERO_IDENTIFIANT",
     "ASSURE_NOM",
     "ASSURE_PRENOMS",
     "ASSURE_DATE_NAISSANCE",
@@ -518,12 +569,12 @@ def _doublon_exact(rng, ligne, historique):
 
 
 def _doublon_approchant(rng, ligne, historique):
-    """La même personne, à une variation près — et sous un autre numéro.
+    """La même personne, à une variation près — et sous un autre identifiant.
 
-    L'immatriculation reste celle de la ligne, délibérément : c'est tout le
-    cas difficile. Deux numéros pour une seule personne, que seule la
-    proximité des noms et la date de naissance permettent de rapprocher. Copier
-    aussi le numéro rendrait la détection triviale, et le test sans valeur.
+    L'identifiant CMU reste celui de la ligne, délibérément : c'est tout le
+    cas difficile. Deux identifiants pour une seule personne, que seule la
+    proximité des noms et la date de naissance permettent de rapprocher. Le
+    copier aussi rendrait la détection triviale, et le test sans valeur.
     """
 
     if not historique:
@@ -611,7 +662,7 @@ INJECTEURS: dict[str, Injecteur] = {
     REPARTITION_FAUSSEE: _repartition_faussee,
     QUANTITE_EXCESSIVE: _quantite_excessive,
     QUANTITE_NULLE: _quantite_nulle,
-    NUMERO_SECU_INVALIDE: _numero_invalide,
+    NUMERO_SECU_INVALIDE: _numero_secu_invalide,
     EMAIL_INVALIDE: _email_invalide,
     TYPE_CENTRE_INCONNU: _type_centre_inconnu,
     PRESTATION_ORPHELINE: _prestation_orpheline,
@@ -701,10 +752,11 @@ def produire(graine: int, volume: int, reglages: dict[str, dict],
     """
 
     rng = random.Random(graine)
-    # Tiré une seule fois, avant la boucle : c'est ce qui distingue la série
-    # de numéros d'une campagne de celle d'une autre, sans casser la
-    # bijection qui garantit leur unicité au sein du fichier.
-    decalage_immatriculation = rng.randrange(IMMATRICULATION_MODULO)
+    # Tirés une seule fois, avant la boucle, et dans cet ordre fixe : c'est ce
+    # qui distingue la série de numéros d'une campagne de celle d'une autre,
+    # sans casser la bijection qui garantit leur unicité au sein du fichier.
+    decalage_identifiant = rng.randrange(IDENTIFIANT_MODULO)
+    decalage_secu = rng.randrange(SECU_MODULO)
     types = ordre_des_types(reglages)
     constats: list[Constat] = []
     empreinte = hashlib.sha256()
@@ -742,7 +794,7 @@ def produire(graine: int, volume: int, reglages: dict[str, dict],
         historique: deque[dict[str, Any]] = deque(maxlen=PROFONDEUR_HISTORIQUE)
 
         for numero in range(1, volume + 1):
-            ligne = ligne_saine(rng, numero, decalage_immatriculation)
+            ligne = ligne_saine(rng, numero, decalage_identifiant, decalage_secu)
             constats.extend(
                 pieger(rng, ligne, types, reglages, numero, historique)
             )
