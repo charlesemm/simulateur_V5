@@ -1,9 +1,9 @@
 // Centralise les appels HTTP, le typage et les messages d'erreur français.
 
 import type {
-  CadenceMoteur, Campagne, Corrige, DimensionQualite, ExecutionDetail,
-  FicheGouvernance, FormatExport, HealthCenterList, PalierCampagne,
-  ProgressionCampagne,
+  CadenceMoteur, Campagne, Corrige, DimensionQualite, EchangeCampagne,
+  ExecutionDetail, FicheGouvernance, FormatExport, HealthCenterList,
+  PalierCampagne, ProgressionCampagne,
   RapportExecution, TypeAnomalieCampagne,
   InjectionJournal, KpiHistory, KpiSnapshot, PaireMdm, ProfilSimulation,
   RapportQualite, ScenarioAlea, SimulationRun, SimulationStatus, TypeAnomalie,
@@ -303,6 +303,38 @@ export const api = {
       { headers: authHeaders(token) }
     );
     return parseOrThrow<Corrige>(response);
+  },
+
+  /** Les libellés français des trois pannes du canal M6, tenus par le serveur. */
+  async getMotifsEchec(token: string | null): Promise<Record<string, string>> {
+    const response = await fetch(`${API_URL}/campagnes/motifs-echec`, {
+      headers: authHeaders(token),
+    });
+    return parseOrThrow<Record<string, string>>(response);
+  },
+
+  /** Transmet le jeu d'une campagne à l'outil testé (M6). Sans adresse, elle
+   *  part vers le témoin. Répond une fois l'échange terminé — succès ou l'une
+   *  des trois pannes distinguées, jamais un score de 0 %. */
+  async transmettreCampagne(
+    campagneId: string, token: string | null, adresse?: string
+  ): Promise<EchangeCampagne> {
+    const response = await fetch(`${API_URL}/campagnes/${campagneId}/transmettre`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders(token) },
+      body: JSON.stringify(adresse ? { adresse } : {}),
+    });
+    return parseOrThrow<EchangeCampagne>(response);
+  },
+
+  /** L'historique des transmissions d'une campagne, la plus récente d'abord. */
+  async getEchanges(
+    campagneId: string, token: string | null
+  ): Promise<EchangeCampagne[]> {
+    const response = await fetch(`${API_URL}/campagnes/${campagneId}/echanges`, {
+      headers: authHeaders(token),
+    });
+    return parseOrThrow<EchangeCampagne[]>(response);
   },
 
   /** Les exécutions d'une journée et les rapports déjà produits pour chacune. */

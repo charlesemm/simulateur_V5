@@ -7,11 +7,12 @@ exécution du moteur (`TB_SIMULATIONS`) : une campagne n'a ni vitesse ni
 passages simultanés, elle a un volume, une graine et un score.
 """
 
+from campagnes.echange import historique, transmettre
 from campagnes.generation import (
     Progression, compter_corrige, lancer, lire_corrige, progression,
 )
 from campagnes.models import (
-    Campagne, CorrigeCampagne, STATUT_CREEE, STATUT_GENEREE,
+    Campagne, CorrigeCampagne, EchangeCampagne, STATUT_CREEE, STATUT_GENEREE,
     STATUT_GENERATION, STATUTS,
 )
 from campagnes.paliers import PALIERS, Palier, palier
@@ -23,6 +24,7 @@ from campagnes.service import (
 __all__ = [
     "Campagne",
     "CorrigeCampagne",
+    "EchangeCampagne",
     "Progression",
     "PALIERS",
     "Palier",
@@ -33,6 +35,7 @@ __all__ = [
     "compter_corrige",
     "creer",
     "dimensions_couvertes",
+    "historique",
     "lancer",
     "lire",
     "lire_corrige",
@@ -41,4 +44,5 @@ __all__ = [
     "normaliser_anomalies",
     "palier",
     "previsualiser_reference",
+    "transmettre",
 ]

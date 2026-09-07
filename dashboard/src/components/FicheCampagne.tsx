@@ -4,7 +4,8 @@ import { useAuth } from "../auth/AuthContext";
 import { RequireRole } from "../auth/RequireRole";
 import { api } from "../services/api";
 import type {
-  Campagne, Corrige, FormatExport, ProgressionCampagne, TypeAnomalieCampagne,
+  Campagne, Corrige, EchangeCampagne, FormatExport, ProgressionCampagne,
+  TypeAnomalieCampagne,
 } from "../types";
 import { dateCourte } from "./format-execution";
 import "./Screens.css";
@@ -48,6 +49,11 @@ export function FicheCampagne({
   const [formats, setFormats] = useState<FormatExport[]>([]);
   // Le format en cours de téléchargement, pour n'occuper que son bouton.
   const [enCours, setEnCours] = useState<string | null>(null);
+  // M6 — le canal API.
+  const [echanges, setEchanges] = useState<EchangeCampagne[]>([]);
+  const [motifsEchec, setMotifsEchec] = useState<Record<string, string>>({});
+  const [adresseSaisie, setAdresseSaisie] = useState("");
+  const [transmission, setTransmission] = useState(false);
   // Évite de prévenir la liste deux fois de la même fin de génération.
   const finSignalee = useRef(false);
 
@@ -184,6 +190,54 @@ export function FicheCampagne({
     },
     [campagne.campagne_id, token]
   );
+
+  // ── M6 : le canal API ────────────────────────────────────────────────
+  const chargerEchanges = useCallback(async () => {
+    if (!genere) {
+      setEchanges([]);
+      return;
+    }
+    try {
+      setEchanges(await api.getEchanges(campagne.campagne_id, token));
+    } catch (raison) {
+      setErreur((raison as Error).message);
+    }
+  }, [campagne.campagne_id, token, genere]);
+
+  useEffect(() => {
+    void chargerEchanges();
+  }, [chargerEchanges]);
+
+  // Les libellés des trois pannes ne changent pas d'une campagne à l'autre.
+  useEffect(() => {
+    let vivant = true;
+    api
+      .getMotifsEchec(token)
+      .then((liste) => {
+        if (vivant) setMotifsEchec(liste);
+      })
+      .catch(() => {
+        // Sans libellé, le code brut suffit encore à lire l'historique.
+      });
+    return () => {
+      vivant = false;
+    };
+  }, [token]);
+
+  const transmettre = useCallback(async () => {
+    setTransmission(true);
+    try {
+      await api.transmettreCampagne(
+        campagne.campagne_id, token, adresseSaisie.trim() || undefined
+      );
+      setErreur(null);
+      await chargerEchanges();
+    } catch (raison) {
+      setErreur((raison as Error).message);
+    } finally {
+      setTransmission(false);
+    }
+  }, [campagne.campagne_id, token, adresseSaisie, chargerEchanges]);
 
   const pages = corrige ? Math.ceil(corrige.total / PAR_PAGE) : 0;
 
@@ -328,6 +382,98 @@ export function FicheCampagne({
             Deux téléchargements du même format, pour la même campagne, donnent
             deux fichiers rigoureusement identiques.
           </p>
+        </div>
+      )}
+
+      {/* ── M6 : le canal vers l'outil testé ── */}
+      {genere && (
+        <div className="canal-bloc">
+          <h3 className="screen-section-title" style={{ marginTop: 0 }}>
+            Transmettre à l'outil testé
+          </h3>
+          <p className="export-aide">
+            Sans adresse, le jeu part vers le témoin — les 19 règles de qualité
+            d'ÉCHO, exposées derrière le même contrat que devra tenir le vrai
+            outil. Donner une adresse permet de tester le canal contre autre
+            chose, ou de rejouer une panne volontairement.
+          </p>
+          <RequireRole minimum="operateur">
+            <div className="canal-form">
+              <label className="champ-groupe">
+                <span className="champ-libelle">
+                  Adresse de l'outil (facultatif — vide = le témoin)
+                </span>
+                <input
+                  type="text"
+                  className="champ-console"
+                  placeholder="http://127.0.0.1:8000/temoin/analyser"
+                  value={adresseSaisie}
+                  onChange={(evenement) => setAdresseSaisie(evenement.target.value)}
+                />
+              </label>
+              <button
+                type="button"
+                className="btn btn-start"
+                onClick={() => void transmettre()}
+                disabled={transmission}
+              >
+                {transmission ? "Transmission…" : "Transmettre"}
+              </button>
+            </div>
+          </RequireRole>
+
+          {echanges.length === 0 ? (
+            <div className="screen-empty" style={{ marginTop: 12 }}>
+              Aucune transmission pour l'instant.
+            </div>
+          ) : (
+            <div className="screen-table-wrap" style={{ marginTop: 12 }}>
+              <table className="screen-table">
+                <thead>
+                  <tr>
+                    <th>Envoyé le</th>
+                    <th>Reçu le</th>
+                    <th>Adresse</th>
+                    <th>Résultat</th>
+                    <th>Constats</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {echanges.map((echange) => (
+                    <tr key={echange.echange_id}>
+                      <td>{dateCourte(echange.echange_date_envoi)}</td>
+                      <td>
+                        {echange.echange_date_reception
+                          ? dateCourte(echange.echange_date_reception)
+                          : "—"}
+                      </td>
+                      <td className="cellule-pied">{echange.echange_adresse}</td>
+                      <td>
+                        {echange.echange_resultat === "succes" ? (
+                          <span className="pastille pastille-notee">Reçu</span>
+                        ) : (
+                          <span
+                            className="pastille pastille-echec_echange"
+                            title={echange.echange_message ?? undefined}
+                          >
+                            {echange.echange_motif_echec
+                              ? (motifsEchec[echange.echange_motif_echec]
+                                ?? echange.echange_motif_echec)
+                              : "Échec"}
+                          </span>
+                        )}
+                      </td>
+                      <td>
+                        {echange.echange_resultat === "succes"
+                          ? entier(echange.echange_nombre_constats)
+                          : "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 

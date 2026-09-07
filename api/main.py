@@ -27,6 +27,7 @@ from api.routers import metrics as metrics_router
 from api.routers import assures as assures_router
 from api.routers import moteurs as moteurs_router
 from api.routers import qualite as qualite_router
+from api.routers import temoin as temoin_router
 from api.services.simulation_manager import simulation_manager
 from realtime import shutdown_event_pipeline, sio, startup_event_pipeline
 from api.routers import auth as auth_router
@@ -101,6 +102,7 @@ fastapi_app.include_router(reports_router.router)
 fastapi_app.include_router(anomalies_router.router)
 fastapi_app.include_router(qualite_router.router)
 fastapi_app.include_router(campagnes_router.router)
+fastapi_app.include_router(temoin_router.router)
 fastapi_app.include_router(moteurs_router.router)
 fastapi_app.include_router(assures_router.router)
 fastapi_app.include_router(metrics_router.router)

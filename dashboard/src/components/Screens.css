@@ -2145,6 +2145,23 @@
   color: var(--text-muted);
 }
 
+/* ── M6 — Le canal vers l'outil testé ─────────────────────────────────── */
+
+.canal-bloc {
+  margin-top: 18px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--rayon-md);
+  background: var(--surface-subtle);
+}
+
+.canal-form {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  margin: 10px 0 4px;
+}
+
 .cellule-empreinte {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: .84rem;

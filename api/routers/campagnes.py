@@ -10,18 +10,18 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status
 from anomalies.catalogue import CATALOGUE_INITIAL, DIMENSIONS, DIMENSION_PAR_CODE
 from api.schema import (
     CampagneCreateRequest, CampagneResponse, CorrigeResponse, DimensionResponse,
-    FormatExportResponse, LigneCorrigeResponse, PalierResponse,
-    ProchaineReferenceResponse, ProgressionResponse,
-    TypeAnomalieCampagneResponse,
+    EchangeCampagneResponse, FormatExportResponse, LigneCorrigeResponse,
+    PalierResponse, ProchaineReferenceResponse, ProgressionResponse,
+    TransmissionRequest, TypeAnomalieCampagneResponse,
 )
 from auth.dependencies import require_role
 from auth.models import User
 from campagnes import (
-    PALIERS, compter_corrige, creer, lancer, lire, lire_corrige, lister,
-    previsualiser_reference, progression,
+    PALIERS, compter_corrige, creer, historique, lancer, lire, lire_corrige,
+    lister, previsualiser_reference, progression, transmettre,
 )
 from campagnes.export import exporter, formats_disponibles
-from campagnes.models import LIBELLES_STATUTS
+from campagnes.models import LIBELLES_MOTIFS_ECHEC, LIBELLES_STATUTS
 
 router = APIRouter(prefix="/campagnes", tags=["Campagnes"])
 
@@ -62,6 +62,16 @@ async def list_statuts() -> dict[str, str]:
     """
 
     return LIBELLES_STATUTS
+
+
+@router.get("/motifs-echec", dependencies=[Depends(require_role("observateur"))])
+async def list_motifs_echec() -> dict[str, str]:
+    """Les trois pannes du canal M6, et leur libellé en français.
+
+    Déclarée avant `/{campagne_id}` pour la même raison que `/statuts`.
+    """
+
+    return LIBELLES_MOTIFS_ECHEC
 
 
 @router.get("/dimensions", response_model=list[DimensionResponse],
@@ -321,3 +331,42 @@ async def exporter_campagne(campagne_id: UUID, format: str = "csv") -> Response:
             "Content-Disposition": f'attachment; filename="{export.nom_fichier}"',
         },
     )
+
+
+@router.post("/{campagne_id}/transmettre", response_model=EchangeCampagneResponse,
+             status_code=status.HTTP_201_CREATED)
+async def transmettre_campagne(
+    campagne_id: UUID, requete: TransmissionRequest | None = None,
+    _utilisateur: User = Depends(require_role("operateur")),
+) -> EchangeCampagneResponse:
+    """Transmet le jeu d'une campagne à l'outil testé (M6).
+
+    Répond une fois l'échange terminé — succès ou échec, les trois pannes
+    distinguées : ce n'est jamais long, un jeu de campagne se transmet en un
+    seul appel HTTP synchrone. Sans adresse, la campagne part vers le témoin.
+    """
+
+    adresse = requete.adresse if requete is not None else None
+    try:
+        echange = await transmettre(campagne_id, adresse)
+    except LookupError as absente:
+        raise HTTPException(status_code=404, detail=str(absente)) from absente
+    except RuntimeError as pas_prete:
+        raise HTTPException(status_code=409, detail=str(pas_prete)) from pas_prete
+    return EchangeCampagneResponse.model_validate(echange)
+
+
+@router.get("/{campagne_id}/echanges", response_model=list[EchangeCampagneResponse],
+            dependencies=[Depends(require_role("observateur"))])
+async def lire_echanges_campagne(campagne_id: UUID) -> list[EchangeCampagneResponse]:
+    """L'historique des transmissions d'une campagne, la plus récente d'abord."""
+
+    try:
+        await lire(campagne_id)
+    except LookupError as absente:
+        raise HTTPException(status_code=404, detail=str(absente)) from absente
+
+    return [
+        EchangeCampagneResponse.model_validate(echange)
+        for echange in await historique(campagne_id)
+    ]

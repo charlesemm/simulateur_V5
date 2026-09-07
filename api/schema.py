@@ -236,6 +236,53 @@ class CorrigeResponse(ApiModel):
     lignes: list[LigneCorrigeResponse]
 
 
+# ── M6 — Le canal API ────────────────────────────────────────────────────
+
+class ConstatTemoinResponse(ApiModel):
+    """Un constat rendu par un outil testé : où, et ce qu'il y a vu.
+
+    En texte libre plutôt qu'un code du catalogue : un vrai outil ne connaît
+    jamais le vocabulaire interne d'ÉCHO. Le rapprochement de M7 travaillera
+    sur « ligne + champ », pas sur ce texte.
+    """
+
+    ligne: int
+    champ: str | None = None
+    type: str
+
+
+class RapportTemoinResponse(ApiModel):
+    """Le rapport que rend un outil qui respecte le contrat du canal M6."""
+
+    outil: str
+    constats: list[ConstatTemoinResponse]
+
+
+class TransmissionRequest(ApiModel):
+    """Ce que l'écran peut préciser avant de transmettre une campagne.
+
+    L'adresse est facultative : sans elle, la campagne part vers le témoin.
+    La donner permet de rejouer les trois pannes du cahier à volonté, ou plus
+    tard de brancher le vrai outil sans toucher au code.
+    """
+
+    adresse: str | None = None
+
+
+class EchangeCampagneResponse(ApiModel):
+    """Un envoi à l'outil testé, et ce qui en est revenu."""
+
+    echange_id: UUID
+    campagne_id: UUID
+    echange_adresse: str
+    echange_date_envoi: datetime
+    echange_date_reception: datetime | None
+    echange_resultat: str
+    echange_motif_echec: str | None
+    echange_nombre_constats: int
+    echange_message: str | None
+
+
 class CadenceResponse(ApiModel):
     """Ce qu'il faut pour projeter un volume avant de lancer le moteur.
 
