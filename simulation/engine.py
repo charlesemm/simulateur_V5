@@ -154,6 +154,39 @@ class SimulationEngine:
         logger.info("Rafale lancée jusqu'au passage %s.", sequence)
         return sequence
 
+    async def _attendre_prochaine_arrivee(self) -> bool:
+        """Laisse passer le délai avant le prochain assuré.
+
+        Retourne False quand l'attente a été interrompue par `stop()` : la
+        boucle d'arrivées doit alors sortir.
+        """
+
+        delay = self._random.expovariate(1 / self.config.passage_arrival_mean_seconds)
+        self._pause_task = asyncio.create_task(asyncio.sleep(delay / self._speed))
+        try:
+            # asyncio.wait, et non « await self._pause_task » : attendre la
+            # tâche directement ferait remonter ici le CancelledError de notre
+            # propre stop(), impossible à distinguer d'une annulation venue
+            # d'au-dessus (extinction de l'API, timeout). On aurait le choix
+            # entre les avaler toutes les deux — et l'appelant attend un arrêt
+            # qui ne se signale jamais — ou les relancer toutes les deux, et
+            # stop() ne s'arrête plus proprement.
+            #
+            # wait() ne lève rien quand la tâche attendue est annulée : il ne
+            # laisse passer que l'annulation de CETTE coroutine, la seule qui
+            # doive poursuivre sa route. L'ambiguïté disparaît au lieu d'être
+            # arbitrée.
+            await asyncio.wait({self._pause_task})
+            interrompue = self._pause_task.cancelled()
+        finally:
+            pause = self._pause_task
+            self._pause_task = None
+            if not pause.done():
+                # Annulation venue d'au-dessus : la pause survivrait à la
+                # boucle, wait() ne l'annule pas pour nous.
+                pause.cancel()
+        return not interrompue
+
     async def start(self, number_of_passages: int | None = None) -> None:
         """Crée un flux fini ou continu de tâches de passage."""
         self._running = True
@@ -174,15 +207,11 @@ class SimulationEngine:
                 task = asyncio.create_task(self._run_one(insured_id, sequence))
                 self._tasks.add(task)
                 task.add_done_callback(self._tasks.discard)
-            if number_of_passages is None or sequence < number_of_passages:
-                delay = self._random.expovariate(1 / self.config.passage_arrival_mean_seconds)
-                self._pause_task = asyncio.create_task(asyncio.sleep(delay / self._speed))
-                try:
-                    await self._pause_task
-                except asyncio.CancelledError:
-                    break
-                finally:
-                    self._pause_task = None
+            # Pas de pause après le dernier passage d'un flux fini : elle ne
+            # ferait qu'ajouter un délai avant de rendre la main.
+            reste_des_passages = number_of_passages is None or sequence < number_of_passages
+            if reste_des_passages and not await self._attendre_prochaine_arrivee():
+                break
         if self._tasks:
             await asyncio.gather(*tuple(self._tasks))
         self._running = False
