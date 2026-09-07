@@ -67,5 +67,6 @@ def test_chaque_profession_pointe_vers_un_regime_connu():
 
 
 def test_la_profession_est_stable():
-    assert [insured_profession(index) for index in range(50)] == \
-           [insured_profession(index) for index in range(50)]
+    premier_passage = [insured_profession(index) for index in range(50)]
+    second_passage = [insured_profession(index) for index in range(50)]
+    assert premier_passage == second_passage

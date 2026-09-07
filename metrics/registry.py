@@ -8,9 +8,12 @@ from __future__ import annotations
 
 import ctypes
 
+import logging
 import sys
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+
+journal = logging.getLogger(__name__)
 
 
 def _get_process_memory_mb() -> float:
@@ -51,7 +54,11 @@ def _get_process_memory_mb() -> float:
             import resource
             return round(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024, 2)
     except Exception:
-        pass
+        # La mémoire est un indicateur de confort : son absence ne doit jamais
+        # faire échouer un appel. Mais elle doit se voir dans le journal, sinon
+        # le « 0 Mo » renvoyé plus bas se lit comme une mesure au lieu d'un
+        # échec, et on cherche une fuite dans un chiffre jamais mesuré.
+        journal.debug("Mesure mémoire indisponible.", exc_info=True)
     return 0.0
 
 

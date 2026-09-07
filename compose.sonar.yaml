@@ -1,0 +1,89 @@
+# ═══════════════════════════════════════════════════════════════
+# ÉCHO — SonarQube (analyse de la qualité du code)
+#
+# Fichier SÉPARÉ du compose principal, et c'est volontaire :
+# SonarQube n'a rien à voir avec le fonctionnement d'ÉCHO. On le
+# démarre quand on veut regarder l'état du code, on l'éteint après.
+# Le mêler à compose.yaml imposerait 2 Go de mémoire à chaque
+# lancement de l'application, pour rien.
+#
+#   Démarrer :  podman compose -f compose.sonar.yaml up -d
+#   Éteindre :  podman compose -f compose.sonar.yaml down
+#
+# Documentation et scénario de recette : docs/guides/sonarqube.md
+# ═══════════════════════════════════════════════════════════════
+
+services:
+
+  # ── Base de SonarQube ────────────────────────────────────────
+  # Sa propre base, distincte de « echo_db ». SonarQube y écrit son
+  # historique : sans volume, chaque redémarrage effacerait la
+  # progression et l'outil ne servirait plus à rien.
+  sonar-db:
+    image: docker.io/library/postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: sonar
+      POSTGRES_USER: sonar
+      POSTGRES_PASSWORD: ${SONAR_DB_PASSWORD:-sonar_local_2026}
+    volumes:
+      - sonar_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sonar -d sonar"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # ── Serveur SonarQube ────────────────────────────────────────
+  sonarqube:
+    # « community » est l'édition libre (LGPL v3). Les éditions
+    # payantes s'appellent developer / enterprise : ne pas les
+    # utiliser par inadvertance en changeant l'étiquette.
+    image: docker.io/library/sonarqube:community
+    restart: unless-stopped
+    depends_on:
+      sonar-db:
+        condition: service_healthy
+    ports:
+      # Interface web. 9000 est le port par défaut de SonarQube ;
+      # il ne croise ni le 8000 d'ÉCHO ni le 5173 du dashboard.
+      - "9000:9000"
+    environment:
+      SONAR_JDBC_URL: jdbc:postgresql://sonar-db:5432/sonar
+      SONAR_JDBC_USERNAME: sonar
+      SONAR_JDBC_PASSWORD: ${SONAR_DB_PASSWORD:-sonar_local_2026}
+    volumes:
+      # Ces trois volumes sont obligatoires. « data » contient les
+      # index de recherche, « extensions » les greffons de langage,
+      # « logs » les journaux. Sans eux, SonarQube repart de zéro et
+      # met plusieurs minutes à se reconstruire à chaque démarrage.
+      - sonar_data:/opt/sonarqube/data
+      - sonar_extensions:/opt/sonarqube/extensions
+      - sonar_logs:/opt/sonarqube/logs
+    # SonarQube embarque Elasticsearch, qui exige de pouvoir ouvrir
+    # beaucoup de fichiers en même temps. Sous la limite par défaut
+    # de certaines distributions, le conteneur démarre puis s'arrête
+    # seul avec « max file descriptors is too low ».
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    healthcheck:
+      # SonarQube met 1 à 3 minutes à devenir utilisable au premier
+      # démarrage. Cette sonde évite de croire à une panne pendant
+      # ce temps : tant qu'elle est « starting », il travaille.
+      # curl, et non wget : l'image sonarqube:community ne fournit pas wget,
+      # et la sonde echouait indefiniment sur « wget: not found » alors que
+      # le serveur repondait parfaitement. Un conteneur affiche « unhealthy »
+      # pour un outil manquant, pas pour une panne : le pire des diagnostics.
+      test: ["CMD-SHELL", "curl -sf http://127.0.0.1:9000/api/system/status | grep -q '\"status\":\"UP\"'"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 120s
+
+volumes:
+  sonar_pgdata:
+  sonar_data:
+  sonar_extensions:
+  sonar_logs:
