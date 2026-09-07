@@ -10,9 +10,10 @@
 #      GHCR, l'entrepôt d'images de GitHub. Ce temps-là ne tourne que pour
 #      « main » et les tags de version, et seulement si le temps 1 est vert.
 #
-# Rien n'est déployé sur un serveur : le projet n'a pas encore de cible de
-# production (chantier X2). Le pipeline s'arrête donc à une image prête à
-# être tirée, ce qui suffit déjà à installer la bonne version n'importe où.
+# Le pipeline s'arrête à l'image : il ne se connecte à aucun serveur. La mise
+# en production consiste à tirer cette image depuis la machine cible, et reste
+# lancée à la main — voir GUIDE_DEPLOIEMENT.md et le dossier « deploiement/ ».
+# L'automatiser depuis ici est le point ouvert du chantier X2.
 #
 # Documentation : GUIDE_CICD.md
 

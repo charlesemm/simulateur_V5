@@ -1,0 +1,63 @@
+# ÉCHO — configuration Caddy (déploiement INTERNE)
+#
+# ÉCHO n'est pas exposé sur Internet : il n'est joignable que depuis le
+# réseau de l'IPS-CNAM. Cela change une seule chose, mais elle est
+# structurante — l'origine du certificat.
+#
+# Let's Encrypt est hors jeu : il vérifie qu'un domaine vous appartient en
+# venant frapper à la porte 80 DEPUIS Internet. Une machine en 10.10.4.165
+# n'est pas joignable de là. La demande échouerait indéfiniment.
+#
+# D'où « tls internal » ci-dessous : Caddy devient sa propre autorité de
+# certification et signe lui-même le certificat du domaine. Le chiffrement
+# est réel et complet — c'est la CONFIANCE du navigateur qui manque, et qui
+# se règle en distribuant l'autorité de Caddy aux postes (voir le guide).
+#
+# La variable est lue depuis le .env par le compose de production.
+
+{$ECHO_DOMAINE} {
+
+	# ── Le certificat ────────────────────────────────────────────────
+	# « internal » : Caddy signe lui-même. Aucune demande vers l'extérieur,
+	# aucun renouvellement à surveiller, rien à ouvrir sur le pare-feu.
+	tls internal
+
+	# Quand l'autorité de certification interne de l'IPS-CNAM aura émis un
+	# certificat pour ce domaine, remplacez la ligne ci-dessus par :
+	#
+	#     tls /etc/caddy/certs/echo.crt /etc/caddy/certs/echo.key
+	#
+	# et décommentez le montage « ./certs » dans compose.prod.yaml. Les
+	# postes de l'IPS-CNAM font déjà confiance à cette autorité : plus
+	# aucun avertissement de navigateur, et rien d'autre à distribuer.
+
+	# ── Le relais vers l'application ─────────────────────────────────
+	# « api » est le nom du service dans le compose : Caddy le joint par le
+	# réseau interne des conteneurs. Le port 8000 n'est publié nulle part.
+	reverse_proxy api:8000
+
+	# Socket.IO (flux temps réel) passe par le même hôte : reverse_proxy
+	# relaie la montée en WebSocket de lui-même, rien à déclarer.
+
+	encode gzip zstd
+
+	header {
+		# Le navigateur n'essaiera plus jamais ce domaine en clair.
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		# Pas d'interprétation d'un type MIME deviné : un export CSV reste
+		# un fichier à télécharger, il ne peut pas être joué comme du HTML.
+		X-Content-Type-Options "nosniff"
+		# ÉCHO ne s'affiche dans aucun cadre : bloquer le détournement de clic.
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		# Ne pas annoncer la version du serveur.
+		-Server
+	}
+
+	log {
+		output file /data/acces.log {
+			roll_size 20MiB
+			roll_keep 10
+		}
+	}
+}

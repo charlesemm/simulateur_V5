@@ -1,0 +1,118 @@
+# ═══════════════════════════════════════════════════════════════
+# ÉCHO — Compose de production
+#
+# Ce que ce fichier change par rapport au « compose.yaml » de la racine :
+#
+#   1. Il TIRE l'image publiée sur GHCR au lieu de la construire sur place.
+#      Un serveur de production n'a pas à compiler : il déroule exactement
+#      l'artefact que la CI a construit et testé.
+#   2. Il n'a PLUS AUCUNE valeur par défaut pour les secrets. La forme « :? »
+#      fait échouer le lancement avec un message clair plutôt que de démarrer
+#      sur « echo_dev_2026 » sans que personne ne s'en aperçoive.
+#   3. Il NE PUBLIE PLUS le port 8000. Caddy est le seul point d'entrée, et
+#      il joint l'API par le réseau interne. Rien d'autre n'est joignable.
+#
+# Déploiement INTERNE : ÉCHO n'est joignable que depuis le réseau de
+# l'IPS-CNAM. Le certificat ne vient donc pas de Let's Encrypt — voir le
+# Caddyfile, qui explique ce que cela change.
+#
+# Voir GUIDE_DEPLOIEMENT.md pour la marche à suivre.
+# ═══════════════════════════════════════════════════════════════
+
+services:
+
+  # ── Base de données ──────────────────────────────────────────
+  postgres:
+    image: docker.io/library/postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: echo_db
+      POSTGRES_USER: echo
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?absent du .env - voir GUIDE_DEPLOIEMENT.md section 10}"
+    # Toujours aucun port publié : la base ne se joint que depuis le réseau
+    # interne des conteneurs. Pour l'inspecter le temps voulu :
+    #   podman-compose -f compose.prod.yaml exec postgres psql -U echo -d echo_db
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U echo -d echo_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # ── Migrations (s'exécute une fois puis s'arrête) ────────────
+  migrations:
+    image: "${ECHO_IMAGE:?absent du .env - voir GUIDE_DEPLOIEMENT.md section 10}"
+    command: ["python", "-m", "alembic", "upgrade", "head"]
+    environment:
+      DATABASE_URL: postgresql+asyncpg://echo:${POSTGRES_PASSWORD}@postgres:5432/echo_db
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # ── API + dashboard ─────────────────────────────────────────
+  api:
+    image: "${ECHO_IMAGE:?absent du .env - voir GUIDE_DEPLOIEMENT.md section 10}"
+    restart: unless-stopped
+    # Pas de « ports: ». C'est le changement le plus important de ce fichier.
+    # Publier 8000 offrirait l'API en clair à tout le réseau de la machine,
+    # court-circuitant le TLS de Caddy : un jeton de session y circulerait
+    # sans chiffrement. Caddy joint « api:8000 » par le réseau interne.
+    environment:
+      DATABASE_URL: postgresql+asyncpg://echo:${POSTGRES_PASSWORD}@postgres:5432/echo_db
+      # Le navigateur refuse une réponse dont l'origine n'est pas déclarée.
+      # En production il n'y en a qu'une : le domaine du service. Les points
+      # sont échappés — sans cela « . » vaudrait n'importe quel caractère et
+      # « echoXexample.ci » serait accepté au même titre.
+      CORS_ORIGIN_REGEX: "${CORS_ORIGIN_REGEX:?absent du .env - voir GUIDE_DEPLOIEMENT.md section 10}"
+      JWT_SECRET_KEY: "${JWT_SECRET_KEY:?absent du .env - generez-la, voir GUIDE_DEPLOIEMENT.md section 10}"
+      # Seule variable facultative du fichier, et deliberement : elle ne sert
+      # qu'une fois, a « auth.bootstrap --creer » au premier demarrage. Le
+      # guide (section 12) demande ensuite de la vider — avec la forme « :? »,
+      # une valeur vide aurait bloque le demarrage suivant. « :- » laisse
+      # passer ; bootstrap, lui, refuse de creer un compte sans mot de passe.
+      ECHO_ADMIN_PASSWORD: "${ECHO_ADMIN_PASSWORD:-}"
+    volumes:
+      - rapports:/app/reports/output
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4).status == 200 else 1)\""]
+      interval: 30s
+      timeout: 6s
+      retries: 3
+      start_period: 20s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
+
+  # ── Caddy : TLS et point d'entrée unique ────────────────────
+  caddy:
+    image: docker.io/library/caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro,Z
+      # À décommenter le jour où l'autorité de certification interne de
+      # l'IPS-CNAM aura émis un certificat pour le domaine (voir Caddyfile).
+      # - ./certs:/etc/caddy/certs:ro,Z
+      #
+      # L'autorité de certification que Caddy s'est créée vit ici. Sans ce
+      # volume, il en fabriquerait une neuve à chaque redémarrage, et tous
+      # les postes reverraient un avertissement de sécurité.
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      ECHO_DOMAINE: "${ECHO_DOMAINE:?absent du .env - voir GUIDE_DEPLOIEMENT.md section 10}"
+      # Pas d'adresse de courriel : elle ne servait qu'à Let's Encrypt, qui
+      # ne joue aucun rôle dans un déploiement interne.
+    depends_on:
+      - api
+
+volumes:
+  pgdata:
+  rapports:
+  caddy_data:
+  caddy_config:

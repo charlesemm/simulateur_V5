@@ -6,10 +6,35 @@ Plateforme de simulation haute performance du parcours de soins CMU (Caisse Nati
 
 ## ⚡ Démarrage Rapide
 
-Le projet tourne en local, sans conteneur : PostgreSQL installé sur la machine,
-l'API et le dashboard lancés directement.
+Deux façons de lancer le projet : **sans conteneur** (tout en local) ou avec
+**Podman** pour PostgreSQL + l'API (option recommandée au quotidien — voir le
+détail complet dans [GUIDE_PODMAN.md](GUIDE_PODMAN.md)).
 
-### 1. Configurer l'environnement
+### Option A — Routine du matin avec Podman
+
+```powershell
+podman machine start
+podman compose up -d
+podman compose ps
+curl http://localhost:8000/health
+```
+
+Puis, pour le dashboard avec hot-reload :
+```powershell
+cd dashboard
+npm run dev
+```
+*(sans cette étape, [http://localhost:8000](http://localhost:8000) sert directement la version compilée du dashboard — rien à lancer côté front.)*
+
+Premier lancement seulement : suivre les étapes 2 et 4 de
+[GUIDE_PODMAN.md](GUIDE_PODMAN.md) (`.env` avec `JWT_SECRET_KEY`, puis créer le
+premier administrateur).
+
+### Option B — Tout en local, sans conteneur
+
+PostgreSQL installé sur la machine, l'API et le dashboard lancés directement.
+
+#### 1. Configurer l'environnement
 ```powershell
 copy .env.exemple .env
 ```
@@ -17,7 +42,7 @@ copy .env.exemple .env
 Renseigne `DATABASE_URL` avec ton mot de passe PostgreSQL local :
 `postgresql+asyncpg://postgres:VOTRE_MOT_DE_PASSE@localhost:5432/cmu_simulator`
 
-### 2. Base de données, migrations et données
+#### 2. Base de données, migrations et données
 ```powershell
 .\.venv\Scripts\Activate.ps1
 python -m alembic upgrade head
@@ -25,22 +50,47 @@ python -m auth.bootstrap
 python -m seed
 ```
 
-### 3. Démarrage de l'API & WebSocket
+#### 3. Démarrage de l'API & WebSocket
 ```powershell
 uvicorn api.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-### 4. Démarrage du Dashboard Frontend
+#### 4. Démarrage du Dashboard Frontend
 ```powershell
 cd dashboard
 npm install
 npm run dev
 ```
 
-### 5. Accéder aux services 🌐
-* 📊 **Dashboard (Interface React 19)** : [http://localhost:5173](http://localhost:5173)
+### Accéder aux services 🌐
+* 📊 **Dashboard (Interface React 19, mode dev)** : [http://localhost:5173](http://localhost:5173)
+* 📊 **Dashboard (version compilée, servie par l'API)** : [http://localhost:8000](http://localhost:8000)
 * 📡 **API FastAPI & Documentation Swagger** : [http://localhost:8000/docs](http://localhost:8000/docs)
 * 🩺 **Healthcheck** : [http://localhost:8000/health](http://localhost:8000/health)
+
+### 🩹 Dépannage — le dashboard affiche « NetworkError » ou « n'ont pas pu être chargés »
+
+Sur ce type de poste, la machine Podman tourne parfois en mode *rootful* : le
+port 8000 n'est alors publié que par une règle réseau interne à la VM WSL, et
+`http://localhost:8000` reste injoignable depuis Windows le temps que ça dure
+(l'API répond pourtant très bien à l'intérieur). C'est intermittent — pas
+systématique.
+
+1. Teste d'abord la voie normale :
+   ```powershell
+   curl http://localhost:8000/health
+   ```
+2. **Si ça répond**, vérifie que [dashboard/.env.local](dashboard/.env.local) pointe
+   bien vers `http://localhost:8000` (pas une IP figée d'une session
+   précédente), puis **redémarre** `npm run dev` — il ne relit pas le fichier
+   à chaud.
+3. **Si ça ne répond pas**, récupère l'IP interne de la VM et mets-la dans
+   `dashboard/.env.local` (`VITE_API_URL=http://<IP>:8000`) :
+   ```powershell
+   podman machine ssh "ip -4 -o addr show eth0"
+   ```
+   Cette IP change à chaque redémarrage de la VM — à relire si le problème
+   revient après un `podman machine start`.
 
 ---
 
@@ -132,6 +182,9 @@ une base vierge, que les tests sont verts, que l'API démarre et que le dashboar
 se construit. Sur `main` et sur les tags de version, il publie en plus l'image
 sur GHCR (`ghcr.io/charlesemm/simulateur_v5`).
 
-**Déploiement sur un serveur** : pas encore en place — le projet n'a pas de
-cible de production (chantier X2). Le pipeline s'arrête à une image prête à être
-tirée, ce qui suffit à installer la bonne version sur n'importe quelle machine.
+**Déploiement sur un serveur** : voir **[GUIDE_DEPLOIEMENT.md](GUIDE_DEPLOIEMENT.md)**.
+Le pipeline s'arrête à une image publiée ; le serveur la tire. Les fichiers de
+production sont dans `deploiement/` — un compose qui installe l'image au lieu de
+la construire, Caddy pour le TLS, et le script de sauvegarde de la base. La mise
+à jour reste lancée à la main : automatiser le déploiement depuis la CI est le
+point ouvert du chantier X2.
