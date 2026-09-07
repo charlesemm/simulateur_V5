@@ -1,22 +1,13 @@
 """Configure le serveur Socket.IO ASGI et le namespace KPI."""
 
-import os
-
 import jwt
 import socketio
+from app import cors
 from auth.security import decode_access_token
 from events import event_bus
 from kpi import KpiConsumer, KpiService
 from metrics.registry import registry as metrics_registry
 from realtime.parcours_consumer import ParcoursConsumer
-
-# Mêmes origines que le middleware CORS de FastAPI (api/main.py), pour qu'une
-# seule variable d'environnement pilote REST et temps réel.
-_cors_raw = os.getenv(
-    "CORS_ORIGINS",
-    "http://localhost:5173,http://127.0.0.1:5173",
-)
-_cors_origins = [origin.strip() for origin in _cors_raw.split(",") if origin.strip()]
 
 # FastAPI accepte toute origine locale par expression régulière ; Socket.IO ne
 # sait pas lire d'expression régulière, seulement une liste ou « tout ».
@@ -27,8 +18,7 @@ _cors_origins = [origin.strip() for origin in _cors_raw.split(",") if origin.str
 # Ouvrir le temps réel ne rouvre pas les données : le gestionnaire connect
 # ci-dessous exige un jeton JWT valide avant de diffuser quoi que ce soit.
 # Vider CORS_ORIGIN_REGEX referme les deux d'un coup, pour un déploiement.
-_cors_regex = os.getenv("CORS_ORIGIN_REGEX", r"http://(localhost|127\.0\.0\.1)(:\d+)?")
-_cors_socketio = "*" if _cors_regex else _cors_origins
+_cors_socketio = "*" if cors.MOTIF_ORIGINE else cors.ORIGINES
 
 sio = socketio.AsyncServer(async_mode="asgi", cors_allowed_origins=_cors_socketio)
 socket_app = socketio.ASGIApp(sio)
