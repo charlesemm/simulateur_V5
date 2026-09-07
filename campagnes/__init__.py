@@ -17,6 +17,7 @@ from campagnes.models import (
 from campagnes.paliers import PALIERS, Palier, palier
 from campagnes.service import (
     creer, dimensions_couvertes, lire, lister, normaliser_anomalies,
+    previsualiser_reference,
 )
 
 __all__ = [
@@ -39,4 +40,5 @@ __all__ = [
     "progression",
     "normaliser_anomalies",
     "palier",
+    "previsualiser_reference",
 ]

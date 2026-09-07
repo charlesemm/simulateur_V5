@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 
 from anomalies import anomalies_config
-from anomalies.catalogue import DECLENCHEMENTS, FAMILLES
+from anomalies.catalogue import CODES_MOTEUR, DECLENCHEMENTS, FAMILLES
 from anomalies.models import AnomalyInjection
 from anomalies.repository import (
     lire_catalogue, modifier_type, sauvegarder_configuration,
@@ -120,9 +120,19 @@ class InjectionResponse(BaseModel):
 
 @router.get("/catalogue", response_model=list[TypeAnomalieResponse])
 async def get_catalogue() -> list:
-    """Retourne les types d'anomalies et leur réglage."""
+    """Retourne les types d'anomalies et leur réglage.
 
-    return await lire_catalogue()
+    **Seuls ceux que le moteur temps réel sait poser.** Les types réservés à
+    la campagne — les doublons, qui supposent une mémoire des lignes déjà
+    écrites — sont écartés : la console d'injection ne doit proposer que des
+    interrupteurs qui produisent quelque chose. Ils restent en base, où le
+    corrigé des campagnes les désigne, et l'écran des campagnes les affiche.
+    """
+
+    return [
+        type_anomalie for type_anomalie in await lire_catalogue()
+        if type_anomalie.anomalie_code in CODES_MOTEUR
+    ]
 
 
 @router.patch("/catalogue/{code}", response_model=TypeAnomalieResponse)

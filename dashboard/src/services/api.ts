@@ -2,7 +2,8 @@
 
 import type {
   CadenceMoteur, Campagne, Corrige, DimensionQualite, ExecutionDetail,
-  FicheGouvernance, HealthCenterList, PalierCampagne, ProgressionCampagne,
+  FicheGouvernance, FormatExport, HealthCenterList, PalierCampagne,
+  ProgressionCampagne,
   RapportExecution, TypeAnomalieCampagne,
   InjectionJournal, KpiHistory, KpiSnapshot, PaireMdm, ProfilSimulation,
   RapportQualite, ScenarioAlea, SimulationRun, SimulationStatus, TypeAnomalie,
@@ -148,6 +149,64 @@ export const api = {
     return parseOrThrow<PalierCampagne[]>(response);
   },
 
+  /** Les formats dans lesquels le jeu d'une campagne peut être téléchargé. */
+  async getFormatsExport(token: string | null): Promise<FormatExport[]> {
+    const response = await fetch(`${API_URL}/campagnes/formats`, {
+      headers: authHeaders(token),
+    });
+    return parseOrThrow<FormatExport[]>(response);
+  },
+
+  /**
+   * Télécharge le jeu d'une campagne et le remet au navigateur.
+   *
+   * Une simple balise `<a href>` ne conviendrait pas : la route exige un
+   * jeton, et le navigateur n'en joint aucun à une navigation ordinaire. On
+   * récupère donc le fichier par `fetch`, on en fait un objet local, et on
+   * déclenche l'enregistrement sur un lien fabriqué pour l'occasion.
+   *
+   * Le nom du fichier vient de l'en-tête `Content-Disposition` : c'est le
+   * serveur qui le décide, pas l'écran.
+   */
+  async telechargerJeu(
+    campagneId: string,
+    format: string,
+    token: string | null
+  ): Promise<void> {
+    const response = await fetch(
+      `${API_URL}/campagnes/${campagneId}/export?format=${encodeURIComponent(format)}`,
+      { headers: authHeaders(token) }
+    );
+    if (!response.ok) {
+      // Le corps d'une erreur est du JSON, pas le fichier attendu : il porte
+      // le motif du refus, qui doit remonter tel quel à l'écran.
+      let motif = `Téléchargement refusé (${response.status}).`;
+      try {
+        const corps = await response.json();
+        if (corps?.detail) motif = String(corps.detail);
+      } catch {
+        // Réponse illisible : le message par défaut suffit.
+      }
+      throw new Error(motif);
+    }
+
+    const entete = response.headers.get("Content-Disposition") ?? "";
+    const trouve = /filename="([^"]+)"/.exec(entete);
+    const nom = trouve ? trouve[1] : `campagne-${campagneId}.${format}`;
+
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const lien = document.createElement("a");
+    lien.href = url;
+    lien.download = nom;
+    document.body.appendChild(lien);
+    lien.click();
+    lien.remove();
+    // Sans cette libération, le fichier resterait en mémoire tant que l'onglet
+    // est ouvert — et un gros jeu s'y ferait sentir.
+    URL.revokeObjectURL(url);
+  },
+
   /** Les huit dimensions de qualité, et ce que chacune éprouve. */
   async getDimensions(token: string | null): Promise<DimensionQualite[]> {
     const response = await fetch(`${API_URL}/campagnes/dimensions`, {
@@ -172,11 +231,19 @@ export const api = {
     return parseOrThrow<Record<string, string>>(response);
   },
 
+  /** La référence que porterait la prochaine campagne, sans la réserver. */
+  async getProchaineReference(token: string | null): Promise<string> {
+    const response = await fetch(`${API_URL}/campagnes/prochaine-reference`, {
+      headers: authHeaders(token),
+    });
+    const corps = await parseOrThrow<{ reference: string }>(response);
+    return corps.reference;
+  },
+
   /** Ouvre une campagne. Rien n'est généré à ce stade. */
   async creerCampagne(
     token: string | null,
     corps: {
-      libelle?: string;
       palier?: string;
       volume_cible?: number;
       graine?: number | null;

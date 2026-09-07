@@ -111,6 +111,15 @@ class PalierResponse(ApiModel):
     description: str
 
 
+class FormatExportResponse(ApiModel):
+    """Un format de téléchargement du jeu d'une campagne (M4)."""
+
+    code: str
+    libelle: str
+    extension: str
+    description: str
+
+
 class DimensionResponse(ApiModel):
     """Une des huit dimensions de qualité du cahier des charges."""
 
@@ -150,15 +159,21 @@ class ReglageAnomalieCampagne(ApiModel):
     taux: float = Field(gt=0.0, le=1.0)
 
 
+class ProchaineReferenceResponse(ApiModel):
+    """La référence que porterait la prochaine campagne, sans la réserver."""
+
+    reference: str
+
+
 class CampagneCreateRequest(ApiModel):
     """Ouvre une campagne de test.
 
-    Tout est facultatif : sans libellé la campagne prend son horodatage, sans
-    volume celui que propose le palier, et sans graine une graine tirée — que
-    la réponse renvoie, car c'est elle qui rend la campagne rejouable.
+    Tout est facultatif : le libellé n'est plus saisi — il découle de la
+    référence incrémentielle attribuée par le serveur —, sans volume celui
+    que propose le palier, et sans graine une graine tirée — que la réponse
+    renvoie, car c'est elle qui rend la campagne rejouable.
     """
 
-    libelle: str | None = Field(default=None, max_length=150)
     palier: str | None = None
     volume_cible: int | None = Field(default=None, ge=100, le=5_000_000)
     graine: int | None = Field(default=None, ge=1, le=2_147_483_647)

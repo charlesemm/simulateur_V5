@@ -4,7 +4,7 @@ import { useAuth } from "../auth/AuthContext";
 import { RequireRole } from "../auth/RequireRole";
 import { api } from "../services/api";
 import type {
-  Campagne, Corrige, ProgressionCampagne, TypeAnomalieCampagne,
+  Campagne, Corrige, FormatExport, ProgressionCampagne, TypeAnomalieCampagne,
 } from "../types";
 import { dateCourte } from "./format-execution";
 import "./Screens.css";
@@ -44,6 +44,10 @@ export function FicheCampagne({
   const [page, setPage] = useState(0);
   const [erreur, setErreur] = useState<string | null>(null);
   const [demarrage, setDemarrage] = useState(false);
+  // M4 — les formats sont déclarés par le serveur, jamais recopiés ici.
+  const [formats, setFormats] = useState<FormatExport[]>([]);
+  // Le format en cours de téléchargement, pour n'occuper que son bouton.
+  const [enCours, setEnCours] = useState<string | null>(null);
   // Évite de prévenir la liste deux fois de la même fin de génération.
   const finSignalee = useRef(false);
 
@@ -146,6 +150,40 @@ export function FicheCampagne({
       setDemarrage(false);
     }
   }, [campagne.campagne_id, token, onChangement]);
+
+  // Les formats ne changent pas d'une campagne à l'autre : une seule lecture
+  // au montage suffit, et elle n'est faite que si un jeu est téléchargeable.
+  useEffect(() => {
+    if (!genere) return;
+    let vivant = true;
+    api
+      .getFormatsExport(token)
+      .then((liste) => {
+        if (vivant) setFormats(liste);
+      })
+      .catch(() => {
+        // Un format indisponible ne doit pas masquer la fiche : les boutons
+        // ne s'affichent simplement pas.
+      });
+    return () => {
+      vivant = false;
+    };
+  }, [token, genere]);
+
+  const telecharger = useCallback(
+    async (format: string) => {
+      setEnCours(format);
+      try {
+        await api.telechargerJeu(campagne.campagne_id, format, token);
+        setErreur(null);
+      } catch (raison) {
+        setErreur((raison as Error).message);
+      } finally {
+        setEnCours(null);
+      }
+    },
+    [campagne.campagne_id, token]
+  );
 
   const pages = corrige ? Math.ceil(corrige.total / PAR_PAGE) : 0;
 
@@ -254,6 +292,42 @@ export function FicheCampagne({
               Fichier : <code>{campagne.campagne_fichier}</code>
             </span>
           )}
+        </div>
+      )}
+
+      {/* ── M4 : le jeu à emporter ── */}
+      {genere && formats.length > 0 && (
+        <div className="export-bloc">
+          <h3 className="screen-section-title">Télécharger le jeu</h3>
+          <p className="export-aide">
+            Chaque ligne porte son marquage : <code>DONNEE_FICTIVE</code> et la
+            référence de la campagne, en tête de fichier. Ce marquage ne peut
+            pas être retiré — c'est ce qui empêche un jeu produit ici d'être
+            pris un jour pour des données réelles.
+          </p>
+          <div className="export-boutons">
+            {formats.map((format) => (
+              <button
+                key={format.code}
+                type="button"
+                className="export-bouton"
+                onClick={() => void telecharger(format.code)}
+                disabled={enCours !== null}
+                title={format.description}
+              >
+                <span className="export-bouton-libelle">
+                  {enCours === format.code ? "Préparation…" : format.libelle}
+                </span>
+                <span className="export-bouton-extension">
+                  .{format.extension}
+                </span>
+              </button>
+            ))}
+          </div>
+          <p className="export-aide">
+            Deux téléchargements du même format, pour la même campagne, donnent
+            deux fichiers rigoureusement identiques.
+          </p>
         </div>
       )}
 

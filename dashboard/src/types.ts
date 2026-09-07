@@ -77,6 +77,14 @@ export interface PalierCampagne {
   description: string;
 }
 
+/** Un format de téléchargement du jeu d'une campagne (M4). */
+export interface FormatExport {
+  code: string;
+  libelle: string;
+  extension: string;
+  description: string;
+}
+
 /** Une des huit dimensions de qualité du cahier des charges. */
 export interface DimensionQualite {
   code: string;
