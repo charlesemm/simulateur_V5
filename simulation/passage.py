@@ -172,6 +172,15 @@ class PassageSimulation:
                 raise RuntimeError(f"Référentiel vide pour {model.__name__}.")
             return value
 
+    @property
+    def dossier_numero(self) -> str:
+        """Numéro de dossier : huit caractères alphanumériques, sans préfixe.
+
+        Dérivé du même `passage_id` que la facture et l'entente, pour qu'un
+        même passage retrouve toujours le même dossier.
+        """
+        return self.passage_id[:8].upper()
+
     async def add_status(self, invoice_number: str, code: str) -> None:
         """Persiste et publie un nouveau statut de facture."""
         async with async_session_factory() as session:
@@ -279,7 +288,7 @@ class PassageSimulation:
                 assurance_code="CMU", personne_uuid=self.insured_id,
                 type_facture_code=invoice_type,
                 facture_date_soins=date_soins,
-                dossier_numero=f"DOS-{self.passage_id[:12]}",
+                dossier_numero=self.dossier_numero,
                 centre_sante_code=center.centre_sante_code,
                 centre_sante_type_code=self.anomalies.injecter_type_centre(
                     center.type_etablissement_sanitaire_code, invoice_number
@@ -410,7 +419,7 @@ class PassageSimulation:
             agreement = PriorAuthorization(
                 entente_prealable_numero=f"EP-{self.passage_id[:12]}",
                 centre_sante_code=center_code, personne_uuid=self.insured_id,
-                dossier_numero=f"DOS-{self.passage_id[:12]}",
+                dossier_numero=self.dossier_numero,
                 entente_prealable_date_debut=self.simulated_at.date(),
                 organisme_code="CNAM-CI", facture_numero=invoice_number,
                 type_demande_code="hospitalisation" if hospital else "acte",

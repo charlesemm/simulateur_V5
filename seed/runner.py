@@ -154,6 +154,16 @@ def audit_values() -> dict[str, str]:
 
     return {"utilisateur_id_creation": "seed.py"}
 
+def centre_sante_code(rang: int) -> str:
+    """Produit un code de centre entier pur, sur sept caractères.
+
+    Aucune lettre : seul `numero_securite_sociale` ci-dessous a un motif
+    similaire à respecter, mais ici c'est un simple rang aligné à zéro.
+    """
+
+    return f"{rang:07d}"
+
+
 def build_health_centers() -> list[dict[str, Any]]:
     """Construit trente centres variés répartis dans quinze localités."""
 
@@ -162,7 +172,7 @@ def build_health_centers() -> list[dict[str, Any]]:
         type_code, type_label = HEALTH_CENTER_TYPES[index % len(HEALTH_CENTER_TYPES)]
         city = IVORIAN_CITIES[index % len(IVORIAN_CITIES)]
         rows.append({
-            "centre_sante_code": f"CS{index + 1:03d}",
+            "centre_sante_code": centre_sante_code(index + 1),
             "collectivite_code": f"COL{index % 15 + 1:02d}",
             "type_etablissement_sanitaire_code": type_code,
             "centre_sante_numero_immatriculation": f"CI-CMU-{index + 1:05d}",
@@ -212,7 +222,7 @@ def build_agents() -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
         # donc volontairement aucune affectation géographique.
         if agent_type == "accueil":
             assignments.append({
-                "centre_sante_code": f"CS{index % 30 + 1:03d}",
+                "centre_sante_code": centre_sante_code(index % 30 + 1),
                 "agent_code": agent_code,
                 "date_debut": VALID_FROM,
                 "date_fin": None,
@@ -229,7 +239,7 @@ SECU_MODULO = 10 ** 10
 
 
 def numero_securite_sociale(index: int) -> str:
-    """Produit un numéro de treize caractères commençant par 384.
+    """Produit un numéro de treize caractères commençant par 394.
 
     Les dix chiffres suivants paraissent tirés au hasard mais restent uniques
     et stables : un même index redonne toujours le même numéro, et augmenter
@@ -237,7 +247,7 @@ def numero_securite_sociale(index: int) -> str:
     """
 
     suffixe = (SECU_MULTIPLICATEUR * index + SECU_DECALAGE) % SECU_MODULO
-    return f"384{suffixe:010d}"
+    return f"394{suffixe:010d}"
 
 # Le régime n'est pas un attribut propre de l'assuré : il découle de ce qu'il
 # fait. Cette table de correspondance est la seule source de vérité, et elle
@@ -314,7 +324,7 @@ def build_professionals() -> tuple[list[dict[str, Any]], list[dict[str, Any]], l
         })
         centers.append({
             "professionnel_sante_code": code,
-            "centre_sante_code": f"CS{index % 30 + 1:03d}",
+            "centre_sante_code": centre_sante_code(index % 30 + 1),
             "date_debut": VALID_FROM,
             "date_fin": None,
             **audit_values(),

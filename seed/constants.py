@@ -214,8 +214,9 @@ PROFESSIONS = [
     ("AUTRE", "Autre situation", "RAM"),
 ]
 
-# Le code numérique de la Côte d'Ivoire est 384 -- le même 384 qui préfixe
-# le numéro de sécurité sociale : ce n'est pas une coïncidence.
+# Le code numérique 384 est celui, réel, de la Côte d'Ivoire (norme ISO
+# 3166-1) -- sans lien avec le préfixe du numéro de sécurité sociale simulé
+# (394, seed/runner.py:numero_securite_sociale), qui lui est arbitraire.
 # (code, continent, numérique, dénomination, gentilé, indicatif, devise, lat, lon)
 COUNTRIES = [
     ("CIV", "AF", 384, "Côte d'Ivoire", "Ivoirienne", 225, "XOF", 7.54, -5.55),

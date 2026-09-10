@@ -1,6 +1,6 @@
 """Vérifie les identifiants et le régime produits par le seed, sans base.
 
-Ces règles sont celles que l'utilisateur a fixées : préfixe 384, treize
+Ces règles sont celles que l'utilisateur a fixées : préfixe 394, treize
 caractères, aucun numéro répété, et un régime qui découle de la profession.
 """
 from __future__ import annotations
@@ -14,10 +14,10 @@ from seed.runner import (
 ECHANTILLON = 20_000
 
 
-def test_le_numero_commence_par_384_et_fait_treize_caracteres():
+def test_le_numero_commence_par_394_et_fait_treize_caracteres():
     for index in (0, 1, 999, 50_000, 99_999):
         numero = numero_securite_sociale(index)
-        assert numero.startswith("384"), numero
+        assert numero.startswith("394"), numero
         assert len(numero) == 13, numero
         assert numero.isdigit(), numero
 
