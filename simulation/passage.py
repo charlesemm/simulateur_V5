@@ -22,6 +22,7 @@ from anomalies import anomalies_config
 from anomalies.repository import enregistrer_injections
 from metrics.registry import registry as metrics_registry
 from seed.constants import HEALTH_CENTER_TYPES
+from seed.identifiants import numero
 from simulation.aleas import (
     BASE_RALENTIE, COUPURE_BRUTALE, HORLOGE_DECALEE, PERTE_CONNEXION,
     SATURATION_MEMOIRE, PassageInterrompu, ScenarioAleas,
@@ -186,10 +187,16 @@ class PassageSimulation:
         concurrents, ce qu'un compteur Python en mémoire ne pourrait pas.
         """
         async with async_session_factory() as session:
-            rang = (await session.execute(
-                select(func.nextval("SEQ_FACTURE_NUMERO"))
+            # Les guillemets comptent : nextval() lit son argument comme un
+            # nom SQL et le passerait en minuscules — « seq_facture_numero »,
+            # qui n'existe pas.
+            valeur = (await session.execute(
+                select(func.nextval('"SEQ_FACTURE_NUMERO"'))
             )).scalar_one()
-        return f"{rang:08d}"
+        # La séquence garantit l'unicité, la permutation retire l'ordre : deux
+        # factures successives n'ont jamais des numéros qui se suivent
+        # (seed/identifiants.py, migration 20260911_0025).
+        return numero("facture", valeur - 1)
 
     @property
     def dossier_numero(self) -> str:

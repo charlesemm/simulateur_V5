@@ -30,11 +30,13 @@ def upgrade() -> None:
     Mieux vaut un arrêt net à 99 999 999 factures qu'une collision
     silencieuse sur une clé primaire déjà utilisée.
     """
+    # IF NOT EXISTS : sur une base neuve, la migration 0001 l'a déjà créée
+    # par create_all(), la séquence étant déclarée dans app/models/schema.py.
     op.execute(
-        f'CREATE SEQUENCE "{SEQUENCE}" AS BIGINT '
+        f'CREATE SEQUENCE IF NOT EXISTS "{SEQUENCE}" AS BIGINT '
         f"MINVALUE 1 MAXVALUE 99999999 START WITH 1 NO CYCLE"
     )
 
 
 def downgrade() -> None:
-    op.execute(f'DROP SEQUENCE "{SEQUENCE}"')
+    op.execute(f'DROP SEQUENCE IF EXISTS "{SEQUENCE}"')

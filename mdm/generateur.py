@@ -22,6 +22,7 @@ from sqlalchemy import func, select
 from app.database import async_session_factory
 from app.models import InsuredPerson
 from mdm.models import MdmPair
+from seed.identifiants import numero_libre, numero_securite_sociale_libre
 
 logger = logging.getLogger(__name__)
 
@@ -91,8 +92,9 @@ def _numero_libre(base: str, tirage: random.Random, pris: set[str]) -> str:
         if candidat != base and candidat not in pris:
             pris.add(candidat)
             return candidat
-    # Dernier recours : un numéro clairement distinct, mais toujours valide.
-    candidat = f"{tirage.randrange(10 ** 12, 10 ** 13)}"
+    # Dernier recours : un numéro clairement distinct, au format réel (394 +
+    # dix chiffres), tiré hors des rangs semés.
+    candidat = numero_securite_sociale_libre(tirage)
     pris.add(candidat)
     return candidat
 
@@ -104,8 +106,10 @@ def _fabriquer(source: InsuredPerson, variation: str, tirage: random.Random,
     personne = InsuredPerson(
         personne_uuid=uuid.uuid4(),
         numero_secu=_numero_libre(source.numero_secu, tirage, numeros_pris),
-        numero_recepisse=f"REC-VAR-{uuid.uuid4().hex[:10]}",
-        assure_numero_identifiant=f"CMU-VAR-{uuid.uuid4().hex[:10]}",
+        # Une nouvelle fiche reçoit ses propres numéros, au format réel : c'est
+        # l'identité, pas le numéro, qui doit trahir la jumelle.
+        numero_recepisse=numero_libre("recepisse", tirage),
+        assure_numero_identifiant=numero_libre("assure_identifiant", tirage),
         civilite_code=source.civilite_code,
         assure_nom=source.assure_nom,
         assure_prenoms=source.assure_prenoms,
@@ -154,8 +158,8 @@ def _fabriquer_leurre(source: InsuredPerson, tirage: random.Random,
     personne = InsuredPerson(
         personne_uuid=uuid.uuid4(),
         numero_secu=_numero_libre(source.numero_secu, tirage, numeros_pris),
-        numero_recepisse=f"REC-LEU-{uuid.uuid4().hex[:10]}",
-        assure_numero_identifiant=f"CMU-LEU-{uuid.uuid4().hex[:10]}",
+        numero_recepisse=numero_libre("recepisse", tirage),
+        assure_numero_identifiant=numero_libre("assure_identifiant", tirage),
         civilite_code=source.civilite_code,
         assure_nom=source.assure_nom,
         assure_prenoms=source.assure_prenoms,

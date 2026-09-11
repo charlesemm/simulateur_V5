@@ -16,9 +16,10 @@ from dataclasses import dataclass
 
 from seed.constants import (
     COUNTRIES, HEALTH_CENTER_TYPES, INVOICE_TYPES, IVORIAN_CITIES,
-    IVORIAN_DISTRICTS, MEDICAL_ACTS, MEDICAL_SPECIALTIES, MEDICATION_SEEDS,
+    IVORIAN_DISTRICTS, MEDECINS_CONSEILS, MEDICAL_ACTS, MEDICAL_SPECIALTIES,
     PATHOLOGY_LABELS, PROFESSIONS, TYPES_IDENTIFIANTS,
 )
+from seed.donnees import ETABLISSEMENTS, MEDICAMENTS, PHARMACIES, lire
 
 # Nature d'un référentiel, du plus sûr au plus fragile.
 OFFICIEL = "officiel"
@@ -30,6 +31,15 @@ LIBELLES_NATURE = {
     VRAISEMBLABLE: "Reconstitué, plausible mais non vérifié",
     INVENTE: "Inventé pour les besoins du simulateur",
 }
+
+# Liste publique de la CNAM (ipscnam.ci), extraite le 11/09/2026.
+_ETABLISSEMENTS = lire(ETABLISSEMENTS)
+_PHARMACIES = lire(PHARMACIES)
+_MEDICAMENTS = lire(MEDICAMENTS)
+_LOCALITES = ({ligne["localite"] for ligne in _ETABLISSEMENTS}
+              | {ligne["localite"] for ligne in _PHARMACIES})
+_DCI = {ligne["dci"] for ligne in _MEDICAMENTS}
+_PRIX_PUBLIES = sum(1 for ligne in _MEDICAMENTS if ligne["prix_fcfa"])
 
 
 @dataclass(frozen=True, slots=True)
@@ -86,9 +96,37 @@ REFERENTIELS: tuple[Referentiel, ...] = (
         "pays retenus est un choix du simulateur.",
     ),
     Referentiel(
+        "ETABLISSEMENTS_CNAM", "Établissements de santé conventionnés", OFFICIEL,
+        len(_ETABLISSEMENTS), "TB_REF_CENTRES_SANTE",
+        "Liste publique ipscnam.ci : noms et localités officiels. Le type est "
+        "déduit du nom ; codes et immatriculations sont propres au simulateur. "
+        "La CNAM annonce 3 137 établissements, la page publique en liste 1 510.",
+    ),
+    Referentiel(
         "HEALTH_CENTER_TYPES", "Types d'établissement sanitaire", VRAISEMBLABLE,
         len(HEALTH_CENTER_TYPES), "TB_REF_CENTRES_SANTE",
-        "Reprend la terminologie sanitaire ivoirienne courante.",
+        "Six types historiques et douze lus dans les noms de la liste CNAM, "
+        "qui ne publie aucune nomenclature des types.",
+    ),
+    Referentiel(
+        "COLLECTIVITES_CNAM", "Localités des établissements", OFFICIEL,
+        len(_LOCALITES), "TB_REF_COLLECTIVITES",
+        "Localités telles que la CNAM les écrit. Leur rattachement aux "
+        "départements n'est pas publié : elles ne sont pas reliées au "
+        "découpage de TB_TV_LOCALISATION_*.",
+    ),
+    Referentiel(
+        "PHARMACIES_CNAM", "Pharmacies CMU", OFFICIEL,
+        len(_PHARMACIES), "TB_REF_PHARMACIES",
+        "Même liste publique que les établissements. Le moteur ne s'en sert "
+        "pas encore : aucune facture ne désigne la pharmacie qui délivre.",
+    ),
+    Referentiel(
+        "AGENTS", "Agents d'accueil et médecins conseils", INVENTE,
+        len(_ETABLISSEMENTS) + MEDECINS_CONSEILS, "TB_REF_AGENTS",
+        f"Identités synthétiques : un agent d'accueil par établissement, "
+        f"{MEDECINS_CONSEILS} médecins conseils. Leurs codes ne se confondent "
+        f"pas : cinq chiffres pour l'accueil, quatre pour les médecins conseils.",
     ),
     Referentiel(
         "MEDICAL_SPECIALTIES", "Spécialités médicales", VRAISEMBLABLE,
@@ -102,9 +140,17 @@ REFERENTIELS: tuple[Referentiel, ...] = (
         "CIM ne retrouvera pas ses petits.",
     ),
     Referentiel(
-        "MEDICATION_SEEDS", "Médicaments", VRAISEMBLABLE,
-        len(MEDICATION_SEEDS), "TB_REF_MEDICAMENTS",
-        "Dénominations communes réelles ; les tarifs sont indicatifs.",
+        "MEDICAMENTS_CMU", "Médicaments de la liste CMU", OFFICIEL,
+        len(_MEDICAMENTS), "TB_REF_MEDICAMENTS",
+        f"Spécialités publiées par la CNAM (diabète, hypertension, autres). "
+        f"Prix réels pour {_PRIX_PUBLIES} d'entre elles ; les autres portent "
+        f"un tarif indicatif. Laboratoire, conditionnement et présentation ne "
+        f"sont pas publiés et restent vides.",
+    ),
+    Referentiel(
+        "DCI_CMU", "Dénominations communes (DCI)", OFFICIEL,
+        len(_DCI), "TB_REF_DCI",
+        "DCI telles que la CNAM les écrit ; les codes sont propres au simulateur.",
     ),
     Referentiel(
         "MEDICAL_ACTS", "Actes médicaux", INVENTE,
@@ -148,6 +194,22 @@ HYPOTHESES: tuple[Hypothese, ...] = (
         "Année en cours au moment de l'écriture du seed.",
         "Les droits d'autres années viennent du moteur d'entrepôt (T3), pas "
         "du seed.",
+    ),
+    Hypothese(
+        "TARIFS_INDICATIFS", "Tarif des médicaments sans prix publié",
+        "2 000 à 3 500 FCFA selon la forme, ±30 %",
+        "La CNAM ne publie le prix que des médicaments du diabète et de "
+        "l'hypertension.",
+        f"{len(_MEDICAMENTS) - _PRIX_PUBLIES} spécialités portent un tarif "
+        f"inventé : un montant de prescription n'est fiable que pour les "
+        f"{_PRIX_PUBLIES} autres.",
+    ),
+    Hypothese(
+        "PERSONNEL_PAR_CENTRE", "Personnel par établissement",
+        "1 agent d'accueil, 1 médecin, 1 infirmier",
+        "Proportion retenue le 11/09/2026 pour suivre la taille de la liste CNAM.",
+        "Un CHU compte autant de personnel qu'un centre de santé rural : les "
+        "volumes par établissement ne disent rien de la réalité.",
     ),
 )
 

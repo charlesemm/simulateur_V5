@@ -22,6 +22,7 @@ from sqlalchemy import func, select
 from app.database import async_session_factory
 from app.models import InsuredPerson, InsuredProfession, InsuredRight
 from seed.constants import PROFESSIONS
+from seed.identifiants import numero_libre
 
 logger = logging.getLogger(__name__)
 
@@ -81,7 +82,7 @@ async def approfondir_historique(mois: int = 12, assures: int = 50,
                     personne_uuid=personne.personne_uuid,
                     droits_annee=annee,
                     droits_mois=numero,
-                    droits_id=f"DRT-{annee}{numero:02d}-{uuid.uuid4().hex[:8]}",
+                    droits_id=numero_libre("droits", tirage),
                     # Les droits s'ouvrent et se ferment au fil des mois : un
                     # historique uniformément ouvert n'éprouverait rien.
                     droits_statut=1 if tirage.random() < 0.75 else 0,

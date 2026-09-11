@@ -7,6 +7,10 @@ IVORIAN_CITIES = [
     "Daloa", "Man", "Gagnoa", "Abengourou", "Bondoukou", "Divo",
 ]
 
+# Les six premiers types sont les historiques du simulateur ; les suivants
+# viennent de la liste publique des établissements CNAM (seed/donnees), dont
+# le type se lit dans le nom. Codes mnémoniques, pas des compteurs : la règle
+# « aucun numéro consécutif » ne les concerne pas.
 HEALTH_CENTER_TYPES = [
     ("HG", "Hôpital général"),
     ("CHR", "Centre hospitalier régional"),
@@ -14,6 +18,18 @@ HEALTH_CENTER_TYPES = [
     ("CSR", "Centre de santé rural"),
     ("CLN", "Clinique médicale"),
     ("PMI", "Centre de protection maternelle et infantile"),
+    ("CHU", "Centre hospitalier universitaire"),
+    ("DISP", "Dispensaire"),
+    ("SSSU", "Service de santé scolaire et universitaire"),
+    ("CS", "Centre de santé"),
+    ("MAT", "Maternité"),
+    ("CAT", "Centre antituberculeux"),
+    ("INST", "Institut spécialisé"),
+    ("MIL", "Centre de santé des forces de défense et de sécurité"),
+    ("CMS", "Centre médico-social"),
+    ("FSU", "Formation sanitaire urbaine"),
+    ("HOP", "Hôpital confessionnel ou municipal"),
+    ("AUT", "Autre établissement sanitaire"),
 ]
 
 # Ces noms complètent Faker avec une représentation ivoirienne identifiable.
@@ -78,59 +94,12 @@ PATHOLOGY_LABELS = [
     "Trouble anxieux", "Dépression",
 ]
 
-# Chaque entrée produit quatre présentations cohérentes, soit 200 médicaments.
-MEDICATION_SEEDS = [
-    ("Paracétamol", "PAR", ["500 mg comprimé", "1 g comprimé", "120 mg/5 ml sirop", "100 mg suppositoire"], 500),
-    ("Ibuprofène", "IBU", ["200 mg comprimé", "400 mg comprimé", "100 mg/5 ml suspension", "gel 5 %"], 800),
-    ("Diclofénac", "DCF", ["50 mg comprimé", "75 mg injectable", "100 mg suppositoire", "gel 1 %"], 900),
-    ("Tramadol", "TRA", ["50 mg gélule", "100 mg comprimé LP", "50 mg/ml injectable", "100 mg/2 ml injectable"], 1200),
-    ("Amoxicilline", "AMX", ["500 mg gélule", "1 g comprimé", "250 mg/5 ml suspension", "500 mg injectable"], 1500),
-    ("Amoxicilline-acide clavulanique", "AMC", ["500/62,5 mg comprimé", "1 g/125 mg comprimé", "100/12,5 mg/ml suspension", "1 g/200 mg injectable"], 2400),
-    ("Azithromycine", "AZI", ["250 mg gélule", "500 mg comprimé", "200 mg/5 ml suspension", "500 mg injectable"], 1800),
-    ("Ciprofloxacine", "CIP", ["250 mg comprimé", "500 mg comprimé", "200 mg/100 ml perfusion", "collyre 0,3 %"], 1400),
-    ("Ceftriaxone", "CTX", ["250 mg injectable", "500 mg injectable", "1 g injectable", "2 g injectable"], 1800),
-    ("Cotrimoxazole", "CTX2", ["480 mg comprimé", "960 mg comprimé", "240 mg/5 ml suspension", "480 mg injectable"], 700),
-    ("Métronidazole", "MTZ", ["250 mg comprimé", "500 mg comprimé", "125 mg/5 ml suspension", "500 mg/100 ml perfusion"], 600),
-    ("Artéméther-luméfantrine", "ALU", ["20/120 mg boîte 6", "20/120 mg boîte 12", "20/120 mg boîte 18", "20/120 mg boîte 24"], 1200),
-    ("Artésunate", "ART", ["50 mg comprimé", "100 mg comprimé", "60 mg injectable", "120 mg injectable"], 1600),
-    ("Quinine", "QUI", ["300 mg comprimé", "500 mg comprimé", "250 mg/ml injectable", "600 mg/2 ml injectable"], 1100),
-    ("Albendazole", "ALB", ["200 mg comprimé", "400 mg comprimé", "200 mg/5 ml suspension", "400 mg/10 ml suspension"], 500),
-    ("Oméprazole", "OME", ["10 mg gélule", "20 mg gélule", "40 mg gélule", "40 mg injectable"], 900),
-    ("Pantoprazole", "PAN", ["20 mg comprimé", "40 mg comprimé", "40 mg injectable", "80 mg injectable"], 1100),
-    ("Métoclopramide", "MCP", ["10 mg comprimé", "1 mg/ml solution", "10 mg/2 ml injectable", "10 mg suppositoire"], 500),
-    ("Lopéramide", "LOP", ["2 mg gélule", "2 mg comprimé", "1 mg/5 ml solution", "2 mg lyoc"], 450),
-    ("Sels de réhydratation orale", "SRO", ["sachet 200 ml", "sachet 500 ml", "sachet 1 litre", "solution 500 ml"], 300),
-    ("Amlodipine", "AML", ["2,5 mg comprimé", "5 mg comprimé", "10 mg comprimé", "5 mg comprimé sécable"], 800),
-    ("Captopril", "CAP", ["12,5 mg comprimé", "25 mg comprimé", "50 mg comprimé", "100 mg comprimé"], 600),
-    ("Losartan", "LOS", ["25 mg comprimé", "50 mg comprimé", "100 mg comprimé", "50/12,5 mg comprimé"], 1000),
-    ("Hydrochlorothiazide", "HCT", ["12,5 mg comprimé", "25 mg comprimé", "50 mg comprimé", "25 mg comprimé sécable"], 500),
-    ("Furosémide", "FUR", ["20 mg comprimé", "40 mg comprimé", "20 mg/2 ml injectable", "250 mg/25 ml injectable"], 700),
-    ("Aténolol", "ATE", ["25 mg comprimé", "50 mg comprimé", "100 mg comprimé", "50 mg comprimé sécable"], 700),
-    ("Acide acétylsalicylique", "AAS", ["75 mg comprimé", "100 mg comprimé", "300 mg comprimé", "500 mg comprimé"], 450),
-    ("Simvastatine", "SIM", ["10 mg comprimé", "20 mg comprimé", "40 mg comprimé", "80 mg comprimé"], 900),
-    ("Metformine", "MET", ["500 mg comprimé", "850 mg comprimé", "1 g comprimé", "500 mg comprimé LP"], 700),
-    ("Gliclazide", "GLI", ["30 mg comprimé LP", "60 mg comprimé LP", "80 mg comprimé", "120 mg comprimé LP"], 950),
-    ("Insuline humaine rapide", "IHR", ["flacon 100 UI/ml", "cartouche 3 ml", "stylo 3 ml", "flacon 40 UI/ml"], 3500),
-    ("Insuline NPH", "INP", ["flacon 100 UI/ml", "cartouche 3 ml", "stylo 3 ml", "flacon 40 UI/ml"], 3800),
-    ("Salbutamol", "SAL", ["aérosol 100 µg", "2 mg comprimé", "2 mg/5 ml sirop", "5 mg/ml nébulisation"], 1200),
-    ("Béclométasone", "BEC", ["aérosol 50 µg", "aérosol 100 µg", "aérosol 250 µg", "spray nasal 50 µg"], 1800),
-    ("Prednisone", "PRE", ["5 mg comprimé", "20 mg comprimé", "50 mg comprimé", "5 mg/ml solution"], 650),
-    ("Cétirizine", "CET", ["5 mg comprimé", "10 mg comprimé", "1 mg/ml solution", "10 mg/ml gouttes"], 600),
-    ("Chlorphénamine", "CHL", ["2 mg comprimé", "4 mg comprimé", "2 mg/5 ml sirop", "10 mg/ml injectable"], 500),
-    ("Fer-acide folique", "FAF", ["comprimé adulte", "comprimé grossesse", "sirop 100 ml", "solution buvable 10 ml"], 500),
-    ("Acide folique", "FOL", ["1 mg comprimé", "5 mg comprimé", "10 mg comprimé", "5 mg/ml solution"], 400),
-    ("Vitamine C", "VIC", ["100 mg comprimé", "500 mg comprimé", "1 g effervescent", "100 mg/ml injectable"], 450),
-    ("Chlorure de sodium", "NACL", ["0,9 % poche 100 ml", "0,9 % poche 500 ml", "0,9 % poche 1 l", "10 % ampoule 10 ml"], 700),
-    ("Glucose", "GLU", ["5 % poche 500 ml", "10 % poche 500 ml", "30 % ampoule 10 ml", "50 % ampoule 50 ml"], 800),
-    ("Ringer lactate", "RIN", ["poche 250 ml", "poche 500 ml", "poche 1 l", "flacon 500 ml"], 900),
-    ("Diazépam", "DIA", ["5 mg comprimé", "10 mg comprimé", "10 mg/2 ml injectable", "5 mg rectal"], 750),
-    ("Carbamazépine", "CBZ", ["100 mg comprimé", "200 mg comprimé", "400 mg comprimé LP", "100 mg/5 ml suspension"], 1000),
-    ("Acide valproïque", "VAL", ["200 mg comprimé", "500 mg comprimé", "200 mg/ml solution", "400 mg injectable"], 1400),
-    ("Fluconazole", "FLU", ["50 mg gélule", "150 mg gélule", "200 mg comprimé", "200 mg/100 ml perfusion"], 1100),
-    ("Clotrimazole", "CLO", ["crème 1 %", "solution 1 %", "ovule 100 mg", "ovule 500 mg"], 700),
-    ("Povidone iodée", "PVI", ["solution 10 % 50 ml", "solution 10 % 125 ml", "solution moussante 125 ml", "pommade 10 %"], 600),
-    ("Lidocaïne", "LID", ["gel 2 %", "spray 10 %", "injectable 1 %", "injectable 2 %"], 800),
-]
+# Les médicaments ne sont plus inventés ici : ils viennent de la liste CMU
+# publiée par la CNAM (seed/donnees/medicaments_cmu.csv).
+
+# Vingt médecins conseils, au niveau central. Les agents d'accueil, eux,
+# suivent le nombre d'établissements : un par centre (seed/runner.py).
+MEDECINS_CONSEILS = 20
 
 INVOICE_TYPES = [
     ("AMB", "Soins ambulatoires"), ("DEN", "Soins dentaires"),
