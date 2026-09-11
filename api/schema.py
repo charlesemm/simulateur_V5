@@ -480,7 +480,11 @@ class PriorAuthorizationSchema(ApiModel):
     entente_prealable_numero: str | None
     type_demande_code: str | None
     type_hospitalisation_code: str | None
-    date_debut: date | None
+    # datetime, pas date : ENTENTE_PREALABLE_DATE_DEBUT porte désormais
+    # l'heure (migration 20260911_0024). Un type `date` ici la tronquerait
+    # silencieusement à la sortie de l'API.
+    date_debut: datetime | None
+    date_fin: datetime | None
     actes: list[PriorAuthorizationActSchema]
 
 

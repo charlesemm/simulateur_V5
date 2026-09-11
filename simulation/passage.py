@@ -172,6 +172,25 @@ class PassageSimulation:
                 raise RuntimeError(f"Référentiel vide pour {model.__name__}.")
             return value
 
+    async def numero_facture(self) -> str:
+        """Tire un numéro de facture : huit chiffres, unique pour toujours.
+
+        `FACTURE_NUMERO` est la clé primaire de `TB_FACTURES`, sans remise à
+        zéro par exécution : contrairement au dossier ou à l'entente, il ne
+        peut pas être dérivé du hasard de `passage_id` sur seulement huit
+        chiffres — l'espace (10^8) est trop petit pour une génération de
+        données censée accumuler toutes les lignes de toutes les exécutions
+        (paradoxe des anniversaires : la collision devient probable bien
+        avant d'avoir épuisé l'espace). Une séquence Postgres (migration
+        20260911_0023) garantit l'unicité même sous plusieurs passages
+        concurrents, ce qu'un compteur Python en mémoire ne pourrait pas.
+        """
+        async with async_session_factory() as session:
+            rang = (await session.execute(
+                select(func.nextval("SEQ_FACTURE_NUMERO"))
+            )).scalar_one()
+        return f"{rang:08d}"
+
     @property
     def dossier_numero(self) -> str:
         """Numéro de dossier : huit caractères alphanumériques, sans préfixe.
@@ -180,6 +199,15 @@ class PassageSimulation:
         même passage retrouve toujours le même dossier.
         """
         return self.passage_id[:8].upper()
+
+    @property
+    def entente_prealable_numero(self) -> str:
+        """Numéro d'entente : huit caractères alphanumériques, sans préfixe.
+
+        Autre tranche du même `passage_id` que `dossier_numero`, pour ne pas
+        produire le même numéro sous deux noms différents.
+        """
+        return self.passage_id[8:16].upper()
 
     async def add_status(self, invoice_number: str, code: str) -> None:
         """Persiste et publie un nouveau statut de facture."""
@@ -264,7 +292,7 @@ class PassageSimulation:
 
         center = await self.choose(HealthCenter)
         professional = await self.choose(HealthProfessional)
-        invoice_number = f"FAC-{self.simulated_at:%Y%m%d}-{self.passage_id[:10]}"
+        invoice_number = await self.numero_facture()
         ambulatory = self.random.random() < self.config.ambulatory_probability
         invoice_type = "AMB" if ambulatory else "DEN"
         logger.info("[%s] Ouverture %s au centre %s (régime %s à %s %%).",
@@ -417,10 +445,10 @@ class PassageSimulation:
         act = await self.choose(MedicalAct, criterion)
         async with async_session_factory() as session:
             agreement = PriorAuthorization(
-                entente_prealable_numero=f"EP-{self.passage_id[:12]}",
+                entente_prealable_numero=self.entente_prealable_numero,
                 centre_sante_code=center_code, personne_uuid=self.insured_id,
                 dossier_numero=self.dossier_numero,
-                entente_prealable_date_debut=self.simulated_at.date(),
+                entente_prealable_date_debut=self.simulated_at,
                 organisme_code="CNAM-CI", facture_numero=invoice_number,
                 type_demande_code="hospitalisation" if hospital else "acte",
                 type_hospitalisation_code="standard" if hospital else None,
@@ -443,12 +471,17 @@ class PassageSimulation:
         status = "validee_office" if automatic else ("acceptee" if accepted else "refusee")
         amount = self.anomalies.injecter_montant(
             Decimal("50000") if hospital else Decimal("15000"),
-            f"EP-{self.passage_id[:12]}",
+            self.entente_prealable_numero,
         )
         cmu_amount = ((amount * taux / Decimal("100")).quantize(Decimal("0.01"))
                       if accepted else Decimal("0"))
+        # Date de fin de l'entente = moment de la décision, pas une échéance
+        # de validité : le moteur ne modélise aucune durée de couverture.
+        decision_at = self.simulated_at + timedelta(seconds=round(response_delay))
 
         async with async_session_factory() as session:
+            agreement = await session.get(PriorAuthorization, agreement_id)
+            agreement.entente_prealable_date_fin = decision_at
             session.add(PriorAuthorizationMedicalAct(
                 entente_prealable_id=agreement_id, acte_medical_code=act.acte_medical_code,
                 professionnel_sante_code=professional_code,
@@ -464,7 +497,7 @@ class PassageSimulation:
             ))
             session.add(PriorAuthorizationStatus(
                 entente_prealable_id=agreement_id, statut_code=status,
-                statut_date_debut=self.simulated_at.date(),
+                statut_date_debut=decision_at,
                 agent_code=None if advisor is None else advisor.agent_code,
                 simulation_id=self.simulation_id,
                 utilisateur_id_creation="simulation",

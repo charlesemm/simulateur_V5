@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID
 
@@ -10,6 +10,7 @@ from sqlalchemy import (
     Boolean,
     CheckConstraint,
     Date,
+    DateTime,
     ForeignKey,
     ForeignKeyConstraint,
     Integer,
@@ -652,11 +653,11 @@ class PriorAuthorization(SimulationScopedMixin, AuditMixin, Base):
     dossier_numero: Mapped[str | None] = mapped_column(
         "DOSSIER_NUMERO", String(50)
     )
-    entente_prealable_date_debut: Mapped[date] = mapped_column(
-        "ENTENTE_PREALABLE_DATE_DEBUT", Date, nullable=False
+    entente_prealable_date_debut: Mapped[datetime] = mapped_column(
+        "ENTENTE_PREALABLE_DATE_DEBUT", DateTime(timezone=True), nullable=False
     )
-    entente_prealable_date_fin: Mapped[date | None] = mapped_column(
-        "ENTENTE_PREALABLE_DATE_FIN", Date
+    entente_prealable_date_fin: Mapped[datetime | None] = mapped_column(
+        "ENTENTE_PREALABLE_DATE_FIN", DateTime(timezone=True)
     )
     entente_prealable_numero_organisme: Mapped[str | None] = mapped_column(
         "ENTENTE_PREALABLE_NUMERO_ORGANISME", String(50)
@@ -706,13 +707,15 @@ class PriorAuthorizationStatus(SimulationScopedMixin, AuditMixin, Base):
         primary_key=True,
     )
     statut_code: Mapped[str] = mapped_column("STATUT_CODE", String(30), primary_key=True)
-    statut_date_debut: Mapped[date] = mapped_column(
-        "STATUT_DATE_DEBUT", Date, primary_key=True
+    statut_date_debut: Mapped[datetime] = mapped_column(
+        "STATUT_DATE_DEBUT", DateTime(timezone=True), primary_key=True
     )
     agent_code: Mapped[str] = mapped_column(
         "AGENT_CODE", ForeignKey("TB_REF_AGENTS.AGENT_CODE"), nullable=False
     )
-    statut_date_fin: Mapped[date | None] = mapped_column("STATUT_DATE_FIN", Date)
+    statut_date_fin: Mapped[datetime | None] = mapped_column(
+        "STATUT_DATE_FIN", DateTime(timezone=True)
+    )
 
     prior_authorization: Mapped[PriorAuthorization] = relationship(
         back_populates="statuses"
