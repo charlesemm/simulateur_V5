@@ -21,7 +21,7 @@ from app.models import (
 from anomalies import anomalies_config
 from anomalies.repository import enregistrer_injections
 from metrics.registry import registry as metrics_registry
-from seed.constants import HEALTH_CENTER_TYPES
+from seed.constants import HEALTH_CENTER_TYPES, MEDICAL_ACTS
 from seed.identifiants import numero
 from simulation.aleas import (
     BASE_RALENTIE, COUPURE_BRUTALE, HORLOGE_DECALEE, PERTE_CONNEXION,
@@ -41,6 +41,39 @@ MOTIF_DROITS_FERMES = "droits_fermes"
 # Elle a longtemps reçu le second, ce qui rendait la colonne inexploitable
 # pour tout regroupement par type.
 LIBELLES_TYPE_CENTRE = dict(HEALTH_CENTER_TYPES)
+
+# Tarif de référence de chaque acte (FCFA), tel que le seed le pose dans
+# TB_REF_ACTES_MEDICAUX.ACTE_MEDICAL_TARIF. Sert de repli tant qu'une base
+# chargée avant la migration 0026 n'a pas la colonne remplie.
+TARIFS_ACTES = {code: Decimal(str(tarif)) for code, *_, tarif in MEDICAL_ACTS}
+
+# Amplitude du montant facturé autour du tarif (demande du 11/09/2026) : d'un
+# centre ou d'un praticien à l'autre, une consultation à 5 000 FCFA peut être
+# facturée 500 comme 10 000. Loi triangulaire : les extrêmes existent, mais
+# la plupart des montants restent proches du tarif.
+VARIATION_MIN, VARIATION_MODE, VARIATION_MAX = 0.1, 1.0, 2.0
+ARRONDI_FCFA = Decimal("50")
+
+
+def montant_autour(tarif: Decimal, tirage: random.Random) -> Decimal:
+    """Montant facturé pour un acte : le tarif décalé, arrondi à 50 FCFA."""
+
+    facteur = Decimal(str(round(
+        tirage.triangular(VARIATION_MIN, VARIATION_MAX, VARIATION_MODE), 4)))
+    montant = (tarif * facteur / ARRONDI_FCFA).quantize(Decimal("1")) * ARRONDI_FCFA
+    return max(montant, ARRONDI_FCFA)
+
+
+async def tarif_acte(code: str) -> Decimal:
+    """Tarif en vigueur de l'acte, lu en base ; repli sur seed/constants."""
+
+    async with async_session_factory() as session:
+        tarif = (await session.execute(
+            select(MedicalAct.acte_medical_tarif)
+            .where(MedicalAct.acte_medical_code == code)
+            .order_by(MedicalAct.acte_medical_date_debut.desc()).limit(1)
+        )).scalar_one_or_none()
+    return tarif if tarif is not None else TARIFS_ACTES.get(code, Decimal("10000"))
 
 
 class Coverage(NamedTuple):
@@ -366,7 +399,12 @@ class PassageSimulation:
         ))
         base_code = "CONS-GEN" if ambulatory else self.random.choice(["DENT-DET", "DENT-EXT", "DENT-CAR"])
         await self.ralentir()
-        montant_depense = self.anomalies.injecter_montant(Decimal("10000"), invoice_number)
+        # Le montant suit le tarif de l'acte réellement servi, avec la
+        # variation d'un centre à l'autre ; les anomalies de montant partent
+        # de lui. Le tarif se lit sur base_code, avant qu'une prestation
+        # orpheline ne remplace le code par un code inconnu.
+        base = montant_autour(await tarif_acte(base_code), self.random)
+        montant_depense = self.anomalies.injecter_montant(base, invoice_number)
         quantite_servie = self.anomalies.injecter_quantite(1, 1, invoice_number)
         quantite_servie = self.anomalies.injecter_quantite_nulle(quantite_servie, invoice_number)
         code_prestation = self.anomalies.injecter_code_prestation(base_code, invoice_number)
@@ -374,7 +412,6 @@ class PassageSimulation:
         # Le taux vient du régime de l'assuré ; l'anomalie hors barème lui en
         # substitue un qui appartient à l'autre régime.
         taux = self.anomalies.injecter_taux(coverage.taux, coverage.regime_code, invoice_number)
-        base = Decimal("10000")
         montant_rq = (base * taux / Decimal("100")).quantize(Decimal("0.01"))
         part_assure = self.anomalies.injecter_part_assure(base - montant_rq, invoice_number)
 
@@ -476,8 +513,12 @@ class PassageSimulation:
         accepted = automatic or self.random.random() < self.config.prior_authorization_acceptance_probability
         advisor = None if automatic else await self.choose(Agent, Agent.agent_type_code == "medecin_conseil")
         status = "validee_office" if automatic else ("acceptee" if accepted else "refusee")
+        # Le tarif de l'acte tiré, pas un forfait : un scanner n'a pas le prix
+        # d'une glycémie. Même variation que pour la prestation.
+        tarif = act.acte_medical_tarif or TARIFS_ACTES.get(
+            act.acte_medical_code, Decimal("50000") if hospital else Decimal("15000"))
         amount = self.anomalies.injecter_montant(
-            Decimal("50000") if hospital else Decimal("15000"),
+            montant_autour(tarif, self.random),
             self.entente_prealable_numero,
         )
         cmu_amount = ((amount * taux / Decimal("100")).quantize(Decimal("0.01"))

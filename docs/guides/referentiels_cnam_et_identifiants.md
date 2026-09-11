@@ -43,6 +43,14 @@ Les codes **mnémoniques** ne changent pas (`CONS-GEN`, `BIO-NFS`, `AMB`,
 **Entente préalable** : les dates portent l'heure, et `DATE_FIN` est remplie
 au moment de la décision (acceptée, refusée ou validée d'office).
 
+**Montants** : chaque prestation valait 10 000 FCFA et chaque acte sous
+entente 15 000 ou 50 000, quel que soit l'acte. Le montant suit maintenant
+le tarif de l'acte (nouvelle colonne `ACTE_MEDICAL_TARIF`, migration 0026),
+avec une variation de 10 % à 200 %, le plus souvent proche du tarif, arrondie
+à 50 FCFA : une consultation à 5 000 va de 500 à 10 000, un scanner à
+80 000 de 8 000 à 160 000. Les tarifs de référence restent inventés (la CNAM
+ne publie pas sa nomenclature tarifée).
+
 **Non touché** : le générateur de campagnes garde son format (384, `CSxxx`),
 par décision du 10/09.
 

@@ -156,7 +156,9 @@ REFERENTIELS: tuple[Referentiel, ...] = (
         "MEDICAL_ACTS", "Actes médicaux", INVENTE,
         len(MEDICAL_ACTS), "TB_REF_ACTES_MEDICAUX",
         "Les préfixes BIO-, IMG- et HOS- pilotent le moteur d'entente "
-        "préalable : les changer change le comportement du simulateur.",
+        "préalable : les changer change le comportement du simulateur. Les "
+        "tarifs de référence sont inventés : la CNAM ne publie pas sa "
+        "nomenclature tarifée.",
     ),
     Referentiel(
         "INVOICE_TYPES", "Types de facture", INVENTE,
@@ -210,6 +212,14 @@ HYPOTHESES: tuple[Hypothese, ...] = (
         "Proportion retenue le 11/09/2026 pour suivre la taille de la liste CNAM.",
         "Un CHU compte autant de personnel qu'un centre de santé rural : les "
         "volumes par établissement ne disent rien de la réalité.",
+    ),
+    Hypothese(
+        "VARIATION_TARIFS", "Montant facturé autour du tarif de l'acte",
+        "de 10 % à 200 % du tarif, le plus souvent proche",
+        "Demande du 11/09/2026 : un acte n'est pas facturé partout au même "
+        "prix ; une consultation peut coûter 500 FCFA.",
+        "Les montants des jeux de données se comparent à une fourchette, pas "
+        "au tarif lui-même.",
     ),
 )
 

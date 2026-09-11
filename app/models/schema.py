@@ -401,6 +401,12 @@ class MedicalAct(AuditMixin, Base):
     acte_medical_denomination: Mapped[str] = mapped_column(
         "ACTE_MEDICAL_DENOMINATION", String(255), nullable=False
     )
+    # Tarif de référence (FCFA). Le moteur facture autour de lui, pas pile
+    # dessus (simulation/passage.py:montant_autour). Nul sur une base chargée
+    # avant la migration 0026 : le moteur retombe alors sur seed/constants.
+    acte_medical_tarif: Mapped[Decimal | None] = mapped_column(
+        "ACTE_MEDICAL_TARIF", Numeric(15, 2)
+    )
     liste_types_factures: Mapped[str | None] = mapped_column("LISTE_TYPES_FACTURES", Text)
     liste_genres: Mapped[str | None] = mapped_column("LISTE_GENRES", Text)
     acte_medical_age_minimum: Mapped[int | None] = mapped_column(

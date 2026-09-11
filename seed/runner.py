@@ -480,6 +480,7 @@ def build_medical_acts() -> list[dict[str, Any]]:
             "article_code": numero("article_acte", index),
             "acte_medical_type": act_type,
             "acte_medical_denomination": label,
+            "acte_medical_tarif": Decimal(tariff),
             "liste_types_factures": invoice_types,
             "liste_genres": "M,F",
             "acte_medical_age_minimum": 0,
