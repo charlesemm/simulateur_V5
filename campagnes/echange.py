@@ -84,6 +84,15 @@ def _classer_rapport(corps: Any) -> tuple[str | None, list[dict], str | None]:
         if not isinstance(entree, dict) or not isinstance(entree.get("ligne"), int):
             return (MOTIF_RAPPORT_MALFORME, [],
                     "Une entrée du rapport ne porte pas de numéro de ligne.")
+        # Le cahier (§4.3) exige ligne, champ et type au minimum : sans le
+        # champ, le rapprochement de M7 ne saurait pas quelle valeur du
+        # corrigé confronter à ce constat.
+        if not isinstance(entree.get("champ"), str) or not entree["champ"]:
+            return (MOTIF_RAPPORT_MALFORME, [],
+                    "Une entrée du rapport ne porte pas de champ.")
+        if not isinstance(entree.get("type"), str) or not entree["type"]:
+            return (MOTIF_RAPPORT_MALFORME, [],
+                    "Une entrée du rapport ne porte pas de type d'anomalie.")
         valides.append(entree)
 
     return None, valides, None
