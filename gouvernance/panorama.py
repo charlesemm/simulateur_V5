@@ -34,6 +34,26 @@ def _identifiant(nom: str) -> str:
     return '"' + nom.replace('"', '""') + '"'
 
 
+async def compter_lignes(session, tables: list[str]) -> dict[str, int]:
+    """Compte les lignes de plusieurs tables en un seul aller-retour.
+
+    Un « count(*) » par table, en série, faisait une trentaine de requêtes
+    pour une réponse, pendant lesquelles l'unique worker ne servait rien
+    d'autre. Le nom renvoyé passe en paramètre lié ; seul l'identifiant de
+    table, qui ne peut pas l'être, est protégé par `_identifiant`.
+    """
+
+    if not tables:
+        return {}
+    branches = " UNION ALL ".join(
+        f"SELECT CAST(:t{rang} AS text) AS nom, count(*) AS lignes FROM {_identifiant(table)}"
+        for rang, table in enumerate(tables)
+    )
+    parametres = {f"t{rang}": table for rang, table in enumerate(tables)}
+    lignes = (await session.execute(text(branches), parametres)).all()
+    return {nom: nombre for nom, nombre in lignes}
+
+
 async def panorama() -> list[dict[str, Any]]:
     """Décrit chaque table : colonnes, clé primaire, clés étrangères, volume."""
 
@@ -50,16 +70,13 @@ async def panorama() -> list[dict[str, Any]]:
         colonnes_par_table = await _colonnes(session)
         cles_primaires = await _cles(session, "PRIMARY KEY")
         cles_etrangeres = await _cles(session, "FOREIGN KEY")
+        volumes = await compter_lignes(session, tables)
 
         for table in tables:
             fiche = fiches.get(table)
-            nombre = (await session.execute(
-                text(f"SELECT count(*) FROM {_identifiant(table)}")
-            )).scalar_one()
-
             resultat.append({
                 "table": table,
-                "lignes": nombre,
+                "lignes": volumes[table],
                 "colonnes": colonnes_par_table.get(table, []),
                 "nombre_colonnes": len(colonnes_par_table.get(table, [])),
                 "cle_primaire": cles_primaires.get(table, []),

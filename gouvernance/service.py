@@ -6,10 +6,11 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
-from sqlalchemy import func, select, text
+from sqlalchemy import text
 
 from app.database import async_session_factory
 from gouvernance.catalogue import CATALOGUE, CRITIQUE, LIGNAGE
+from gouvernance.panorama import compter_lignes
 from qualite import analyser
 
 
@@ -104,21 +105,19 @@ async def volumetrie() -> list[dict[str, Any]]:
     """Compte les lignes de chaque table du catalogue, pour la fiche de suivi."""
 
     reelles = await _tables_reelles()
-    lignes: list[dict[str, Any]] = []
+    presentes = [fiche for fiche in CATALOGUE if fiche.table in reelles]
 
     async with async_session_factory() as session:
-        for fiche in CATALOGUE:
-            if fiche.table not in reelles:
-                continue
-            nombre = (await session.execute(
-                select(func.count()).select_from(text(f'"{fiche.table}"'))
-            )).scalar_one()
-            lignes.append({
-                "table": fiche.table,
-                "domaine": fiche.domaine,
-                "proprietaire": fiche.proprietaire,
-                "criticite": fiche.criticite,
-                "donnees_personnelles": fiche.donnees_personnelles,
-                "lignes": nombre,
-            })
-    return lignes
+        volumes = await compter_lignes(session, [fiche.table for fiche in presentes])
+
+    return [
+        {
+            "table": fiche.table,
+            "domaine": fiche.domaine,
+            "proprietaire": fiche.proprietaire,
+            "criticite": fiche.criticite,
+            "donnees_personnelles": fiche.donnees_personnelles,
+            "lignes": volumes[fiche.table],
+        }
+        for fiche in presentes
+    ]
