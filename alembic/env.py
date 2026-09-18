@@ -20,7 +20,12 @@ load_dotenv()
 
 config = context.config
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    # `disable_existing_loggers=False` : la valeur par défaut de fileConfig
+    # coupe tout logger déjà créé et absent d'alembic.ini. Comme la suite de
+    # tests migre la base au sein du même processus que l'API (conftest.py),
+    # ça désactivait silencieusement des loggers applicatifs (ex.
+    # api.routers.auth) pour le reste de la session pytest.
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 # DATABASE_URL fait foi, et elle seule. Un appelant qui veut migrer une autre
 # base — la base de test, par exemple — doit poser la variable avant d'appeler
