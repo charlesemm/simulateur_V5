@@ -6,6 +6,10 @@ ferait un vrai outil recevant le fichier exporté par M4.
 
 from __future__ import annotations
 
+import httpx
+import pytest
+
+import temoin.service
 from temoin.regles import Constat, analyser
 from temoin.service import analyser_fichier
 
@@ -200,3 +204,70 @@ def test_analyser_fichier_lit_le_separateur_point_virgule():
 
     assert outil
     assert constats == []
+
+
+# ── Les routes HTTP du témoin (AUDIT A01) ────────────────────────────────
+#
+# Ce sont les deux seules routes de l'API sans jeton ÉCHO. Elles lisaient le
+# fichier entier en mémoire, sans plafond ; un fichier non UTF-8 finissait
+# en 500.
+
+ENTETE_CSV = ";".join(LIGNE_SAINE) + "\n"
+
+
+async def _envoyer(contenu: bytes, **entetes: str) -> httpx.Response:
+    from api.main import fastapi_app
+
+    transport = httpx.ASGITransport(app=fastapi_app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://tests") as client:
+        return await client.post(
+            "/temoin/analyser",
+            files={"fichier": ("jeu.csv", contenu, "text/csv")},
+            headers=entetes,
+        )
+
+
+async def test_un_fichier_au_dela_du_plafond_est_refuse(monkeypatch):
+    monkeypatch.delenv("ECHO_CLE_OUTIL_TESTE", raising=False)
+    monkeypatch.setattr(temoin.service, "TAILLE_MAXIMALE_OCTETS", 1024)
+
+    reponse = await _envoyer(ENTETE_CSV.encode() + b"x" * 2048)
+
+    assert reponse.status_code == 413
+
+
+async def test_un_fichier_qui_n_est_pas_en_utf8_est_un_refus_lisible(monkeypatch):
+    monkeypatch.delenv("ECHO_CLE_OUTIL_TESTE", raising=False)
+
+    reponse = await _envoyer((ENTETE_CSV + "Kouassi;Aïcha\n").encode("cp1252"))
+
+    assert reponse.status_code == 422
+    assert "UTF-8" in reponse.json()["detail"]
+
+
+async def test_un_fichier_valide_est_toujours_analyse(monkeypatch):
+    monkeypatch.delenv("ECHO_CLE_OUTIL_TESTE", raising=False)
+    ligne = ";".join(LIGNE_SAINE.values()) + "\n"
+
+    reponse = await _envoyer((ENTETE_CSV + ligne).encode())
+
+    assert reponse.status_code == 200
+    assert reponse.json()["constats"] == []
+
+
+@pytest.mark.parametrize("cle", [None, "mauvaise-cle"])
+async def test_la_cle_configuree_ferme_le_temoin_a_qui_ne_l_a_pas(monkeypatch, cle):
+    monkeypatch.setenv("ECHO_CLE_OUTIL_TESTE", "cle-du-canal-m6")
+    entetes = {"X-Echo-Cle": cle} if cle else {}
+
+    reponse = await _envoyer(ENTETE_CSV.encode(), **entetes)
+
+    assert reponse.status_code == 401
+
+
+async def test_la_bonne_cle_ouvre_le_temoin(monkeypatch):
+    monkeypatch.setenv("ECHO_CLE_OUTIL_TESTE", "cle-du-canal-m6")
+
+    reponse = await _envoyer(ENTETE_CSV.encode(), **{"X-Echo-Cle": "cle-du-canal-m6"})
+
+    assert reponse.status_code == 200
