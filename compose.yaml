@@ -27,6 +27,11 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+    # wal_level=logical : requis par Debezium (CDC) pour lire le flux de
+    # réplication logique de PostgreSQL. Pas actif par défaut sur l'image
+    # postgres:16-alpine standard — changement pris en compte seulement au
+    # redémarrage du conteneur (podman compose down && up -d).
+    command: ["postgres", "-c", "wal_level=logical"]
 
   # ── API + dashboard ─────────────────────────────────────────
   api:
@@ -82,6 +87,11 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+
+networks:
+  default:
+    name: simulateur_v5_net
+    external: true
 
 volumes:
   pgdata:

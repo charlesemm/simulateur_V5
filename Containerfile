@@ -51,8 +51,14 @@ COPY . .
 # Dashboard compilé depuis l'étage 1
 COPY --from=dashboard /app/dashboard/dist /app/dashboard/dist
 
-# Dossier de sortie des rapports (volume en production)
-RUN mkdir -p /app/reports/output && chown -R echo:echo /app
+# Dossier de sortie des rapports (volume en production) et des jeux de
+# campagnes. `chmod -R u+rwX` d'abord : certains dossiers du dépôt arrivent
+# en lecture seule côté hôte (attribut Windows/OneDrive), et `COPY` recopie
+# ce mode dans l'image — sans quoi l'utilisateur `echo` ne peut ni écrire
+# dans `campagnes/`, ni y créer `output/` au lancement d'une génération.
+RUN mkdir -p /app/reports/output /app/campagnes/output \
+    && chmod -R u+rwX /app \
+    && chown -R echo:echo /app
 
 USER echo
 
