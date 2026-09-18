@@ -23,9 +23,16 @@ from sqlalchemy import func, or_, select
 
 from app.database import get_database_session
 from auth.models import User
-from auth.security import hash_password
+from auth.security import (
+    LONGUEUR_MOT_DE_PASSE_MAXIMALE_OCTETS, depasse_la_limite_bcrypt, hash_password,
+)
 
 LONGUEUR_MINIMALE = 8
+
+MESSAGE_TROP_LONG = (
+    f"Mot de passe trop long ({LONGUEUR_MOT_DE_PASSE_MAXIMALE_OCTETS} octets maximum, "
+    "une lettre accentuée en compte deux), opération annulée."
+)
 
 
 async def _create_admin(email: str, nom_utilisateur: str, mot_de_passe: str,
@@ -116,6 +123,9 @@ def _demander_mot_de_passe() -> str | None:
     if len(mot_de_passe) < LONGUEUR_MINIMALE:
         print("Mot de passe trop court, opération annulée.")
         return None
+    if depasse_la_limite_bcrypt(mot_de_passe):
+        print(MESSAGE_TROP_LONG)
+        return None
     if mot_de_passe != getpass.getpass("Confirmez le mot de passe : "):
         # Sans cette confirmation, une faute de frappe verrouillerait le compte
         # aussi sûrement qu'un mot de passe oublié.
@@ -170,6 +180,9 @@ def _creer_sans_invite(arguments: list[str]) -> None:
             f"({LONGUEUR_MINIMALE} caracteres minimum). Operation annulee."
         )
         return
+    if depasse_la_limite_bcrypt(mot_de_passe):
+        print(MESSAGE_TROP_LONG)
+        return
 
     asyncio.run(_create_admin(
         valeurs["email"], valeurs["nom_utilisateur"],
@@ -207,6 +220,9 @@ def main() -> None:
         return
     if len(mot_de_passe) < LONGUEUR_MINIMALE:
         print("Mot de passe trop court, opération annulée.")
+        return
+    if depasse_la_limite_bcrypt(mot_de_passe):
+        print(MESSAGE_TROP_LONG)
         return
     asyncio.run(_create_admin(email, nom_utilisateur, mot_de_passe, nom_complet))
 

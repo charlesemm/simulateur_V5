@@ -1,26 +1,21 @@
 """Configure le serveur Socket.IO ASGI et le namespace KPI."""
 
-import jwt
 import socketio
 from app import cors
-from auth.security import decode_access_token
+from app.database import async_session_factory
+from auth.dependencies import JetonRefuse, utilisateur_du_jeton
 from events import event_bus
 from kpi import KpiConsumer, KpiService
 from metrics.registry import registry as metrics_registry
 from realtime.parcours_consumer import ParcoursConsumer
 
-# FastAPI accepte toute origine locale par expression régulière ; Socket.IO ne
-# sait pas lire d'expression régulière, seulement une liste ou « tout ».
-# Laisser la seule liste explicite ici rejouerait exactement la panne du
-# 23 août : le REST passait, la poignée de main du temps réel était refusée, et
-# le bandeau restait bloqué sur « reconnexion » sans que rien ne l'explique.
-#
-# Ouvrir le temps réel ne rouvre pas les données : le gestionnaire connect
-# ci-dessous exige un jeton JWT valide avant de diffuser quoi que ce soit.
-# Vider CORS_ORIGIN_REGEX referme les deux d'un coup, pour un déploiement.
-_cors_socketio = "*" if cors.MOTIF_ORIGINE else cors.ORIGINES
-
-sio = socketio.AsyncServer(async_mode="asgi", cors_allowed_origins=_cors_socketio)
+# Même règle que le REST, par la même fonction : Socket.IO ne lit pas
+# d'expression régulière, mais il accepte une fonction qui juge l'origine.
+# Une liste seule rejouerait la panne du 23 août (Vite sur un autre port,
+# poignée de main refusée, bandeau bloqué sur « reconnexion ») ; « * » ouvrait
+# le temps réel à toute origine dès que le motif était posé, production
+# comprise.
+sio = socketio.AsyncServer(async_mode="asgi", cors_allowed_origins=cors.origine_autorisee)
 socket_app = socketio.ASGIApp(sio)
 kpi_consumer = KpiConsumer(event_bus, sio)
 # Deux consommateurs, deux abonnements distincts au bus : chacun a sa file, et
@@ -33,6 +28,10 @@ async def connect(sid, environ, auth) -> None:
 
     Le CORS ne protège que le navigateur : sans ce contrôle, n'importe quel
     client Socket.IO recevrait le snapshot complet et toutes les diffusions.
+    La signature ne suffit pas : le compte est relu comme pour le REST — un
+    compte désactivé, ou dont le mot de passe a changé, est refusé, tout
+    comme un compte encore sous mot de passe temporaire, à qui le REST
+    n'ouvre que le changement de mot de passe.
     """
 
     del environ
@@ -42,11 +41,14 @@ async def connect(sid, environ, auth) -> None:
             "Jeton d'authentification absent."
         )
     try:
-        decode_access_token(jeton)
-    except jwt.PyJWTError as exc:
+        async with async_session_factory() as session:
+            utilisateur = await utilisateur_du_jeton(jeton, session)
+    except JetonRefuse as refus:
+        raise socketio.exceptions.ConnectionRefusedError(str(refus)) from refus
+    if utilisateur.doit_changer_mot_de_passe:
         raise socketio.exceptions.ConnectionRefusedError(
-            "Jeton invalide ou expiré."
-        ) from exc
+            "Changez votre mot de passe temporaire avant de continuer."
+        )
 
     metrics_registry.enregistrer_connexion_socketio()
     snapshot = await KpiService().calculate_snapshot()

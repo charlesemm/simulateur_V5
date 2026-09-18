@@ -13,6 +13,7 @@ risque de dépendance circulaire.
 from __future__ import annotations
 
 import os
+import re
 
 # Les deux origines Vite usuelles en développement.
 _brut = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173")
@@ -32,6 +33,25 @@ ORIGINES = [origine.strip() for origine in _brut.split(",") if origine.strip()]
 MOTIF_ORIGINE = os.getenv("CORS_ORIGIN_REGEX", r"http://(localhost|127\.0\.0\.1)(:\d+)?")
 """Expression régulière des origines tolérées. Vide = tolérance refermée.
 
-Poser `CORS_ORIGIN_REGEX` à vide referme **les deux** portes d'un coup, le REST
-et le temps réel. C'est le geste à faire pour un déploiement.
+En production, elle désigne le seul domaine du service (voir
+deploiement/.env.exemple). Elle vaut pour **les deux** portes : le REST la
+passe au middleware de Starlette, le temps réel la lit par `origine_autorisee`,
+qui applique la même règle.
 """
+
+
+def origine_autorisee(origine: str | None) -> bool:
+    """La règle unique : dans la liste, ou reconnue en entier par le motif.
+
+    C'est exactement ce que fait le middleware CORS de Starlette (liste, puis
+    `fullmatch` du motif). Socket.IO ne sait pas lire une expression
+    régulière, mais accepte une fonction : il reçoit celle-ci. Il recevait
+    jusqu'ici « * » dès que le motif était posé — donc en production, où il
+    est obligatoire, alors que le REST y était refermé.
+    """
+
+    if not origine:
+        return False
+    if origine in ORIGINES:
+        return True
+    return bool(MOTIF_ORIGINE) and re.fullmatch(MOTIF_ORIGINE, origine) is not None
