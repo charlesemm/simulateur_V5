@@ -122,11 +122,12 @@ class InjectionResponse(BaseModel):
 async def get_catalogue() -> list:
     """Retourne les types d'anomalies et leur réglage.
 
-    **Seuls ceux que le moteur temps réel sait poser.** Les types réservés à
-    la campagne — les doublons, qui supposent une mémoire des lignes déjà
-    écrites — sont écartés : la console d'injection ne doit proposer que des
-    interrupteurs qui produisent quelque chose. Ils restent en base, où le
-    corrigé des campagnes les désigne, et l'écran des campagnes les affiche.
+    **Seuls ceux que le moteur temps réel sait poser.** Un seul type reste
+    écarté : FORMAT_DATE_INCOHERENT, qui remplace une date par du texte et ne
+    peut viser qu'un fichier, jamais une colonne `date` en base. Les cinq
+    autres types d'identité (doublons, champ vide, encodage cassé, tentative
+    d'injection) sont désormais posés en inscrivant un assuré neuf — voir
+    simulation/inscription.py.
     """
 
     return [

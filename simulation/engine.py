@@ -16,6 +16,7 @@ from simulation.commandes import (
     ARMER_ANOMALIE, DECLENCHER_ALEA, DESARMER_ANOMALIE, CanalDeCommande,
 )
 from simulation.events import EventCallback, default_event_callback
+from simulation.inscription import code_identite_a_inscrire, inscrire_assure
 from simulation.passage import PassageSimulation
 from simulation_config import DEFAULT_CONFIG, SimulationConfig
 
@@ -91,6 +92,20 @@ class SimulationEngine:
             metrics_registry.enregistrer_pic(len(self._insured_in_progress))
             return insured_id
 
+    async def _reserve_or_inscrire(self) -> UUID:
+        """Choisit entre reprendre un assuré existant et en inscrire un nouveau.
+
+        Cinq types du catalogue visent l'identité de l'assuré lui-même ; comme
+        le moteur ne crée normalement aucune fiche, ils n'auraient sinon jamais
+        de ligne à corrompre. Le tirage se fait avant la réservation habituelle,
+        aux mêmes taux et moments que tout autre type — réglables depuis la
+        même console d'injection.
+        """
+        code = code_identite_a_inscrire(anomalies_config)
+        if code is not None:
+            return await inscrire_assure(code, self._random, self.simulation_id, anomalies_config)
+        return await self._reserve_insured()
+
     async def _run_one(self, insured_id: UUID, sequence: int) -> None:
         """Exécute un passage sous limite de concurrence puis libère l'assuré."""
         try:
@@ -143,7 +158,7 @@ class SimulationEngine:
         taille = int(self.scenario.reglage(RAFALE, "taille", 25))
         for _ in range(taille):
             try:
-                insured_id = await self._reserve_insured()
+                insured_id = await self._reserve_or_inscrire()
             except RuntimeError:
                 # Plus d'assuré libre : la rafale s'arrête là où elle peut.
                 break
@@ -202,7 +217,7 @@ class SimulationEngine:
                 # forte probabilité tournerait sans jamais souffler.
                 sequence = await self._lancer_rafale(sequence)
             else:
-                insured_id = await self._reserve_insured()
+                insured_id = await self._reserve_or_inscrire()
                 sequence += 1
                 task = asyncio.create_task(self._run_one(insured_id, sequence))
                 self._tasks.add(task)

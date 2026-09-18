@@ -44,11 +44,14 @@ TENTATIVE_INJECTION = "TENTATIVE_INJECTION"
 
 # ── Portée d'un type ────────────────────────────────────────────────────
 #
-# Tous les types ne peuvent pas être posés partout. Un doublon suppose de
-# connaître une ligne déjà écrite ; le moteur temps réel, lui, traite un
-# passage à la fois, en concurrence, sans mémoire de ce qui précède. Lui
-# proposer ces types afficherait des boutons sans effet — ce que le projet
-# s'interdit : ce qu'on montre doit marcher.
+# Le moteur temps réel sait désormais inscrire un assuré neuf pour porter une
+# anomalie d'identité (doublon, champ vide, encodage cassé, tentative
+# d'injection) : voir simulation/inscription.py. Un seul type reste hors de
+# sa portée, FORMAT_DATE_INCOHERENT — il remplace une date par du texte, et
+# la colonne visée est typée `date` en base ; le moteur y écrirait une vraie
+# ligne, que Postgres refuserait. Lui proposer ce type afficherait un
+# interrupteur sans effet — ce que le projet s'interdit : ce qu'on montre
+# doit marcher.
 PORTEE_TOUTES = "toutes"
 PORTEE_CAMPAGNE = "campagne"
 
@@ -296,7 +299,6 @@ CATALOGUE_INITIAL: tuple[TypeAnomalie, ...] = (
         "TB_REF_ASSURES",
         "ASSURE_NUMERO_IDENTIFIANT",
         SEVERITE_DURE,
-        PORTEE_CAMPAGNE,
     ),
     TypeAnomalie(
         DOUBLON_APPROCHANT,
@@ -308,7 +310,6 @@ CATALOGUE_INITIAL: tuple[TypeAnomalie, ...] = (
         # rapprochement qui révèle l'anomalie — le cas le plus difficile
         # pour l'outil testé, et le plus fréquent en vrai.
         SEVERITE_DOUCE,
-        PORTEE_CAMPAGNE,
     ),
     TypeAnomalie(
         CHAMP_OBLIGATOIRE_VIDE,
@@ -317,7 +318,6 @@ CATALOGUE_INITIAL: tuple[TypeAnomalie, ...] = (
         "TB_REF_ASSURES",
         "ASSURE_NOM",
         SEVERITE_DURE,
-        PORTEE_CAMPAGNE,
     ),
     TypeAnomalie(
         ENCODAGE_CASSE,
@@ -326,8 +326,12 @@ CATALOGUE_INITIAL: tuple[TypeAnomalie, ...] = (
         "TB_REF_ASSURES",
         "ASSURE_NOM",
         SEVERITE_DOUCE,
-        PORTEE_CAMPAGNE,
     ),
+    # Seul type du chapitre 5 qui reste réservé à la campagne : il remplace
+    # une date par du texte, et la colonne visée est typée `date` en base —
+    # le moteur temps réel écrirait dans une vraie table, Postgres refuserait
+    # l'insertion. La campagne, elle, compose un fichier texte : rien ne s'y
+    # oppose.
     TypeAnomalie(
         FORMAT_DATE_INCOHERENT,
         "Date écrite dans un autre format que la norme du fichier",
@@ -344,7 +348,6 @@ CATALOGUE_INITIAL: tuple[TypeAnomalie, ...] = (
         "TB_REF_ASSURES",
         "ASSURE_NOM",
         SEVERITE_DURE,
-        PORTEE_CAMPAGNE,
     ),
 )
 

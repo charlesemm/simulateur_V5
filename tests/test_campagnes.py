@@ -708,18 +708,20 @@ async def test_les_huit_dimensions_sont_couvertes():
 async def test_la_console_n_affiche_que_ce_qu_elle_sait_poser(client_api, base_vierge):
     """Un interrupteur sans effet est pire qu'un interrupteur absent.
 
-    Le moteur temps réel traite un passage à la fois, sans mémoire de ce qui
-    précède : il ne peut pas poser de doublon. La console ne doit donc pas les
-    proposer, alors que l'écran des campagnes, lui, les affiche.
+    Le moteur temps réel sait désormais inscrire un assuré neuf pour porter un
+    doublon ou une anomalie d'identité (simulation/inscription.py). Seul
+    FORMAT_DATE_INCOHERENT reste hors de sa portée : il remplace une date par
+    du texte, ce qu'une colonne `date` en base ne peut pas recevoir.
     """
 
-    from anomalies.catalogue import CODES, CODES_MOTEUR
+    from anomalies.catalogue import CODES, CODES_MOTEUR, FORMAT_DATE_INCOHERENT
 
     console = await client_api.get("/anomalies/catalogue")
     assert console.status_code == 200
     affiches = {ligne["anomalie_code"] for ligne in console.json()}
     assert affiches == set(CODES_MOTEUR)
-    assert "DOUBLON_EXACT" not in affiches
+    assert "DOUBLON_EXACT" in affiches
+    assert FORMAT_DATE_INCOHERENT not in affiches
 
     campagne = await client_api.get("/campagnes/anomalies")
     proposes = {ligne["code"] for ligne in campagne.json()}
