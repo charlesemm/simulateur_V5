@@ -34,21 +34,41 @@ function authHeaders(token: string | null): HeadersInit {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+/**
+ * Traduit le détail d'une erreur FastAPI en texte affichable.
+ *
+ * Un rejet de validation (422) renvoie une liste d'objets `{loc, msg}`, pas
+ * une chaîne : sans cette conversion, l'écran retombait sur un « Erreur HTTP
+ * 422 » muet et le champ fautif restait invisible.
+ */
+function texteDetail(detail: unknown, status: number): string {
+  if (typeof detail === "string") return detail;
+  if (Array.isArray(detail)) {
+    const lignes = detail
+      .map((erreur) => {
+        const champ = Array.isArray(erreur?.loc) ? erreur.loc.at(-1) : null;
+        const message = typeof erreur?.msg === "string" ? erreur.msg : null;
+        return champ && message ? `${champ} : ${message}` : message;
+      })
+      .filter((ligne): ligne is string => Boolean(ligne));
+    if (lignes.length > 0) return lignes.join(" · ");
+  }
+  return `Erreur HTTP ${status}`;
+}
+
 async function parseOrThrow<T>(response: Response): Promise<T> {
   if (!response.ok) {
     const detail = await response.json().catch(() => null);
-    const message = detail?.detail ?? `Erreur HTTP ${response.status}`;
+    const message = texteDetail(detail?.detail, response.status);
     if (response.status === 401) {
       // Un jeton refusé ferme la session : sans ce signal, l'interface
       // restait sur un tableau de bord vide en répétant la même erreur.
       window.dispatchEvent(new CustomEvent("echo:session-expiree"));
       throw new Error(
-        typeof message === "string" && message !== "Not authenticated"
-          ? message
-          : "Session expirée — reconnectez-vous."
+        message !== "Not authenticated" ? message : "Session expirée — reconnectez-vous."
       );
     }
-    throw new Error(typeof message === "string" ? message : `Erreur HTTP ${response.status}`);
+    throw new Error(message);
   }
   return (await response.json()) as T;
 }
