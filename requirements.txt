@@ -1,3 +1,20 @@
+# Ce fichier dit ce dont l'application a BESOIN, en bornes larges.
+# Ce qui est réellement installé — l'image, la CI — vient de
+# requirements.lock : versions exactes et empreintes, calculées sous Linux
+# en Python 3.14, comme l'image. Sans verrou, « bcrypt>=4.1.0 » a suffi à
+# changer le comportement de l'authentification entre deux constructions.
+#
+# Après toute modification ici ou dans requirements-dev.txt, régénérer les
+# deux verrous DANS UN CONTENEUR (un calcul fait sous Windows perdrait les
+# paquets propres à Linux, uvloop par exemple) :
+#
+#   podman run --rm -v "${PWD}:/src" -w /src docker.io/library/python:3.14-slim sh -c "
+#     pip install -q pip-tools &&
+#     pip-compile -q --generate-hashes --strip-extras --allow-unsafe -o requirements.lock requirements.txt &&
+#     pip-compile -q --generate-hashes --strip-extras --allow-unsafe -c requirements.lock -o requirements-dev.lock requirements-dev.txt"
+#
+# Pour monter une version : ajouter « --upgrade-package <nom> » aux deux commandes.
+
 # Dépendances de la couche de persistance et des migrations.
 SQLAlchemy[asyncio]>=2.0.30
 alembic>=1.13.0

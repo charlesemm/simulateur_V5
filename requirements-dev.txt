@@ -1,5 +1,6 @@
 # Dépendances de développement : elles ne partent jamais en production.
-# Installation : pip install -r requirements.txt -r requirements-dev.txt
+# Installation : pip install -r requirements-dev.lock (versions figées, voir
+# l'en-tête de requirements.txt pour régénérer le verrou).
 
 -r requirements.txt
 
