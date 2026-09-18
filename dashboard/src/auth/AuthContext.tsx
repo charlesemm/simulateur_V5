@@ -130,7 +130,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const corps = await response.json().catch(() => null);
       throw new Error(corps?.detail ?? "Le changement de mot de passe a échoué.");
     }
-    setState((precedent) => ({ ...precedent, doitChangerMotDePasse: false }));
+    // Changer le mot de passe révoque tous les jetons émis avant, y compris
+    // celui qui vient de servir : l'API en rend un nouveau, qu'on adopte.
+    const data = await response.json();
+    setState((precedent) => ({
+      ...precedent,
+      token: data.access_token,
+      doitChangerMotDePasse: data.doit_changer_mot_de_passe === true,
+    }));
   }
 
   function logout() {

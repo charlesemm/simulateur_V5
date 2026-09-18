@@ -27,6 +27,7 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 from uuid import UUID
 
 import httpx
@@ -50,6 +51,67 @@ ADRESSE_PAR_DEFAUT = os.getenv(
 )
 
 DELAI_ATTENTE_SECONDES = 30.0
+
+# Les hôtes vers lesquels une campagne a le droit de partir. L'adresse vient
+# du corps de la requête : sans cette liste, c'est l'appelant qui choisissait
+# qui le serveur allait joindre depuis le réseau interne, et il relisait la
+# réponse dans l'historique des échanges. Le vrai outil testé se déclare ici
+# au déploiement, à côté du témoin local.
+VARIABLE_HOTES_AUTORISES = "ECHO_HOTES_OUTIL_TESTE"
+HOTES_AUTORISES_PAR_DEFAUT = "127.0.0.1,localhost"
+
+# Même variable que la garde de api/routers/temoin.py : la clé qu'exige le
+# témoin est celle qu'ÉCHO lui présente.
+VARIABLE_CLE_TEMOIN = "ECHO_CLE_OUTIL_TESTE"
+ENTETE_CLE_TEMOIN = "X-Echo-Cle"
+
+
+class AdresseRefusee(ValueError):
+    """L'adresse demandée n'est pas celle d'un outil testé déclaré."""
+
+
+def _hotes_autorises() -> set[str]:
+    """Lit la liste à chaque appel : un test ou un redémarrage la change."""
+
+    brut = os.getenv(VARIABLE_HOTES_AUTORISES, HOTES_AUTORISES_PAR_DEFAUT)
+    return {hote.strip().lower() for hote in brut.split(",") if hote.strip()}
+
+
+def verifier_adresse(cible: str) -> None:
+    """Refuse toute cible qui n'est pas un outil testé déclaré.
+
+    Seuls http et https passent, vers un hôte de la liste. Le port reste
+    libre : c'est l'hôte qui désigne l'outil, et la liste est courte.
+    """
+
+    decoupe = urlsplit(cible)
+    if decoupe.scheme not in {"http", "https"}:
+        raise AdresseRefusee(
+            f"Schéma non autorisé : « {decoupe.scheme or '(absent)'} ». "
+            "Attendu : http ou https."
+        )
+    hote = (decoupe.hostname or "").lower()
+    autorises = _hotes_autorises()
+    if hote not in autorises:
+        raise AdresseRefusee(
+            f"L'hôte « {hote} » n'est pas un outil testé déclaré "
+            f"({VARIABLE_HOTES_AUTORISES}). Connus : {', '.join(sorted(autorises))}."
+        )
+
+
+def _entetes_pour(cible: str) -> dict[str, str]:
+    """La clé du témoin, jointe seulement quand c'est lui qu'on appelle.
+
+    L'envoyer au vrai outil testé la lui livrerait sans raison.
+    """
+
+    cle = os.getenv(VARIABLE_CLE_TEMOIN)
+    if not cle:
+        return {}
+    vise, temoin = urlsplit(cible), urlsplit(ADRESSE_PAR_DEFAUT)
+    if (vise.scheme, vise.netloc) != (temoin.scheme, temoin.netloc):
+        return {}
+    return {ENTETE_CLE_TEMOIN: cle}
 
 
 def _horodatage() -> datetime:
@@ -110,6 +172,9 @@ async def transmettre(
     HTTP ordinaire part sur le réseau vers l'adresse configurée.
     """
 
+    cible = adresse or ADRESSE_PAR_DEFAUT
+    verifier_adresse(cible)
+
     async with async_session_factory() as session:
         campagne = await session.get(Campagne, campagne_id)
         if campagne is None:
@@ -128,7 +193,6 @@ async def transmettre(
             f"Le fichier de la campagne est introuvable sur le disque : {absent}."
         ) from absent
 
-    cible = adresse or ADRESSE_PAR_DEFAUT
     echange = EchangeCampagne(
         echange_id=uuid.uuid4(),
         campagne_id=campagne_id,
@@ -147,6 +211,7 @@ async def transmettre(
                 cible,
                 files={"fichier": (chemin.name, contenu, "text/csv")},
                 data={"campagne_reference": reference},
+                headers=_entetes_pour(cible),
             )
         except httpx.HTTPError as panne:
             echange.echange_message = str(panne)

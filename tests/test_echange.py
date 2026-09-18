@@ -15,13 +15,26 @@ import pytest
 
 from api.main import fastapi_app
 from campagnes import creer, historique, lancer, lire, transmettre
-from campagnes.echange import _classer_rapport
+from campagnes.echange import (
+    AdresseRefusee, _classer_rapport, _entetes_pour, verifier_adresse,
+)
 from campagnes.models import (
     MOTIF_RAPPORT_MALFORME, MOTIF_RAPPORT_SANS_DETAIL, MOTIF_SILENCE,
     RESULTAT_ECHEC, RESULTAT_SUCCES, STATUT_ECHEC_ECHANGE, STATUT_RAPPORT_RECU,
 )
 
 pytestmark = pytest.mark.asyncio
+
+
+@pytest.fixture(autouse=True)
+def hote_de_test_autorise(monkeypatch):
+    """Déclare « interne », l'hôte du client ASGI, comme outil testé.
+
+    Le canal refuse toute adresse hors de ECHO_HOTES_OUTIL_TESTE (AUDIT A02) ;
+    ces tests joignent le témoin par le client attaché à l'application.
+    """
+
+    monkeypatch.setenv("ECHO_HOTES_OUTIL_TESTE", "127.0.0.1,localhost,interne")
 
 
 def _client_interne() -> httpx.AsyncClient:
@@ -214,3 +227,63 @@ async def test_api_transmettre_une_campagne_inconnue(client_api, base_vierge):
     )
 
     assert transmission.status_code == 404
+
+
+# ── Les adresses que le canal accepte (AUDIT A02) ────────────────────────
+#
+# L'adresse vient du corps de la requête. Sans liste blanche, un opérateur
+# faisait joindre au serveur n'importe quelle machine du réseau interne, et
+# relisait la réponse dans l'historique des échanges.
+
+
+@pytest.mark.parametrize("adresse", [
+    "http://10.0.0.5:5432/",
+    "http://postgres:5432/",
+    "https://exemple.org/collecte",
+])
+async def test_un_hote_non_declare_est_refuse(adresse):
+    with pytest.raises(AdresseRefusee):
+        verifier_adresse(adresse)
+
+
+@pytest.mark.parametrize("adresse", ["file:///etc/passwd", "gopher://127.0.0.1/", "127.0.0.1/x"])
+async def test_un_schema_autre_que_http_est_refuse(adresse):
+    with pytest.raises(AdresseRefusee):
+        verifier_adresse(adresse)
+
+
+async def test_un_hote_declare_est_accepte(monkeypatch):
+    monkeypatch.setenv("ECHO_HOTES_OUTIL_TESTE", "127.0.0.1,outil.ipscnam.ci")
+
+    verifier_adresse("https://outil.ipscnam.ci:8443/analyse")
+    verifier_adresse("http://127.0.0.1:8000/temoin/analyser")
+
+
+async def test_une_adresse_refusee_ne_part_pas_et_ne_laisse_aucune_trace(base_vierge):
+    campagne_id = await _campagne_generee(MONTANT_ABERRANT={"taux": 0.5})
+
+    with pytest.raises(AdresseRefusee):
+        await transmettre(campagne_id, "http://10.0.0.5/")
+
+    assert await historique(campagne_id) == []
+
+
+async def test_l_api_refuse_une_adresse_non_declaree(client_api, base_vierge):
+    creation = await client_api.post("/campagnes", json={})
+    campagne_id = creation.json()["campagne_id"]
+
+    transmission = await client_api.post(
+        f"/campagnes/{campagne_id}/transmettre", json={"adresse": "http://10.0.0.5/"}
+    )
+
+    assert transmission.status_code == 422
+    assert "10.0.0.5" in transmission.json()["detail"]
+
+
+async def test_la_cle_du_temoin_ne_part_que_vers_le_temoin(monkeypatch):
+    monkeypatch.setenv("ECHO_CLE_OUTIL_TESTE", "cle-du-canal-m6")
+
+    assert _entetes_pour("http://127.0.0.1:8000/temoin/analyser") == {
+        "X-Echo-Cle": "cle-du-canal-m6"
+    }
+    assert _entetes_pour("https://outil.ipscnam.ci/analyse") == {}

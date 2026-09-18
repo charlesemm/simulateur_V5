@@ -65,6 +65,25 @@ services:
       # sont échappés — sans cela « . » vaudrait n'importe quel caractère et
       # « echoXexample.ci » serait accepté au même titre.
       CORS_ORIGIN_REGEX: "${CORS_ORIGIN_REGEX:?absent du .env - voir GUIDE_DEPLOIEMENT.md section 10}"
+      # Sans elle, app/cors.py retombe sur les origines Vite de développement
+      # (localhost:5173), qui n'ont rien à faire sur un serveur de production.
+      CORS_ORIGINS: "https://${ECHO_DOMAINE:?absent du .env - voir GUIDE_DEPLOIEMENT.md section 10}"
+      # Le schéma OpenAPI ne se lit qu'avec un jeton, /docs et /redoc sont
+      # fermés. L'explorateur d'API du tableau de bord reste utilisable.
+      ECHO_DOCS_PUBLIQUES: "false"
+      # Uvicorn croit l'en-tête X-Forwarded-For de Caddy : sans cela, chaque
+      # requête semble venir de Caddy, et le frein des connexions par adresse
+      # (auth/limitation.py) bloquerait tout le monde à la fois. « * » est sûr
+      # ICI parce que le port 8000 n'est publié nulle part : seuls les
+      # conteneurs de ce compose joignent l'API. Ne pas le poser dans le
+      # compose.yaml de la racine, qui publie 8000.
+      FORWARDED_ALLOW_IPS: "*"
+      # Canal M6 : les hôtes vers lesquels une campagne peut être transmise.
+      # Le témoin local y figure toujours ; ajoutez le vrai outil testé.
+      ECHO_HOTES_OUTIL_TESTE: "${ECHO_HOTES_OUTIL_TESTE:-127.0.0.1,localhost}"
+      # Clé que le témoin exige dans l'en-tête X-Echo-Cle. Facultative : le
+      # témoin n'est de toute façon pas relayé par Caddy.
+      ECHO_CLE_OUTIL_TESTE: "${ECHO_CLE_OUTIL_TESTE:-}"
       JWT_SECRET_KEY: "${JWT_SECRET_KEY:?absent du .env - generez-la, voir GUIDE_DEPLOIEMENT.md section 10}"
       # Seule variable facultative du fichier, et deliberement : elle ne sert
       # qu'une fois, a « auth.bootstrap --creer » au premier demarrage. Le
@@ -74,6 +93,10 @@ services:
       ECHO_ADMIN_PASSWORD: "${ECHO_ADMIN_PASSWORD:-}"
     volumes:
       - rapports:/app/reports/output
+      # Les jeux de campagne : sans volume, ils s'écrivaient dans la couche
+      # du conteneur — perdus au redéploiement, et hors de toute surveillance
+      # de l'espace disque.
+      - jeux:/app/campagnes/output
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4).status == 200 else 1)\""]
       interval: 30s
@@ -95,13 +118,13 @@ services:
       - "443:443"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro,Z
-      # À décommenter le jour où l'autorité de certification interne de
-      # l'IPS-CNAM aura émis un certificat pour le domaine (voir Caddyfile).
-      # - ./certs:/etc/caddy/certs:ro,Z
+      # Le certificat du domaine et sa clé (voir Caddyfile). Sans ces deux
+      # fichiers dans « ./certs », Caddy refuse de démarrer.
+      - ./certs:/etc/caddy/certs:ro,Z
       #
-      # L'autorité de certification que Caddy s'est créée vit ici. Sans ce
-      # volume, il en fabriquerait une neuve à chaque redémarrage, et tous
-      # les postes reverraient un avertissement de sécurité.
+      # L'état de Caddy et son journal d'accès (/data/acces.log). Si l'on
+      # revient un jour à « tls internal », son autorité de certification
+      # vivra ici aussi : sans ce volume, elle changerait à chaque redémarrage.
       - caddy_data:/data
       - caddy_config:/config
     environment:
@@ -114,5 +137,6 @@ services:
 volumes:
   pgdata:
   rapports:
+  jeux:
   caddy_data:
   caddy_config:

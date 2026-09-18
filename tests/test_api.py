@@ -1,6 +1,8 @@
 """Vérifie l'API à travers le vrai transport ASGI : auth, factures, parcours."""
 from __future__ import annotations
 
+import httpx
+
 from app.database import async_session_factory
 from simulation.events import SimulationEvent
 from simulation.passage import PassageSimulation
@@ -143,9 +145,16 @@ async def test_le_mot_de_passe_temporaire_ferme_les_autres_routes(client_api):
     changement = await client_api.post("/auth/change-password", headers=entetes, json={
         "mot_de_passe_actuel": temporaire, "nouveau_mot_de_passe": "NouveauMotDePasse1",
     })
-    assert changement.status_code == 204
+    assert changement.status_code == 200
+    assert changement.json()["doit_changer_mot_de_passe"] is False
 
-    ouvert = await client_api.get("/factures", headers=entetes)
+    # Changer le mot de passe révoque les jetons émis avant (AUDIT A06) :
+    # l'ancien est refusé, c'est celui de la réponse qui ouvre les routes.
+    perime = await client_api.get("/factures", headers=entetes)
+    assert perime.status_code == 401
+
+    nouveau = {"Authorization": f"Bearer {changement.json()['access_token']}"}
+    ouvert = await client_api.get("/factures", headers=nouveau)
     assert ouvert.status_code == 200
 
 
@@ -230,3 +239,36 @@ async def test_le_parcours_restitue_les_etapes_dans_l_ordre(client_api):
 async def test_un_passage_inconnu_repond_404(client_api):
     reponse = await client_api.get("/parcours/passage-inexistant")
     assert reponse.status_code == 404
+
+
+# ── La documentation de l'API (AUDIT A07) ────────────────────────────────
+
+async def _anonyme() -> httpx.AsyncClient:
+    from api.main import fastapi_app
+
+    return httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=fastapi_app), base_url="http://tests"
+    )
+
+
+async def test_en_developpement_la_documentation_reste_publique(monkeypatch, administrateur):
+    monkeypatch.delenv("ECHO_DOCS_PUBLIQUES", raising=False)
+
+    async with await _anonyme() as client:
+        assert (await client.get("/openapi.json")).status_code == 200
+        assert (await client.get("/docs")).status_code == 200
+        assert (await client.get("/redoc")).status_code == 200
+
+
+async def test_en_production_le_schema_exige_un_jeton(monkeypatch, client_api):
+    monkeypatch.setenv("ECHO_DOCS_PUBLIQUES", "false")
+
+    async with await _anonyme() as client:
+        assert (await client.get("/openapi.json")).status_code == 401
+        assert (await client.get("/docs")).status_code == 404
+        assert (await client.get("/redoc")).status_code == 404
+
+    # L'explorateur d'API du tableau de bord joint son jeton : il fonctionne.
+    avec_jeton = await client_api.get("/openapi.json")
+    assert avec_jeton.status_code == 200
+    assert "/auth/login" in avec_jeton.json()["paths"]

@@ -1,4 +1,9 @@
 # ── Secrets & configuration locale ──────────────────────────────────────────
+# Certificat et clé privée du déploiement : ils vivent sur le serveur seul.
+deploiement/certs/
+*.key
+*.pfx
+*.p12
 .env
 .env.local
 .env.*.local

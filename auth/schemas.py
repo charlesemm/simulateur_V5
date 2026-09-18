@@ -3,7 +3,11 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
+
+from auth.security import (
+    LONGUEUR_MOT_DE_PASSE_MAXIMALE_OCTETS, depasse_la_limite_bcrypt,
+)
 
 VALID_ROLES = ("administrateur", "operateur", "observateur")
 
@@ -34,6 +38,22 @@ class ChangePasswordRequest(BaseModel):
 
     mot_de_passe_actuel: str
     nouveau_mot_de_passe: str = Field(min_length=LONGUEUR_MOT_DE_PASSE_MINIMALE)
+
+    @field_validator("nouveau_mot_de_passe")
+    @classmethod
+    def tenir_dans_bcrypt(cls, valeur: str) -> str:
+        """Refuse en 422 ce que bcrypt ne saurait pas hacher.
+
+        La limite se compte en octets : un `max_length` en caractères
+        laisserait passer une phrase accentuée qui la dépasse.
+        """
+
+        if depasse_la_limite_bcrypt(valeur):
+            raise ValueError(
+                f"Le mot de passe dépasse {LONGUEUR_MOT_DE_PASSE_MAXIMALE_OCTETS} octets "
+                "(une lettre accentuée en compte deux)."
+            )
+        return valeur
 
 
 class UserCreateRequest(BaseModel):

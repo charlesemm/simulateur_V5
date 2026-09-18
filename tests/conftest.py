@@ -83,6 +83,21 @@ ASSURE_COUVERT = uuid.UUID("11111111-1111-5111-8111-111111111111")
 ASSURE_SANS_DROITS = uuid.UUID("22222222-2222-5222-8222-222222222222")
 
 
+@pytest.fixture(autouse=True)
+def frein_de_connexion_vierge():
+    """Remet à zéro le frein des connexions ratées avant chaque test.
+
+    Il vit en mémoire du processus : sans cela, les refus volontaires de
+    plusieurs tests s'additionneraient sur « admin » jusqu'à le bloquer.
+    """
+
+    from auth import limitation
+
+    limitation.reinitialiser()
+    yield
+    limitation.reinitialiser()
+
+
 @pytest.fixture(scope="session")
 def base_de_test():
     """Applique les migrations sur la base de test, une fois pour la suite."""
@@ -262,7 +277,10 @@ async def client_api(administrateur):
     from api.main import fastapi_app
     from auth.security import create_access_token
 
-    jeton = create_access_token(email=administrateur.email, role=administrateur.role)
+    jeton = create_access_token(
+        email=administrateur.email, role=administrateur.role,
+        mot_de_passe_hash=administrateur.mot_de_passe_hash,
+    )
     transport = httpx.ASGITransport(app=fastapi_app)
     async with httpx.AsyncClient(
         transport=transport,

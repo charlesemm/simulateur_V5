@@ -11,6 +11,11 @@ campagnes/output/
 *.md
 tests/
 .env
+# Le certificat et sa clé servent à Caddy, jamais à l'image de l'API.
+deploiement/certs/
+*.key
+*.pfx
+*.p12
 # .env.local sert de contournement local au bug réseau Podman/WSL
 # (dashboard/.env.local, VITE_API_URL=http://localhost:8000) : s'il entre
 # dans l'image, npm run build fige cette adresse dans le JS compilé, et le
@@ -20,3 +25,20 @@ tests/
 **/.env.local
 **/.env.*.local
 .claude/
+
+# ── Données et fichiers de poste ─────────────────────────────────────────────
+# Exclus de Git par .gitignore, mais « COPY . . » les faisait entrer dans une
+# image construite depuis un poste (la CI, partie d'un checkout, ne les a pas).
+# « assuré » contient des extraits CSV de tables de production.
+assuré
+FSE.pptx
+cahier des charges/
+.idea/
+.local/
+.cache/
+.sonar/
+.pytest_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/

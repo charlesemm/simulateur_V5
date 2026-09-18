@@ -175,7 +175,10 @@ export function ApiExplorerPage() {
     let annule = false;
     (async () => {
       try {
-        const reponse = await fetch(`${API_URL}/openapi.json`);
+        // En production, le schéma ne se lit plus sans jeton (api/main.py).
+        const reponse = await fetch(`${API_URL}/openapi.json`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
         if (!reponse.ok) throw new Error(`Schéma OpenAPI inaccessible (HTTP ${reponse.status}).`);
         const data = (await reponse.json()) as OpenApiDoc;
         if (!annule) setDoc(data);
@@ -186,7 +189,7 @@ export function ApiExplorerPage() {
       }
     })();
     return () => { annule = true; };
-  }, []);
+  }, [token]);
 
   const endpoints = useMemo(() => (doc ? aplatirOpenApi(doc) : []), [doc]);
 

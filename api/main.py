@@ -2,10 +2,14 @@
 
 from contextlib import asynccontextmanager
 import logging
+import os
 from pathlib import Path
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.openapi.docs import (
+    get_redoc_html, get_swagger_ui_html, get_swagger_ui_oauth2_redirect_html,
+)
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 import socketio
 
@@ -32,6 +36,8 @@ from api.services.simulation_manager import simulation_manager
 from realtime import shutdown_event_pipeline, sio, startup_event_pipeline
 from api.routers import auth as auth_router
 from api.routers import users as users_router
+from app.database import async_session_factory
+from auth.dependencies import get_current_user, oauth2_scheme, require_role
 import time
 from reports.scheduler import start_scheduler, stop_scheduler
 from metrics.registry import registry as metrics_registry
@@ -68,6 +74,11 @@ fastapi_app = FastAPI(
     version="1.0.0",
     description="Pilotage, inspection et KPI du parcours assuré CMU.",
     lifespan=lifespan,
+    # Déclarées plus bas, à la main : le schéma doit pouvoir exiger un jeton,
+    # ce que les routes intégrées de FastAPI ne savent pas faire.
+    docs_url=None,
+    redoc_url=None,
+    openapi_url=None,
 )
 
 @fastapi_app.middleware("http")
@@ -141,6 +152,63 @@ async def health() -> HealthResponse:
     """Confirme que le processus ASGI répond."""
 
     return HealthResponse(statut="ok")
+
+# ── Documentation de l'API ─────────────────────────────────────────────
+#
+# Le schéma OpenAPI décrit toute la surface de l'API, rôles compris. Ce n'est
+# pas une donnée, mais c'est la carte : en production, il ne se lit plus sans
+# jeton, et les pages /docs et /redoc — qui le chargent sans en présenter —
+# disparaissent. L'explorateur d'API du tableau de bord, lui, joint son jeton
+# et continue de fonctionner. En développement, rien ne change.
+VARIABLE_DOCS_PUBLIQUES = "ECHO_DOCS_PUBLIQUES"
+
+
+def _docs_publiques() -> bool:
+    """Lu à chaque requête : la valeur suit l'environnement, tests compris."""
+
+    return os.getenv(VARIABLE_DOCS_PUBLIQUES, "true").strip().lower() == "true"
+
+
+async def _acces_au_schema(request: Request) -> None:
+    """Laisse passer tout le monde si les docs sont publiques, sinon un compte."""
+
+    if _docs_publiques():
+        return
+    jeton = await oauth2_scheme(request)
+    async with async_session_factory() as session:
+        utilisateur = await get_current_user(jeton, session)
+    await require_role("observateur")(utilisateur)
+
+
+@fastapi_app.get("/openapi.json", include_in_schema=False,
+                 dependencies=[Depends(_acces_au_schema)])
+async def schema_openapi() -> JSONResponse:
+    return JSONResponse(fastapi_app.openapi())
+
+
+@fastapi_app.get("/docs", include_in_schema=False)
+async def documentation_swagger() -> HTMLResponse:
+    if not _docs_publiques():
+        raise HTTPException(status_code=404)
+    return get_swagger_ui_html(
+        openapi_url="/openapi.json",
+        title=f"{fastapi_app.title} - Swagger UI",
+        oauth2_redirect_url="/docs/oauth2-redirect",
+    )
+
+
+@fastapi_app.get("/docs/oauth2-redirect", include_in_schema=False)
+async def documentation_swagger_redirection() -> HTMLResponse:
+    if not _docs_publiques():
+        raise HTTPException(status_code=404)
+    return get_swagger_ui_oauth2_redirect_html()
+
+
+@fastapi_app.get("/redoc", include_in_schema=False)
+async def documentation_redoc() -> HTMLResponse:
+    if not _docs_publiques():
+        raise HTTPException(status_code=404)
+    return get_redoc_html(openapi_url="/openapi.json", title=f"{fastapi_app.title} - ReDoc")
 
 # ── Tableau de bord compilé ─────────────────────────────────────────────
 #

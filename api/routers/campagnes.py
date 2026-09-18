@@ -20,6 +20,7 @@ from campagnes import (
     PALIERS, compter_corrige, creer, historique, lancer, lire, lire_corrige,
     lister, previsualiser_reference, progression, transmettre,
 )
+from campagnes.echange import AdresseRefusee
 from campagnes.export import exporter, formats_disponibles
 from campagnes.models import LIBELLES_MOTIFS_ECHEC, LIBELLES_STATUTS
 
@@ -349,6 +350,10 @@ async def transmettre_campagne(
     adresse = requete.adresse if requete is not None else None
     try:
         echange = await transmettre(campagne_id, adresse)
+    except AdresseRefusee as refusee:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(refusee)
+        ) from refusee
     except LookupError as absente:
         raise HTTPException(status_code=404, detail=str(absente)) from absente
     except RuntimeError as pas_prete:

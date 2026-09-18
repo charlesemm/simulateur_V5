@@ -29,8 +29,11 @@ RUN npm run build
 FROM docker.io/library/python:3.14-slim AS deps
 
 WORKDIR /app
-COPY requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
+# Le verrou, et non requirements.txt : versions exactes et empreintes
+# vérifiées. L'image installe l'arbre même que la CI a testé — pendant de
+# package-lock.json pour le dashboard.
+COPY requirements.lock ./
+RUN pip install --no-cache-dir --require-hashes -r requirements.lock
 
 
 # ── Étage 3 : image finale ──────────────────────────────────────
