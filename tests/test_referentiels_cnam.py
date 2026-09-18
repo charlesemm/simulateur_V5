@@ -105,6 +105,20 @@ def test_les_918_medicaments_gardent_le_prix_publie_quand_il_existe():
         assert calculate_ean13(ean[:12]) == ean
 
 
+def test_les_collectivites_geocodees_restent_en_cote_d_ivoire():
+    """Coordonnées optionnelles (localité non trouvée) mais jamais hors du pays."""
+
+    collectivites = build_collectivites(LISTE_ETABLISSEMENTS, LISTE_PHARMACIES)
+    avec_coordonnees = [c for c in collectivites if c["collectivite_latitude"] is not None]
+
+    assert avec_coordonnees, "aucune localité géocodée : localites_coordonnees.csv est-il à jour ?"
+    for collectivite in avec_coordonnees:
+        latitude = Decimal(collectivite["collectivite_latitude"])
+        longitude = Decimal(collectivite["collectivite_longitude"])
+        assert Decimal("4") <= latitude <= Decimal("11")
+        assert Decimal("-9") <= longitude <= Decimal("-2")
+
+
 def test_la_hierarchie_de_localisation_reste_lisible_par_prefixe():
     regions, departements, localites = build_localisation()
 

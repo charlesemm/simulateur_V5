@@ -14,6 +14,7 @@ DOSSIER = Path(__file__).resolve().parent
 ETABLISSEMENTS = "etablissements_cnam.csv"
 PHARMACIES = "pharmacies_cnam.csv"
 MEDICAMENTS = "medicaments_cmu.csv"
+COORDONNEES_LOCALITES = "localites_coordonnees.csv"
 
 
 def lire(nom: str) -> list[dict[str, str]]:

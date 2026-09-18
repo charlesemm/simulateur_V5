@@ -19,7 +19,9 @@ from seed.constants import (
     IVORIAN_DISTRICTS, MEDECINS_CONSEILS, MEDICAL_ACTS, MEDICAL_SPECIALTIES,
     PATHOLOGY_LABELS, PROFESSIONS, TYPES_IDENTIFIANTS,
 )
-from seed.donnees import ETABLISSEMENTS, MEDICAMENTS, PHARMACIES, lire
+from seed.donnees import (
+    COORDONNEES_LOCALITES, ETABLISSEMENTS, MEDICAMENTS, PHARMACIES, lire,
+)
 
 # Nature d'un référentiel, du plus sûr au plus fragile.
 OFFICIEL = "officiel"
@@ -40,6 +42,8 @@ _LOCALITES = ({ligne["localite"] for ligne in _ETABLISSEMENTS}
               | {ligne["localite"] for ligne in _PHARMACIES})
 _DCI = {ligne["dci"] for ligne in _MEDICAMENTS}
 _PRIX_PUBLIES = sum(1 for ligne in _MEDICAMENTS if ligne["prix_fcfa"])
+_COORDONNEES = lire(COORDONNEES_LOCALITES)
+_COORDONNEES_TROUVEES = sum(1 for ligne in _COORDONNEES if ligne["trouve"] == "oui")
 
 
 @dataclass(frozen=True, slots=True)
@@ -114,6 +118,14 @@ REFERENTIELS: tuple[Referentiel, ...] = (
         "Localités telles que la CNAM les écrit. Leur rattachement aux "
         "départements n'est pas publié : elles ne sont pas reliées au "
         "découpage de TB_TV_LOCALISATION_*.",
+    ),
+    Referentiel(
+        "COORDONNEES_LOCALITES", "Latitude/longitude des localités", VRAISEMBLABLE,
+        _COORDONNEES_TROUVEES, "TB_REF_COLLECTIVITES",
+        "Géocodées par Nominatim/OpenStreetMap (seed/donnees/geocoder_localites.py), "
+        "la CNAM ne publiant aucune coordonnée. Précision non garantie sur les "
+        "petits villages ; les localités sans correspondance restent vides "
+        f"({len(_COORDONNEES) - _COORDONNEES_TROUVEES} sur {len(_COORDONNEES)}).",
     ),
     Referentiel(
         "PHARMACIES_CNAM", "Pharmacies CMU", OFFICIEL,

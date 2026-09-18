@@ -88,7 +88,10 @@ class HealthCenter(AuditMixin, Base):
     centre_sante_code: Mapped[str] = mapped_column(
         "CENTRE_SANTE_CODE", String(30), primary_key=True
     )
-    collectivite_code: Mapped[str | None] = mapped_column("COLLECTIVITE_CODE", String(30))
+    collectivite_code: Mapped[str | None] = mapped_column(
+        "COLLECTIVITE_CODE", String(30),
+        ForeignKey("TB_REF_COLLECTIVITES.COLLECTIVITE_CODE", ondelete="SET NULL"),
+    )
     type_etablissement_sanitaire_code: Mapped[str | None] = mapped_column(
         "TYPE_ETABLISSEMENT_SANITAIRE_CODE", String(30)
     )
@@ -115,9 +118,13 @@ class Collectivite(AuditMixin, Base):
     """Localité ou commune de la liste publique des établissements CNAM.
 
     Porte le nom derrière TB_REF_CENTRES_SANTE.COLLECTIVITE_CODE, qui n'était
-    jusqu'ici qu'un code sans libellé. Pas de clé étrangère depuis les
-    centres : la colonne d'origine n'en a pas, et les lignes existantes
-    (COL01…) la violeraient avant le rechargement des référentiels.
+    jusqu'ici qu'un code sans libellé. La clé étrangère depuis les centres
+    (migration 0028) a longtemps manqué : les lignes semées avant le
+    rechargement des référentiels (COL01…) l'auraient violée. Ce n'est plus
+    le cas depuis la liste CNAM (migration 0025).
+
+    Latitude/longitude géocodées (seed/donnees/geocoder_localites.py) :
+    nullables, une localité peut rester sans correspondance trouvée.
     """
 
     __tablename__ = "TB_REF_COLLECTIVITES"
@@ -127,6 +134,12 @@ class Collectivite(AuditMixin, Base):
     )
     collectivite_denomination: Mapped[str] = mapped_column(
         "COLLECTIVITE_DENOMINATION", String(150), nullable=False
+    )
+    collectivite_latitude: Mapped[Decimal | None] = mapped_column(
+        "COLLECTIVITE_LATITUDE", Numeric(9, 6)
+    )
+    collectivite_longitude: Mapped[Decimal | None] = mapped_column(
+        "COLLECTIVITE_LONGITUDE", Numeric(9, 6)
     )
 
 

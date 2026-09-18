@@ -30,7 +30,10 @@ from seed.constants import (
     IVORIAN_DISTRICTS, IVORIAN_FIRST_NAMES, IVORIAN_LAST_NAMES, MEDECINS_CONSEILS,
     MEDICAL_ACTS, MEDICAL_SPECIALTIES, PATHOLOGY_LABELS, PROFESSIONS,
 )
-from seed.donnees import ETABLISSEMENTS, MEDICAMENTS, PHARMACIES, lire as lire_donnees
+from seed.donnees import (
+    COORDONNEES_LOCALITES, ETABLISSEMENTS, MEDICAMENTS, PHARMACIES,
+    lire as lire_donnees,
+)
 from seed.identifiants import brouiller, numero, numero_securite_sociale
 from anomalies import anomalies_config, apply_anomalies_to_row
 from anomalies.repository import enregistrer_injections
@@ -171,13 +174,22 @@ def audit_values() -> dict[str, str]:
 
 def build_collectivites(etablissements: list[dict[str, str]],
                         pharmacies: list[dict[str, str]]) -> list[dict[str, Any]]:
-    """Une ligne par localité citée, qu'elle ait un établissement ou une pharmacie."""
+    """Une ligne par localité citée, qu'elle ait un établissement ou une pharmacie.
+
+    Latitude/longitude viennent du géocodage committé (voir
+    seed/donnees/geocoder_localites.py) ; une localité sans correspondance
+    y reste vide, et donc ici aussi.
+    """
 
     noms = sorted({ligne["localite"] for ligne in etablissements}
                   | {ligne["localite"] for ligne in pharmacies})
+    coordonnees = {ligne["localite"]: ligne for ligne in lire_donnees(COORDONNEES_LOCALITES)}
     return [
         {"collectivite_code": numero("collectivite", rang),
-         "collectivite_denomination": nom, **audit_values()}
+         "collectivite_denomination": nom,
+         "collectivite_latitude": coordonnees[nom]["latitude"] or None,
+         "collectivite_longitude": coordonnees[nom]["longitude"] or None,
+         **audit_values()}
         for rang, nom in enumerate(noms)
     ]
 
