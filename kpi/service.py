@@ -88,7 +88,11 @@ class KpiService:
             )
             invoice_center = {row.facture_numero: row.centre_sante_code for row in invoices}
 
-            type_labels = {"AMB": "ambulatoire", "DEN": "dentaire"}
+            # « pharmacie » est déjà pris par le compte de retraits ci-dessous :
+            # une facture PHA porte son propre libellé pour ne pas les confondre.
+            type_labels = {"AMB": "ambulatoire", "DEN": "dentaire",
+                           "BIO": "biologie/imagerie", "HOS": "hospitalisation",
+                           "PHA": "pharmacie (facture)"}
             act_counts = Counter(type_labels.get(row.type_facture_code, row.type_facture_code) for row in invoices)
             act_counts["pharmacie"] += sum(e.type_evenement == "medicament.retire" for e in events)
 

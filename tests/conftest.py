@@ -73,6 +73,7 @@ from anomalies.catalogue import CATALOGUE_INITIAL, CODES  # noqa: E402
 from anomalies.models import AnomalyType  # noqa: E402
 from auth.models import User  # noqa: E402
 from auth.security import hash_password  # noqa: E402
+from seed.constants import MEDICAL_ACTS  # noqa: E402
 
 VALIDITE = datetime(2026, 1, 1, tzinfo=timezone.utc)
 
@@ -187,13 +188,14 @@ async def _installer_referentiel() -> None:
                        medicament_tarif_default=Decimal("500"),
                        medicament_statut="actif", **audit),
 
-            MedicalAct(acte_medical_code="BIO-NFS", acte_medical_date_debut=date(2026, 1, 1),
-                       acte_medical_type="biologie", acte_medical_denomination="Numération sanguine",
-                       acte_medical_statut="actif", **audit),
-            MedicalAct(acte_medical_code="HOS-MED", acte_medical_date_debut=date(2026, 1, 1),
-                       acte_medical_type="hospitalisation",
-                       acte_medical_denomination="Hospitalisation en médecine",
-                       acte_medical_statut="actif", **audit),
+            # Le catalogue complet, pas quelques codes choisis : le moteur
+            # pioche désormais dans tout MEDICAL_ACTS pour la prestation
+            # principale (simulation/passage.py), un sous-ensemble laisserait
+            # PRESTATION_ORPHELINE crier au loup sur des codes réels.
+            *(MedicalAct(acte_medical_code=code, acte_medical_date_debut=date(2026, 1, 1),
+                        acte_medical_type=famille, acte_medical_denomination=libelle,
+                        acte_medical_tarif=Decimal(str(tarif)), acte_medical_statut="actif", **audit)
+              for code, libelle, famille, _types_facture, tarif in MEDICAL_ACTS),
 
             InsuredPerson(personne_uuid=ASSURE_COUVERT, numero_secu="3840000000001",
                           assure_nom="Kouassi", assure_prenoms="Marie", civilite_code="MME",

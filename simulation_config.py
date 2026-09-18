@@ -7,10 +7,11 @@ from dataclasses import dataclass
 class SimulationConfig:
     """Paramètres métier modifiables sans toucher à la state machine."""
 
-    ambulatory_probability: float = 0.70
+    # Le type de facture (AMB/DEN/BIO/HOS/PHA) et les ententes qui en
+    # découlent ne sont plus tirés au sort : ils suivent directement le type
+    # ouvert (voir simulation/passage.py). Seule la prescription de
+    # médicaments reste un tirage, hors pharmacie où elle est garantie.
     medication_probability: float = 0.60
-    biology_imaging_probability: float = 0.25
-    hospitalization_probability: float = 0.05
     prior_authorization_acceptance_probability: float = 0.85
     automatic_approval_limit_seconds: float = 4 * 60 * 60
     advice_mean_delay_seconds: float = 90 * 60

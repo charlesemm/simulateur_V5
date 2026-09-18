@@ -21,7 +21,7 @@ from app.models import (
 from anomalies import anomalies_config
 from anomalies.repository import enregistrer_injections
 from metrics.registry import registry as metrics_registry
-from seed.constants import HEALTH_CENTER_TYPES, MEDICAL_ACTS
+from seed.constants import HEALTH_CENTER_TYPES, INVOICE_TYPES, MEDICAL_ACTS
 from seed.identifiants import numero
 from simulation.aleas import (
     BASE_RALENTIE, COUPURE_BRUTALE, HORLOGE_DECALEE, PERTE_CONNEXION,
@@ -46,6 +46,19 @@ LIBELLES_TYPE_CENTRE = dict(HEALTH_CENTER_TYPES)
 # TB_REF_ACTES_MEDICAUX.ACTE_MEDICAL_TARIF. Sert de repli tant qu'une base
 # chargée avant la migration 0026 n'a pas la colonne remplie.
 TARIFS_ACTES = {code: Decimal(str(tarif)) for code, *_, tarif in MEDICAL_ACTS}
+
+# Type de facture -> actes qui peuvent en être la prestation principale. Un
+# acte peut valoir pour deux types à la fois (« AMB,HOS » pour l'accueil aux
+# urgences) : il compte alors dans les deux listes. PHA n'a aucun acte propre
+# (le référentiel de pharmacie n'est pas des actes médicaux) : une facture
+# pharmacie s'appuie sur la même visite que l'ambulatoire, avant le retrait
+# des médicaments, qui lui est garanti (voir plus bas).
+TYPES_FACTURE = [code for code, _ in INVOICE_TYPES]
+ACTES_PAR_TYPE_FACTURE: dict[str, list[str]] = {}
+for _code, _libelle, _famille, _types_facture, _tarif in MEDICAL_ACTS:
+    for _type_facture in _types_facture.split(","):
+        ACTES_PAR_TYPE_FACTURE.setdefault(_type_facture, []).append(_code)
+ACTES_PAR_TYPE_FACTURE["PHA"] = ACTES_PAR_TYPE_FACTURE["AMB"]
 
 # Amplitude du montant facturé autour du tarif (demande du 11/09/2026) : d'un
 # centre ou d'un praticien à l'autre, une consultation à 5 000 FCFA peut être
@@ -333,8 +346,10 @@ class PassageSimulation:
         center = await self.choose(HealthCenter)
         professional = await self.choose(HealthProfessional)
         invoice_number = await self.numero_facture()
-        ambulatory = self.random.random() < self.config.ambulatory_probability
-        invoice_type = "AMB" if ambulatory else "DEN"
+        # Les cinq types du référentiel (AMB/DEN/BIO/HOS/PHA), tirés à parts
+        # égales : rien ne dit qu'un passage est plus souvent ambulatoire
+        # qu'hospitalier, alors on ne pondère pas.
+        invoice_type = self.random.choice(TYPES_FACTURE)
         logger.info("[%s] Ouverture %s au centre %s (régime %s à %s %%).",
                     self.passage_id, invoice_number, center.centre_sante_code,
                     coverage.regime_code, coverage.taux)
@@ -397,7 +412,7 @@ class PassageSimulation:
         await self.sleep(self.random.uniform(
             self.config.consultation_min_seconds, self.config.consultation_max_seconds
         ))
-        base_code = "CONS-GEN" if ambulatory else self.random.choice(["DENT-DET", "DENT-EXT", "DENT-CAR"])
+        base_code = self.random.choice(ACTES_PAR_TYPE_FACTURE[invoice_type])
         await self.ralentir()
         # Le montant suit le tarif de l'acte réellement servi, avec la
         # variation d'un centre à l'autre ; les anomalies de montant partent
@@ -435,9 +450,14 @@ class PassageSimulation:
                         code=code_prestation)
 
         # 4. Prescriptions et Ententes
-        medications = self.random.random() < self.config.medication_probability
-        needs_biology = ambulatory and self.random.random() < self.config.biology_imaging_probability
-        needs_hospital = ambulatory and self.random.random() < self.config.hospitalization_probability
+        # Une facture pharmacie sert justement à retirer des médicaments :
+        # la prescription y est garantie plutôt que tirée. Biologie et
+        # hospitalisation suivent le type de la facture, pas un tirage à
+        # part : une facture BIO/HOS passe toujours par une entente
+        # préalable, c'est ce qui la distingue d'une simple consultation.
+        medications = invoice_type == "PHA" or self.random.random() < self.config.medication_probability
+        needs_biology = invoice_type == "BIO"
+        needs_hospital = invoice_type == "HOS"
 
         if medications:
             medicine = await self.choose(Medication)
