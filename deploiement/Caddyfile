@@ -8,28 +8,41 @@
 # venant frapper à la porte 80 DEPUIS Internet. Une machine en 10.10.4.165
 # n'est pas joignable de là. La demande échouerait indéfiniment.
 #
-# D'où « tls internal » ci-dessous : Caddy devient sa propre autorité de
-# certification et signe lui-même le certificat du domaine. Le chiffrement
-# est réel et complet — c'est la CONFIANCE du navigateur qui manque, et qui
-# se règle en distribuant l'autorité de Caddy aux postes (voir le guide).
+# Le certificat est donc fourni : émis pour le domaine, déposé dans
+# « ./certs » sur le serveur, et lu tel quel par Caddy (voir plus bas).
 #
 # La variable est lue depuis le .env par le compose de production.
 
 {$ECHO_DOMAINE} {
-
 	# ── Le certificat ────────────────────────────────────────────────
-	# « internal » : Caddy signe lui-même. Aucune demande vers l'extérieur,
-	# aucun renouvellement à surveiller, rien à ouvrir sur le pare-feu.
-	tls internal
+	# Le certificat fourni pour ce domaine, et sa clé privée, au format PEM.
+	# Ils sont lus dans « ./certs » à côté de ce fichier (montage déclaré
+	# dans compose.prod.yaml) et n'entrent jamais dans le dépôt.
+	#
+	# echo.crt doit contenir le certificat du serveur SUIVI des certificats
+	# intermédiaires de l'autorité : sans la chaîne complète, certains
+	# navigateurs refusent la connexion alors que d'autres l'acceptent.
+	#
+	# Caddy ne renouvelle pas un certificat fourni : noter sa date
+	# d'expiration, et remplacer les deux fichiers avant (puis redémarrer
+	# le conteneur caddy).
+	tls /etc/caddy/certs/echo.crt /etc/caddy/certs/echo.key
 
-	# Quand l'autorité de certification interne de l'IPS-CNAM aura émis un
-	# certificat pour ce domaine, remplacez la ligne ci-dessus par :
-	#
-	#     tls /etc/caddy/certs/echo.crt /etc/caddy/certs/echo.key
-	#
-	# et décommentez le montage « ./certs » dans compose.prod.yaml. Les
-	# postes de l'IPS-CNAM font déjà confiance à cette autorité : plus
-	# aucun avertissement de navigateur, et rien d'autre à distribuer.
+	# Pour revenir à un certificat signé par Caddy lui-même (dépannage, ou
+	# certificat expiré), remplacer la ligne ci-dessus par « tls internal »
+	# et redémarrer : les postes afficheront de nouveau un avertissement.
+
+	# ── Ce qui ne passe pas ──────────────────────────────────────────
+	# Le témoin n'est appelé que par ÉCHO lui-même, en 127.0.0.1:8000 dans
+	# le conteneur (campagnes/echange.py). Ses deux routes sont les seules de
+	# l'API sans jeton : rien ne justifie de les offrir au réseau.
+	respond /temoin/* 404
+
+	# Aucune route exposée ne reçoit de fichier : les corps sont du JSON de
+	# quelques kilo-octets. Le plafond borne ce qu'un envoi peut coûter.
+	request_body {
+		max_size 10MB
+	}
 
 	# ── Le relais vers l'application ─────────────────────────────────
 	# « api » est le nom du service dans le compose : Caddy le joint par le
@@ -50,6 +63,15 @@
 		# ÉCHO ne s'affiche dans aucun cadre : bloquer le détournement de clic.
 		X-Frame-Options "DENY"
 		Referrer-Policy "strict-origin-when-cross-origin"
+		# Le jeton de session vit dans le localStorage du navigateur, et la
+		# base contient volontairement des charges XSS (anomalies
+		# TENTATIVE_INJECTION). React les échappe ; cette politique reste
+		# entre la charge et le jeton si une vue cessait un jour de le faire.
+		# Scripts : l'origine seule (Vite compile tout en fichiers). Styles :
+		# 'unsafe-inline' pour les styles posés par les bibliothèques, plus
+		# Google Fonts, que charge index.html. wss:// pour Socket.IO.
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' wss://{$ECHO_DOMAINE}; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+		Permissions-Policy "geolocation=(), microphone=(), camera=(), payment=()"
 		# Ne pas annoncer la version du serveur.
 		-Server
 	}
