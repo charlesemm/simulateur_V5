@@ -9,3 +9,15 @@ pytest-asyncio>=0.24.0
 
 # Client HTTP du transport ASGI : il interroge l'API sans ouvrir de port.
 httpx>=0.27.0
+
+# Mesure de la couverture des tests. Produit « coverage.xml », que
+# SonarQube lit pour afficher les lignes que la suite ne traverse
+# jamais. Voir docs/guides/sonarqube.md
+pytest-cov>=5.0.0
+
+# Audit de sécurité. Les deux regardent des terrains différents et sont
+# complémentaires : bandit lit le code écrit ici, pip-audit compare les
+# dépendances aux failles publiées. SonarQube ne fait ni l'un ni l'autre en
+# édition Community. Voir docs/guides/corriger_les_vulnerabilites.md
+bandit>=1.8.0
+pip-audit>=2.7.0

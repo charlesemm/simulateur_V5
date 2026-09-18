@@ -26,6 +26,35 @@ EMAIL_INVALIDE = "EMAIL_INVALIDE"
 TYPE_CENTRE_INCONNU = "TYPE_CENTRE_INCONNU"
 PRESTATION_ORPHELINE = "PRESTATION_ORPHELINE"
 
+# ── Les six types du chapitre 5 ─────────────────────────────────────────
+#
+# Ils comblent les trois dimensions que rien ne savait encore éprouver :
+# Unicité, Complétude et Conformité technique.
+#
+# **Ils s'ajoutent en fin de liste, jamais au milieu.** L'ordre du catalogue
+# fixe l'ordre des tirages du générateur : insérer un code avant les autres
+# décalerait tous les tirages suivants et changerait l'intégralité des
+# fichiers déjà produits, à graine pourtant constante.
+DOUBLON_EXACT = "DOUBLON_EXACT"
+DOUBLON_APPROCHANT = "DOUBLON_APPROCHANT"
+CHAMP_OBLIGATOIRE_VIDE = "CHAMP_OBLIGATOIRE_VIDE"
+ENCODAGE_CASSE = "ENCODAGE_CASSE"
+FORMAT_DATE_INCOHERENT = "FORMAT_DATE_INCOHERENT"
+TENTATIVE_INJECTION = "TENTATIVE_INJECTION"
+
+# ── Portée d'un type ────────────────────────────────────────────────────
+#
+# Le moteur temps réel sait désormais inscrire un assuré neuf pour porter une
+# anomalie d'identité (doublon, champ vide, encodage cassé, tentative
+# d'injection) : voir simulation/inscription.py. Un seul type reste hors de
+# sa portée, FORMAT_DATE_INCOHERENT — il remplace une date par du texte, et
+# la colonne visée est typée `date` en base ; le moteur y écrirait une vraie
+# ligne, que Postgres refuserait. Lui proposer ce type afficherait un
+# interrupteur sans effet — ce que le projet s'interdit : ce qu'on montre
+# doit marcher.
+PORTEE_TOUTES = "toutes"
+PORTEE_CAMPAGNE = "campagne"
+
 # Les six familles de la console d'injection, chacune avec sa couleur. Elles
 # regroupent les types en boutons ; la famille Référentiel n'a pas encore de
 # type, ses codes viendront avec les moteurs.
@@ -133,6 +162,9 @@ class TypeAnomalie:
     table_cible: str
     colonne_cible: str
     severite: str
+    # Par défaut un type vaut partout ; seuls ceux qui exigent une mémoire des
+    # lignes déjà écrites sont réservés à la campagne.
+    portee: str = PORTEE_TOUTES
 
     @property
     def couleur(self) -> str:
@@ -259,6 +291,64 @@ CATALOGUE_INITIAL: tuple[TypeAnomalie, ...] = (
         "PRESTATION_CODE",
         SEVERITE_DURE,
     ),
+    # ── Chapitre 5 : les familles qui manquaient ────────────────────────
+    TypeAnomalie(
+        DOUBLON_EXACT,
+        "Deux fiches strictement identiques pour la même personne",
+        "IDENTITE",
+        "TB_REF_ASSURES",
+        "ASSURE_NUMERO_IDENTIFIANT",
+        SEVERITE_DURE,
+    ),
+    TypeAnomalie(
+        DOUBLON_APPROCHANT,
+        "Même personne à une variation orthographique près",
+        "IDENTITE",
+        "TB_REF_ASSURES",
+        "ASSURE_NOM",
+        # Douce : chaque fiche est valide prise isolément. C'est leur
+        # rapprochement qui révèle l'anomalie — le cas le plus difficile
+        # pour l'outil testé, et le plus fréquent en vrai.
+        SEVERITE_DOUCE,
+    ),
+    TypeAnomalie(
+        CHAMP_OBLIGATOIRE_VIDE,
+        "Champ obligatoire laissé vide",
+        "FORMAT",
+        "TB_REF_ASSURES",
+        "ASSURE_NOM",
+        SEVERITE_DURE,
+    ),
+    TypeAnomalie(
+        ENCODAGE_CASSE,
+        "Caractères cassés à l'import : « N'Guessan » devenu « N?Guessan »",
+        "FORMAT",
+        "TB_REF_ASSURES",
+        "ASSURE_NOM",
+        SEVERITE_DOUCE,
+    ),
+    # Seul type du chapitre 5 qui reste réservé à la campagne : il remplace
+    # une date par du texte, et la colonne visée est typée `date` en base —
+    # le moteur temps réel écrirait dans une vraie table, Postgres refuserait
+    # l'insertion. La campagne, elle, compose un fichier texte : rien ne s'y
+    # oppose.
+    TypeAnomalie(
+        FORMAT_DATE_INCOHERENT,
+        "Date écrite dans un autre format que la norme du fichier",
+        "DATES",
+        "TB_FACTURES",
+        "FACTURE_DATE_SOINS",
+        SEVERITE_DURE,
+        PORTEE_CAMPAGNE,
+    ),
+    TypeAnomalie(
+        TENTATIVE_INJECTION,
+        "Tentative d'injection glissée dans un champ texte",
+        "FORMAT",
+        "TB_REF_ASSURES",
+        "ASSURE_NOM",
+        SEVERITE_DURE,
+    ),
 )
 
 # La dimension éprouvée par chaque type. Elle vit ici et non dans la table :
@@ -283,7 +373,29 @@ DIMENSION_PAR_CODE: dict[str, str] = {
     EMAIL_INVALIDE: VALIDITE,
     TYPE_CENTRE_INCONNU: REFERENTIELLE,
     PRESTATION_ORPHELINE: REFERENTIELLE,
+    # Chapitre 5 — les trois dimensions qui n'avaient aucun injecteur.
+    DOUBLON_EXACT: UNICITE,
+    DOUBLON_APPROCHANT: UNICITE,
+    CHAMP_OBLIGATOIRE_VIDE: COMPLETUDE,
+    ENCODAGE_CASSE: TECHNIQUE,
+    # Une injection n'est pas un défaut de saisie : c'est une chaîne
+    # délibérément hostile qui a franchi les contrôles. Elle éprouve la même
+    # chose que les caractères cassés — ce que l'outil fait d'un texte qu'il
+    # n'attendait pas.
+    TENTATIVE_INJECTION: TECHNIQUE,
+    # Une date au mauvais format reste une question de forme, pas de sens :
+    # le 12/03/2025 est une date parfaitement valide, mal écrite.
+    FORMAT_DATE_INCOHERENT: VALIDITE,
 }
 
 
 CODES = tuple(type_anomalie.code for type_anomalie in CATALOGUE_INITIAL)
+
+# Ce que le moteur temps réel sait poser, et donc ce que la console
+# d'injection a le droit d'afficher. Les types de portée « campagne » en sont
+# exclus : le moteur n'a aucune mémoire des passages déjà écrits.
+CODES_MOTEUR = tuple(
+    type_anomalie.code
+    for type_anomalie in CATALOGUE_INITIAL
+    if type_anomalie.portee == PORTEE_TOUTES
+)

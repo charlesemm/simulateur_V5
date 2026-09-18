@@ -25,18 +25,22 @@ import hashlib
 import io
 import logging
 import random
+import unicodedata
+from collections import deque
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, Sequence
 from uuid import UUID
 
 from anomalies.catalogue import (
-    CODES, DATE_ANTIDATEE, DATE_HORS_DROITS, DATE_NAISSANCE_ABERRANTE,
-    DATE_SOINS_FUTURE, EMAIL_INVALIDE, MONTANT_ABERRANT, MONTANT_HORS_BAREME,
-    NUMERO_SECU_INVALIDE, PRESTATION_ORPHELINE, QUANTITE_EXCESSIVE,
-    QUANTITE_NULLE, REPARTITION_FAUSSEE, TYPE_CENTRE_INCONNU,
+    CHAMP_OBLIGATOIRE_VIDE, CODES, DATE_ANTIDATEE, DATE_HORS_DROITS,
+    DATE_NAISSANCE_ABERRANTE, DATE_SOINS_FUTURE, DOUBLON_APPROCHANT,
+    DOUBLON_EXACT, EMAIL_INVALIDE, ENCODAGE_CASSE, FORMAT_DATE_INCOHERENT,
+    MONTANT_ABERRANT, MONTANT_HORS_BAREME, NUMERO_SECU_INVALIDE,
+    PRESTATION_ORPHELINE, QUANTITE_EXCESSIVE, QUANTITE_NULLE,
+    REPARTITION_FAUSSEE, TENTATIVE_INJECTION, TYPE_CENTRE_INCONNU,
 )
 from seed.constants import (
     HEALTH_CENTER_TYPES, IVORIAN_CITIES, IVORIAN_FIRST_NAMES,
@@ -44,6 +48,31 @@ from seed.constants import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _agents_accueil() -> tuple[dict[str, str], ...]:
+    """Une cinquantaine d'agents d'accueil, à l'image des 50 lignes que le
+    seed écrit dans `TB_REF_AGENTS` — même format d'e-mail, même domaine.
+
+    Ce ne sont **pas** les mêmes lignes que la vraie base : le générateur ne
+    lit jamais la base (règle du module, pour rester rejouable à graine
+    égale), donc cette liste est une référence fixe, écrite ici une fois pour
+    toutes plutôt que tirée en base à chaque génération.
+    """
+
+    agents = []
+    for index in range(50):
+        prenom = IVORIAN_FIRST_NAMES[index % len(IVORIAN_FIRST_NAMES)]
+        nom = IVORIAN_LAST_NAMES[(index * 7) % len(IVORIAN_LAST_NAMES)]
+        racine = f"{prenom}.{nom}".lower().replace("'", "").replace(" ", "")
+        agents.append({"prenom": prenom, "nom": nom, "email": f"{racine}.{index + 1}@cmu.demo.ci"})
+    return tuple(agents)
+
+
+# AGENT_EMAIL identifie l'agent d'accueil qui a traité le dossier, pas
+# l'assuré qui vient se faire soigner : ce sont deux personnes différentes,
+# ce que l'ancienne version de ce générateur confondait.
+AGENTS_ACCUEIL = _agents_accueil()
 
 # Où sont déposés les jeux produits. Un dossier à part des rapports : ces
 # fichiers ont une autre durée de vie et une autre raison d'être.
@@ -57,12 +86,19 @@ DATE_REFERENCE = date(2026, 1, 1)
 # Étendue des dates de soins autour de la référence, en jours.
 AMPLITUDE_JOURS = 180
 
+# Base du numéro de facture : la première ligne porte 100 000, ce qui donne
+# six chiffres pour tous les paliers jusqu'à 900 000 lignes. Au-delà (le
+# palier « Afflux soudain » et le plafond de 5 000 000), le nombre grandit
+# naturellement à sept chiffres ou plus — jamais tronqué, jamais répété.
+FACTURE_NUMERO_BASE = 100_000
+
 # Les colonnes du jeu, dans l'ordre. Elles couvrent exactement ce que les
 # treize types d'anomalies savent corrompre : changer cette liste change le
 # fichier, donc l'empreinte, donc la comparaison entre deux campagnes.
 COLONNES = (
     "LIGNE_ID",
-    "NUMERO_IMMATRICULATION",
+    "ASSURE_NUMERO_IDENTIFIANT",
+    "NUMERO_SECU",
     "ASSURE_NOM",
     "ASSURE_PRENOMS",
     "ASSURE_DATE_NAISSANCE",
@@ -80,13 +116,36 @@ COLONNES = (
     "PRESTATION_QUANTITE_SERVIE",
     "PRESTATION_MONTANT_DEPENSE",
     "PRESTATION_TAUX_REMBOURSEMENT",
-    "PRESTATION_MONTANT_CMU",
+    "PRESTATION_MONTANT_RQ",
     "PRESTATION_MONTANT_ASSURE",
 )
 
-# Taux de prise en charge par régime : le RAM (assistance médicale) couvre
-# tout, le RGB laisse un ticket modérateur de 30 %.
-TAUX_PAR_REGIME = {"RAM": Decimal("1.00"), "RGB": Decimal("0.70")}
+# ── Le marquage (M4) ────────────────────────────────────────────
+#
+# Deux colonnes posées d'office en tête de chaque ligne. Aucun réglage ne
+# permet de les retirer, et c'est le cahier qui l'exige : un jeu produit par
+# ÉCHO ne doit jamais pouvoir être pris pour des données réelles — ni chez
+# l'éditeur de l'outil testé, ni dans une base où il aurait été chargé par
+# mégarde. Le marquage est en tête, et non en queue, pour qu'il saute aux yeux
+# dès la première cellule ouverte.
+COLONNE_MARQUE = "DONNEE_FICTIVE"
+COLONNE_CAMPAGNE = "CAMPAGNE_REFERENCE"
+
+# La valeur du marquage. Un simple « OUI » se serait perdu dans une colonne
+# tronquée ; celle-ci nomme aussi le producteur, ce qui permet de retrouver
+# d'où sort un fichier égaré.
+MARQUE = "FICTIF-ECHO"
+
+COLONNES_MARQUAGE = (COLONNE_MARQUE, COLONNE_CAMPAGNE)
+
+# Les colonnes réellement écrites dans le fichier, marquage compris.
+COLONNES_FICHIER = COLONNES_MARQUAGE + COLONNES
+
+# Taux de prise en charge par régime, en pourcentage — même échelle que
+# REGIME_TAUX et PRESTATION_TAUX_REMBOURSEMENT sur la vraie base
+# (seed/runner.py, app/models/schema.py), pas une fraction. Le RAM (assistance
+# médicale) couvre tout, le RGB laisse un ticket modérateur de 30 %.
+TAUX_PAR_REGIME = {"RAM": Decimal("100"), "RGB": Decimal("70")}
 
 TYPES_CENTRE = tuple(code for code, _ in HEALTH_CENTER_TYPES)
 CODES_ACTES = tuple(code for code, *_ in MEDICAL_ACTS)
@@ -132,13 +191,54 @@ def _formater(valeur: Any) -> str:
     return str(valeur)
 
 
-def _immatriculation(rng: random.Random) -> str:
-    """Un numéro d'immatriculation à treize chiffres, comme le veut la CMU."""
+# Les deux identifiants de la vraie base (app/models/schema.py), pas un seul
+# « numéro d'immatriculation » inventé : ASSURE_NUMERO_IDENTIFIANT (préfixe
+# CMU) et NUMERO_SECU (préfixe 384) désignent des choses différentes sur
+# TB_REF_ASSURES, et NUMERO_SECU_INVALIDE ne vise que le second. Les
+# confondre en un seul champ, comme la première version de ce générateur le
+# faisait, faisait cibler cette anomalie sur un champ qui n'existe nulle
+# part côté vraie base.
+IDENTIFIANT_PREFIXE = "CMU"
+SECU_PREFIXE = "384"
 
-    return "".join(str(rng.randint(0, 9)) for _ in range(13))
+# Bijections affines, comme `numero_securite_sociale` dans `seed/runner.py` :
+# chaque multiplicateur est impair et non multiple de 5, donc premier avec le
+# modulo 10**10 — la transformation ne peut alors jamais reboucler sur un
+# suffixe déjà attribué. Deux multiplicateurs distincts, pour que les deux
+# séries ne se recopient pas l'une l'autre. Le décalage, lui, est tiré une
+# fois par génération à partir de la graine de la campagne : deux campagnes
+# ne partagent pas la même série, mais une campagne rejouée à graine
+# identique produit toujours les mêmes numéros.
+IDENTIFIANT_MULTIPLICATEUR = 7_919_990_071
+IDENTIFIANT_MODULO = 10 ** 10
+SECU_MULTIPLICATEUR = 6_700_417_023
+SECU_MODULO = 10 ** 10
 
 
-def ligne_saine(rng: random.Random, numero: int) -> dict[str, Any]:
+def _identifiant_assure(numero: int, decalage: int) -> str:
+    """Un identifiant CMU à treize caractères, format ASSURE_NUMERO_IDENTIFIANT
+    de la vraie base : préfixe CMU, puis dix chiffres uniques dans tout le
+    fichier — deux lignes ne peuvent mathématiquement pas partager un
+    identifiant, ce qui compte pour la dimension Unicité du cahier.
+    """
+
+    suffixe = (IDENTIFIANT_MULTIPLICATEUR * numero + decalage) % IDENTIFIANT_MODULO
+    return f"{IDENTIFIANT_PREFIXE}{suffixe:010d}"
+
+
+def _numero_secu(numero: int, decalage: int) -> str:
+    """Un numéro de sécurité sociale à treize chiffres, même format que
+    `numero_securite_sociale()` côté seed : préfixe 384, puis dix chiffres
+    uniques, indépendants de la série d'identifiants CMU.
+    """
+
+    suffixe = (SECU_MULTIPLICATEUR * numero + decalage) % SECU_MODULO
+    return f"{SECU_PREFIXE}{suffixe:010d}"
+
+
+def ligne_saine(
+    rng: random.Random, numero: int, decalage_identifiant: int, decalage_secu: int
+) -> dict[str, Any]:
     """Compose une ligne cohérente, avant toute corruption.
 
     L'ordre des tirages compte autant que leur nombre : ajouter un tirage au
@@ -153,6 +253,14 @@ def ligne_saine(rng: random.Random, numero: int) -> dict[str, Any]:
     naissance = DATE_REFERENCE - timedelta(days=rng.randint(6_570, 25_550))
     debut_droits = DATE_REFERENCE - timedelta(days=rng.randint(200, 900))
     fin_droits = debut_droits + timedelta(days=rng.choice((365, 730, 1095)))
+    # DateTime(timezone=True) côté vraie base (TB_ASSURES_DROITS) : une date
+    # nue changerait de type de colonne d'un système à l'autre. Minuit UTC
+    # plutôt qu'une heure tirée — l'heure exacte n'a aucun sens ici, seul le
+    # jour en a, et la garder fixe évite un tirage de plus à chaque ligne.
+    debut_droits_horodate = datetime.combine(debut_droits, datetime.min.time(),
+                                             tzinfo=timezone.utc)
+    fin_droits_horodate = datetime.combine(fin_droits, datetime.min.time(),
+                                           tzinfo=timezone.utc)
 
     date_soins = DATE_REFERENCE - timedelta(days=rng.randint(0, AMPLITUDE_JOURS))
     date_emission = date_soins + timedelta(days=rng.randint(0, 5))
@@ -161,33 +269,41 @@ def ligne_saine(rng: random.Random, numero: int) -> dict[str, Any]:
     quantite = rng.randint(1, 4)
     montant = MONTANTS_ACTES[code_acte] * quantite
     taux = TAUX_PAR_REGIME[regime]
-    part_cmu = (montant * taux).quantize(Decimal("0.01"))
+    # Le taux est en pourcentage (100/70), pas une fraction : diviser par 100
+    # avant de l'appliquer au montant, sans quoi la part recomposerait le
+    # montant multiplié par cent.
+    part_rq = (montant * taux / Decimal("100")).quantize(Decimal("0.01"))
 
     return {
         "LIGNE_ID": numero,
-        "NUMERO_IMMATRICULATION": _immatriculation(rng),
+        "ASSURE_NUMERO_IDENTIFIANT": _identifiant_assure(numero, decalage_identifiant),
+        "NUMERO_SECU": _numero_secu(numero, decalage_secu),
         "ASSURE_NOM": nom,
         "ASSURE_PRENOMS": prenom,
         "ASSURE_DATE_NAISSANCE": naissance,
-        "AGENT_EMAIL": (
-            f"{prenom.lower().replace(' ', '.')}."
-            f"{nom.lower().replace(chr(39), '')}@cnam.ci"
-        ),
+        # L'agent qui a traité le dossier à l'accueil, pas l'assuré qui vient
+        # se faire soigner — voir AGENTS_ACCUEIL.
+        "AGENT_EMAIL": rng.choice(AGENTS_ACCUEIL)["email"],
         "REGIME_CODE": regime,
-        "DROITS_DATE_DEBUT": debut_droits,
-        "DROITS_DATE_FIN": fin_droits,
-        "FACTURE_NUMERO": f"F-{numero:09d}",
+        "DROITS_DATE_DEBUT": debut_droits_horodate,
+        "DROITS_DATE_FIN": fin_droits_horodate,
+        # Un entier, sans préfixe : six chiffres pour les volumes courants
+        # (jusqu'à 900 000 lignes), davantage seulement si le palier l'exige
+        # — jamais tronqué, jamais répété entre deux lignes.
+        "FACTURE_NUMERO": FACTURE_NUMERO_BASE + numero - 1,
         "FACTURE_DATE_EMISSION": date_emission,
         "FACTURE_DATE_SOINS": date_soins,
-        "CENTRE_SANTE_CODE": f"CI-CMU-{rng.randint(1, 250):05d}",
+        # Format CSxxx de TB_REF_CENTRES_SANTE.CENTRE_SANTE_CODE
+        # (seed/runner.py), pas un entier nu.
+        "CENTRE_SANTE_CODE": f"CS{rng.randint(1, 250):03d}",
         "CENTRE_SANTE_TYPE_CODE": rng.choice(TYPES_CENTRE),
         "PRESTATION_CODE": code_acte,
         "PRESTATION_QUANTITE_PRESCRITE": quantite,
         "PRESTATION_QUANTITE_SERVIE": quantite,
         "PRESTATION_MONTANT_DEPENSE": montant,
         "PRESTATION_TAUX_REMBOURSEMENT": taux,
-        "PRESTATION_MONTANT_CMU": part_cmu,
-        "PRESTATION_MONTANT_ASSURE": (montant - part_cmu).quantize(Decimal("0.01")),
+        "PRESTATION_MONTANT_RQ": part_rq,
+        "PRESTATION_MONTANT_ASSURE": (montant - part_rq).quantize(Decimal("0.01")),
         # Colonne technique, hors du fichier : la ville sert à donner un code
         # de centre plausible sans multiplier les tirages.
         "_VILLE": rng.choice(IVORIAN_CITIES),
@@ -201,7 +317,16 @@ def ligne_saine(rng: random.Random, numero: int) -> dict[str, Any]:
 # moteur tirent sur leur propre générateur et journalisent en base, deux
 # choses qui casseraient la reproductibilité du fichier.
 
-Injecteur = Callable[[random.Random, dict[str, Any]], tuple[str, Any, Any]]
+# Un injecteur rend le triplet (champ, valeur d'origine, valeur posée), ou
+# None quand il ne peut rien poser sur cette ligne-là — un champ déjà vidé par
+# un injecteur précédent, par exemple. Inscrire au corrigé une anomalie qui
+# n'a pas eu lieu fausserait le score de M7 dans le mauvais sens : l'outil
+# testé serait accusé d'avoir manqué ce qui n'existait pas.
+Resultat = tuple[str, Any, Any] | None
+Injecteur = Callable[[random.Random, dict[str, Any]], Resultat]
+InjecteurContextuel = Callable[
+    [random.Random, dict[str, Any], Sequence[dict[str, Any]]], Resultat
+]
 
 
 def _montant_aberrant(rng, ligne):
@@ -216,9 +341,11 @@ def _montant_aberrant(rng, ligne):
 
 def _taux_hors_bareme(rng, ligne):
     origine = ligne["PRESTATION_TAUX_REMBOURSEMENT"]
-    # Un taux étranger au régime : 100 % pour un RGB, ou une valeur qui
-    # n'existe dans aucun barème.
-    injectee = Decimal("1.00") if origine != Decimal("1.00") else Decimal("0.42")
+    # Le taux de l'autre régime : plausible pris isolément — 70 % comme
+    # 100 % sont des taux qui existent réellement — seule la confrontation au
+    # régime de la ligne révèle l'incohérence. Même logique que
+    # `anomalies/config.py:tirer_taux`, côté moteur temps réel.
+    injectee = Decimal("70") if ligne["REGIME_CODE"] == "RAM" else Decimal("100")
     ligne["PRESTATION_TAUX_REMBOURSEMENT"] = injectee
     return "PRESTATION_TAUX_REMBOURSEMENT", origine, injectee
 
@@ -249,7 +376,12 @@ def _date_soins_future(rng, ligne):
 
 def _date_hors_droits(rng, ligne):
     origine = ligne["FACTURE_DATE_SOINS"]
-    injectee = ligne["DROITS_DATE_FIN"] + timedelta(days=rng.randint(1, 400))
+    # DROITS_DATE_FIN est un datetime (horodaté, timezone UTC) ; FACTURE_DATE_SOINS
+    # reste une date nue — .date() ramène le résultat au bon type, sinon la
+    # colonne mélangerait les deux d'une ligne à l'autre.
+    injectee = (
+        ligne["DROITS_DATE_FIN"] + timedelta(days=rng.randint(1, 400))
+    ).date()
     ligne["FACTURE_DATE_SOINS"] = injectee
     return "FACTURE_DATE_SOINS", origine, injectee
 
@@ -274,15 +406,23 @@ def _quantite_nulle(rng, ligne):
     return "PRESTATION_QUANTITE_SERVIE", origine, 0
 
 
-def _numero_invalide(rng, ligne):
-    origine = ligne["NUMERO_IMMATRICULATION"]
+def _numero_secu_invalide(rng, ligne):
+    """Vise NUMERO_SECU, pas l'identifiant CMU : c'est ce champ que la vraie
+    base protège par une contrainte d'unicité (app/models/schema.py), et
+    c'est lui que `anomalies/config.py:tirer_numero_secu` corrompt côté
+    moteur temps réel — les deux simulations doivent viser le même champ.
+    """
+
+    origine = ligne["NUMERO_SECU"]
     if rng.random() < 0.5:
+        # La même sentinelle que le moteur temps réel : un numéro qui passe
+        # la contrainte de longueur mais ne peut appartenir à personne.
+        injectee = "00000000000000"
+    else:
         # Trop court : le défaut le plus courant à la saisie.
         injectee = origine[: rng.randint(6, 12)]
-    else:
-        injectee = origine[:-1] + rng.choice("ABCDEFGH")
-    ligne["NUMERO_IMMATRICULATION"] = injectee
-    return "NUMERO_IMMATRICULATION", origine, injectee
+    ligne["NUMERO_SECU"] = injectee
+    return "NUMERO_SECU", origine, injectee
 
 
 def _email_invalide(rng, ligne):
@@ -310,6 +450,208 @@ def _prestation_orpheline(rng, ligne):
     return "PRESTATION_CODE", origine, injectee
 
 
+# ── Les injecteurs du chapitre 5 ─────────────────────────────────────────
+#
+# Le cahier range les caractères cassés et les formats de date parmi les
+# « anomalies de fichier », à poser à l'écriture de l'export, au motif
+# qu'elles ne peuvent pas exister dans une colonne typée. L'objection tombe
+# ici : le jeu est un CSV, où tout est du texte. Les poser dans la ligne comme
+# les autres garde le corrigé exact — ligne **et** champ — dont le
+# rapprochement de M7 a absolument besoin, et qu'une injection faite à
+# l'écriture rendrait bien plus difficile à tenir.
+
+# Les champs qui, ensemble, désignent une personne. Un doublon les copie.
+CHAMPS_IDENTITE = (
+    "ASSURE_NUMERO_IDENTIFIANT",
+    "ASSURE_NOM",
+    "ASSURE_PRENOMS",
+    "ASSURE_DATE_NAISSANCE",
+)
+
+# Ce qu'un dossier ne peut pas laisser vide.
+CHAMPS_OBLIGATOIRES = (
+    "ASSURE_NUMERO_IDENTIFIANT",
+    "ASSURE_NOM",
+    "ASSURE_PRENOMS",
+    "ASSURE_DATE_NAISSANCE",
+    "FACTURE_NUMERO",
+    "PRESTATION_CODE",
+)
+
+# Champs texte où une charge hostile peut se glisser.
+CHAMPS_TEXTE = ("ASSURE_NOM", "ASSURE_PRENOMS", "AGENT_EMAIL", "CENTRE_SANTE_CODE")
+
+# Champs date, pour le format concurrent.
+CHAMPS_DATE = ("FACTURE_DATE_SOINS", "ASSURE_DATE_NAISSANCE", "DROITS_DATE_DEBUT")
+
+# Les classiques, ceux qu'on retrouve dans tous les journaux d'accès. Le but
+# n'est pas d'attaquer quoi que ce soit : c'est de voir si l'outil testé les
+# signale, ou s'il les avale comme un nom de famille ordinaire.
+CHARGES_INJECTION = (
+    "'; DROP TABLE TB_FACTURES; --",
+    "' OR '1'='1",
+    "<script>alert(1)</script>",
+    "../../../etc/passwd",
+    "${jndi:ldap://x}",
+    "{{7*7}}",
+)
+
+# Formats concurrents de la norme ISO du fichier. Le premier est le piège le
+# plus fréquent en Côte d'Ivoire : la date française, que rien ne distingue
+# de l'ISO tant que le jour ne dépasse pas douze.
+FORMATS_DATE_CONCURRENTS = ("%d/%m/%Y", "%m-%d-%Y", "%Y%m%d", "%d.%m.%y")
+
+# Lignes conservées pour servir de modèle aux doublons. Une fenêtre glissante
+# plutôt que tout le fichier : sur un palier à un million de lignes, garder
+# chaque identité épuiserait la mémoire pour un bénéfice nul — un doublon posé
+# à trois cents lignes d'écart est déjà un doublon.
+PROFONDEUR_HISTORIQUE = 300
+
+
+def _identite(ligne: dict[str, Any]) -> str:
+    """L'identité d'une ligne, en une chaîne lisible dans le corrigé."""
+
+    return " | ".join(_formater(ligne[champ]) for champ in CHAMPS_IDENTITE)
+
+
+def _sans_accents(texte: str) -> str:
+    """« Grâce » devient « Grace » — la variation la plus courante."""
+
+    decompose = unicodedata.normalize("NFD", texte)
+    return "".join(c for c in decompose if unicodedata.category(c) != "Mn")
+
+
+def _varier(rng: random.Random, texte: str) -> str:
+    """Une variation orthographique plausible d'un nom.
+
+    Ce sont les vraies causes de doublons flous dans un état civil : un accent
+    perdu à la saisie, une consonne doublée, un tiret devenu espace, une casse
+    différente selon le guichet.
+    """
+
+    # Les deux tirages sont faits d'office, avant tout examen du texte : les
+    # rendre conditionnels ferait dépendre la suite du fichier du contenu de
+    # la ligne, et l'ordre des tirages ne serait plus le même d'une graine à
+    # l'autre.
+    forme = rng.randrange(4)
+    position = rng.randrange(max(1, len(texte)))
+    if not texte:
+        return texte
+
+    doublee = texte[:position + 1] + texte[position] + texte[position + 1:]
+    match forme:
+        case 0:
+            variante = _sans_accents(texte)
+        case 1:
+            variante = texte.upper()
+        case 2:
+            variante = texte.replace("-", " ").replace("'", " ")
+        case _:
+            variante = doublee
+
+    # Une variation qui ne varie rien — « Ouattara » sans accent à retirer,
+    # un nom déjà en majuscules — donnerait un doublon exact déguisé, et un
+    # corrigé annonçant une anomalie que personne ne peut voir. On retombe
+    # alors sur le doublement de lettre, qui change toujours quelque chose.
+    return variante if variante != texte else doublee
+
+
+def _doublon_exact(rng, ligne, historique):
+    """Recopie à l'identique une personne déjà présente dans le fichier."""
+
+    if not historique:
+        return None
+    modele = historique[rng.randrange(len(historique))]
+    origine = _identite(ligne)
+    for champ in CHAMPS_IDENTITE:
+        ligne[champ] = modele[champ]
+    return "IDENTITE", origine, _identite(ligne)
+
+
+def _doublon_approchant(rng, ligne, historique):
+    """La même personne, à une variation près — et sous un autre identifiant.
+
+    L'identifiant CMU reste celui de la ligne, délibérément : c'est tout le
+    cas difficile. Deux identifiants pour une seule personne, que seule la
+    proximité des noms et la date de naissance permettent de rapprocher. Le
+    copier aussi rendrait la détection triviale, et le test sans valeur.
+    """
+
+    if not historique:
+        return None
+    modele = historique[rng.randrange(len(historique))]
+    origine = _identite(ligne)
+    ligne["ASSURE_NOM"] = _varier(rng, modele["ASSURE_NOM"])
+    ligne["ASSURE_PRENOMS"] = modele["ASSURE_PRENOMS"]
+    ligne["ASSURE_DATE_NAISSANCE"] = modele["ASSURE_DATE_NAISSANCE"]
+
+    injectee = _identite(ligne)
+    # La ligne portait déjà cette identité — un injecteur précédent l'y avait
+    # copiée. Rien n'a bougé : ne pas l'inscrire au corrigé, qui annoncerait
+    # sinon une anomalie introuvable dans le fichier.
+    if injectee == origine:
+        return None
+    return "IDENTITE", origine, injectee
+
+
+def _champ_obligatoire_vide(rng, ligne):
+    champ = CHAMPS_OBLIGATOIRES[rng.randrange(len(CHAMPS_OBLIGATOIRES))]
+    origine = ligne[champ]
+    ligne[champ] = ""
+    return champ, origine, ""
+
+
+def _encodage_casse(rng, ligne):
+    """Le mojibake du double encodage, ou la lettre devenue « ? ».
+
+    Le tirage de position est fait dans tous les cas, même quand il ne sert
+    pas : un tirage conditionnel ferait dépendre la suite du fichier du contenu
+    de la ligne, et deux graines identiques ne donneraient plus le même
+    résultat.
+    """
+
+    champ = CHAMPS_TEXTE[rng.randrange(2)]
+    origine = ligne[champ]
+    position = rng.randrange(max(1, len(str(origine))))
+    if not origine:
+        return None
+
+    texte = str(origine)
+    # Le double encodage : du texte UTF-8 relu comme du latin-1. C'est
+    # exactement ce qu'on voit sur un export mal paramétré.
+    casse = texte.encode("utf-8").decode("latin-1")
+    if casse == texte:
+        # Rien à casser, faute d'accent : on retombe sur le cas que le
+        # catalogue cite, la lettre remplacée par un point d'interrogation.
+        casse = texte[:position] + "?" + texte[position + 1:]
+    ligne[champ] = casse
+    return champ, origine, casse
+
+
+def _format_date_incoherent(rng, ligne):
+    """Une date juste, mal écrite."""
+
+    champ = CHAMPS_DATE[rng.randrange(len(CHAMPS_DATE))]
+    motif = FORMATS_DATE_CONCURRENTS[rng.randrange(len(FORMATS_DATE_CONCURRENTS))]
+    origine = ligne[champ]
+    # Un injecteur précédent a pu vider ce champ ou l'avoir déjà réécrit en
+    # texte. Ne rien faire alors, plutôt que d'inscrire au corrigé une
+    # anomalie qui n'a pas été posée.
+    if not isinstance(origine, date):
+        return None
+    injectee = origine.strftime(motif)
+    ligne[champ] = injectee
+    return champ, origine, injectee
+
+
+def _tentative_injection(rng, ligne):
+    champ = CHAMPS_TEXTE[rng.randrange(len(CHAMPS_TEXTE))]
+    charge = CHARGES_INJECTION[rng.randrange(len(CHARGES_INJECTION))]
+    origine = ligne[champ]
+    ligne[champ] = charge
+    return champ, origine, charge
+
+
 INJECTEURS: dict[str, Injecteur] = {
     MONTANT_ABERRANT: _montant_aberrant,
     MONTANT_HORS_BAREME: _taux_hors_bareme,
@@ -320,10 +662,22 @@ INJECTEURS: dict[str, Injecteur] = {
     REPARTITION_FAUSSEE: _repartition_faussee,
     QUANTITE_EXCESSIVE: _quantite_excessive,
     QUANTITE_NULLE: _quantite_nulle,
-    NUMERO_SECU_INVALIDE: _numero_invalide,
+    NUMERO_SECU_INVALIDE: _numero_secu_invalide,
     EMAIL_INVALIDE: _email_invalide,
     TYPE_CENTRE_INCONNU: _type_centre_inconnu,
     PRESTATION_ORPHELINE: _prestation_orpheline,
+    CHAMP_OBLIGATOIRE_VIDE: _champ_obligatoire_vide,
+    ENCODAGE_CASSE: _encodage_casse,
+    FORMAT_DATE_INCOHERENT: _format_date_incoherent,
+    TENTATIVE_INJECTION: _tentative_injection,
+}
+
+# Les deux types qui ne peuvent rien poser sans regarder ce qui précède. Ils
+# reçoivent l'historique en plus de la ligne, d'où un dictionnaire à part
+# plutôt qu'une troisième position ajoutée aux dix-sept autres signatures.
+INJECTEURS_AVEC_HISTORIQUE: dict[str, InjecteurContextuel] = {
+    DOUBLON_EXACT: _doublon_exact,
+    DOUBLON_APPROCHANT: _doublon_approchant,
 }
 
 
@@ -336,12 +690,15 @@ def ordre_des_types(reglages: dict[str, dict]) -> tuple[str, ...]:
     """
 
     return tuple(
-        code for code in CODES if code in reglages and code in INJECTEURS
+        code for code in CODES
+        if code in reglages
+        and (code in INJECTEURS or code in INJECTEURS_AVEC_HISTORIQUE)
     )
 
 
 def pieger(rng: random.Random, ligne: dict[str, Any], types: tuple[str, ...],
-           reglages: dict[str, dict], numero: int) -> list[Constat]:
+           reglages: dict[str, dict], numero: int,
+           historique: Sequence[dict[str, Any]] | None = None) -> list[Constat]:
     """Applique les anomalies tirées pour cette ligne et rend les constats.
 
     Un tirage est effectué pour **chaque** type actif, même quand un précédent
@@ -349,12 +706,24 @@ def pieger(rng: random.Random, ligne: dict[str, Any], types: tuple[str, ...],
     des résultats précédents, et le taux demandé ne serait plus respecté.
     """
 
+    passe = historique if historique is not None else []
     constats: list[Constat] = []
     for code in types:
         taux = float(reglages[code].get("taux", 0))
         if rng.random() >= taux:
             continue
-        champ, origine, injectee = INJECTEURS[code](rng, ligne)
+
+        if code in INJECTEURS_AVEC_HISTORIQUE:
+            resultat = INJECTEURS_AVEC_HISTORIQUE[code](rng, ligne, passe)
+        else:
+            resultat = INJECTEURS[code](rng, ligne)
+
+        # Rien posé : le tirage a bien eu lieu — la reproductibilité est
+        # sauve — mais il n'y a pas d'anomalie à inscrire au corrigé.
+        if resultat is None:
+            continue
+
+        champ, origine, injectee = resultat
         constats.append(Constat(
             ligne=numero,
             champ=champ,
@@ -365,23 +734,29 @@ def pieger(rng: random.Random, ligne: dict[str, Any], types: tuple[str, ...],
     return constats
 
 
-def _ecrire_entete(fichier: io.TextIOBase) -> None:
-    """Pose la ligne d'en-tête, avec les colonnes dans leur ordre déclaré."""
-
-    csv.writer(fichier, delimiter=";", lineterminator="\n").writerow(COLONNES)
-
-
 def produire(graine: int, volume: int, reglages: dict[str, dict],
-             destination: Path,
+             destination: Path, reference: str,
              progression: Callable[[int], None] | None = None) -> tuple[str, list[Constat], int]:
-    """Écrit le jeu piégé et rend son empreinte, son corrigé et son volume.
+    """Écrit le jeu piégé, marqué, et rend son empreinte, son corrigé, son volume.
 
-    L'empreinte est calculée sur les octets réellement écrits : c'est elle qui
-    prouve, à l'œil, que deux campagnes de même graine ont produit le même
-    fichier.
+    **L'empreinte ne couvre que les données, jamais le marquage**, et cette
+    exclusion est le seul moyen de tenir les deux exigences du cahier à la
+    fois. Le chapitre 3 veut que deux campagnes de même graine affichent la
+    même empreinte ; le chapitre 4 veut que chaque ligne porte la référence de
+    sa campagne, qui est justement ce qui les distingue. Faire entrer le
+    marquage dans le calcul rendrait les deux empreintes différentes et la
+    preuve de rejouabilité impossible à lire à l'écran.
+
+    Ce que l'empreinte atteste est donc précis : **le contenu piégé est le
+    même**. Elle ne prétend pas être la somme du fichier livré.
     """
 
     rng = random.Random(graine)
+    # Tirés une seule fois, avant la boucle, et dans cet ordre fixe : c'est ce
+    # qui distingue la série de numéros d'une campagne de celle d'une autre,
+    # sans casser la bijection qui garantit leur unicité au sein du fichier.
+    decalage_identifiant = rng.randrange(IDENTIFIANT_MODULO)
+    decalage_secu = rng.randrange(SECU_MODULO)
     types = ordre_des_types(reglages)
     constats: list[Constat] = []
     empreinte = hashlib.sha256()
@@ -391,21 +766,42 @@ def produire(graine: int, volume: int, reglages: dict[str, dict],
     # l'encodage est imposé : un fichier écrit en cp1252 sur Windows et en
     # UTF-8 ailleurs n'aurait pas la même empreinte.
     with destination.open("w", newline="", encoding="utf-8") as fichier:
-        tampon = io.StringIO()
-        ecrivain = csv.writer(tampon, delimiter=";", lineterminator="\n")
+        # Deux tampons, et non un seul : celui de gauche part sur le disque
+        # avec le marquage, celui de droite ne sert qu'au calcul de
+        # l'empreinte, sans lui. Recalculer la ligne deux fois coûte moins
+        # cher que de découper après coup un texte déjà échappé par le module
+        # csv — un point-virgule dans un nom suffirait à fausser la découpe.
+        tampon_fichier = io.StringIO()
+        ecrivain_fichier = csv.writer(tampon_fichier, delimiter=";", lineterminator="\n")
+        tampon_donnees = io.StringIO()
+        ecrivain_donnees = csv.writer(tampon_donnees, delimiter=";", lineterminator="\n")
 
         def vider() -> None:
-            texte = tampon.getvalue()
-            tampon.seek(0)
-            tampon.truncate(0)
-            fichier.write(texte)
-            empreinte.update(texte.encode("utf-8"))
+            fichier.write(tampon_fichier.getvalue())
+            tampon_fichier.seek(0)
+            tampon_fichier.truncate(0)
 
-        ecrivain.writerow(COLONNES)
+            empreinte.update(tampon_donnees.getvalue().encode("utf-8"))
+            tampon_donnees.seek(0)
+            tampon_donnees.truncate(0)
+
+        ecrivain_fichier.writerow(COLONNES_FICHIER)
+        ecrivain_donnees.writerow(COLONNES)
+
+        # Les identités déjà écrites, dans lesquelles les doublons puisent
+        # leur modèle. Alimentée **après** le piégeage : sans quoi une ligne
+        # pourrait se dupliquer elle-même, ce qui ne prouverait rien.
+        historique: deque[dict[str, Any]] = deque(maxlen=PROFONDEUR_HISTORIQUE)
+
         for numero in range(1, volume + 1):
-            ligne = ligne_saine(rng, numero)
-            constats.extend(pieger(rng, ligne, types, reglages, numero))
-            ecrivain.writerow([_formater(ligne[colonne]) for colonne in COLONNES])
+            ligne = ligne_saine(rng, numero, decalage_identifiant, decalage_secu)
+            constats.extend(
+                pieger(rng, ligne, types, reglages, numero, historique)
+            )
+            historique.append({champ: ligne[champ] for champ in CHAMPS_IDENTITE})
+            cellules = [_formater(ligne[colonne]) for colonne in COLONNES]
+            ecrivain_fichier.writerow([MARQUE, reference, *cellules])
+            ecrivain_donnees.writerow(cellules)
 
             if numero % PAS_PROGRESSION == 0:
                 vider()

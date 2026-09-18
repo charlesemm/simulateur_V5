@@ -25,3 +25,10 @@ APScheduler>=3.10.0
 
 # Chargement du fichier .env en développement local.
 python-dotenv>=1.0.0
+
+# Client HTTP pour le canal M6 : transmet le jeu d'une campagne à l'outil
+# testé (ou au témoin par défaut) et lit sa réponse. python-multipart est ce
+# qui permet à FastAPI de décoder le fichier reçu côté témoin (UploadFile) —
+# sans lui, la route lève une erreur au premier appel, jamais à l'import.
+httpx>=0.27.0
+python-multipart>=0.0.9

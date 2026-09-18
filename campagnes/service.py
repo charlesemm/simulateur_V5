@@ -71,6 +71,21 @@ async def _prochaine_reference(session, annee: int, decalage: int = 0) -> str:
     return f"C-{annee}-{(deja or 0) + 1 + decalage:03d}"
 
 
+async def previsualiser_reference() -> str:
+    """Donne la référence que porterait la prochaine campagne, sans la
+    réserver : purement informatif, pour que l'écran de création l'affiche
+    dès la première étape, avant que quoi que ce soit n'existe en base.
+
+    Deux opérateurs qui ouvriraient l'écran au même instant verraient la
+    même prévision ; seul l'un des deux l'obtiendra réellement à la
+    création, l'autre glissant sur le rang suivant — c'est le compromis
+    assumé pour ne réserver aucune ligne tant que rien n'est confirmé.
+    """
+
+    async with async_session_factory() as session:
+        return await _prochaine_reference(session, datetime.now(timezone.utc).year)
+
+
 def normaliser_anomalies(
     anomalies: dict[str, dict] | None
 ) -> dict[str, dict[str, float]]:
@@ -119,7 +134,7 @@ def dimensions_couvertes(anomalies: dict[str, dict]) -> list[str]:
     ]
 
 
-async def creer(libelle: str | None = None, code_palier: str | None = None,
+async def creer(code_palier: str | None = None,
                 volume_cible: int | None = None, graine: int | None = None,
                 utilisateur_uuid: uuid.UUID | None = None,
                 anomalies: dict[str, dict] | None = None) -> Campagne:
@@ -128,6 +143,10 @@ async def creer(libelle: str | None = None, code_palier: str | None = None,
     Rien n'est encore généré : la campagne existe, avec sa graine et son
     volume visé. C'est ce qui permet de la retrouver, de la rejouer et de la
     comparer plus tard — l'unité traçable du cahier des charges.
+
+    Le libellé n'est plus saisi : il découle de la référence, elle-même
+    incrémentielle, pour qu'aucune campagne ne se batise au hasard ni ne
+    recopie le nom d'une autre.
     """
 
     retenu = palier(code_palier)
@@ -136,10 +155,7 @@ async def creer(libelle: str | None = None, code_palier: str | None = None,
     campagne = Campagne(
         campagne_id=uuid.uuid4(),
         campagne_reference="",
-        campagne_libelle=(
-            libelle.strip() if libelle and libelle.strip()
-            else f"Campagne du {maintenant:%d/%m/%Y à %H:%M}"
-        ),
+        campagne_libelle="",
         campagne_statut=STATUT_CREEE,
         campagne_graine=normaliser_graine(graine),
         campagne_palier=retenu.code,
@@ -154,6 +170,7 @@ async def creer(libelle: str | None = None, code_palier: str | None = None,
             campagne.campagne_reference = await _prochaine_reference(
                 session, maintenant.year, tentative
             )
+            campagne.campagne_libelle = f"Campagne {campagne.campagne_reference}"
             session.add(campagne)
             try:
                 await session.commit()

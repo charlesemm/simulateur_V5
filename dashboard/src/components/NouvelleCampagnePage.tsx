@@ -51,8 +51,12 @@ export function NouvelleCampagnePage({ onAnnuler, onCreee }: NouvelleCampagnePag
   const [types, setTypes] = useState<TypeAnomalieCampagne[]>([]);
   const [erreur, setErreur] = useState<string | null>(null);
   const [creation, setCreation] = useState(false);
+  // Prévisionnelle : calculée à l'affichage, pas réservée. Elle peut donc
+  // différer de la référence réellement attribuée si une autre campagne se
+  // crée entre-temps — c'est le compromis pour ne rien réserver en base
+  // tant que rien n'est confirmé.
+  const [referencePrevisionnelle, setReferencePrevisionnelle] = useState<string | null>(null);
 
-  const [nom, setNom] = useState("");
   const [palierChoisi, setPalierChoisi] = useState("ECHANTILLON");
   const [volume, setVolume] = useState(500);
   // Le mode de graine est un choix explicite : « aléatoire » et « une graine
@@ -65,23 +69,23 @@ export function NouvelleCampagnePage({ onAnnuler, onCreee }: NouvelleCampagnePag
     let annule = false;
     void (async () => {
       try {
-        const [listePaliers, listeDimensions, listeTypes] = await Promise.all([
+        const [listePaliers, listeDimensions, listeTypes, reference] = await Promise.all([
           api.getPaliers(token),
           api.getDimensions(token),
           api.getTypesCampagne(token),
+          api.getProchaineReference(token),
         ]);
         if (annule) return;
         setPaliers(listePaliers);
         setDimensions(listeDimensions);
         setTypes(listeTypes);
+        setReferencePrevisionnelle(reference);
 
         const premier = listePaliers[0];
         if (premier) {
           setPalierChoisi(premier.code);
           setVolume(premier.volume_propose);
         }
-        setNom(`Campagne du ${new Date().toLocaleDateString("fr-FR")}`);
-
         // Rien n'est pré-coché : la campagne doit dire exactement ce qu'elle
         // pose, et un réglage hérité en douce fausserait la lecture du score.
         setReglages(
@@ -184,7 +188,6 @@ export function NouvelleCampagnePage({ onAnnuler, onCreee }: NouvelleCampagnePag
         ])
       );
       const campagne = await api.creerCampagne(token, {
-        libelle: nom.trim() || undefined,
         palier: palierChoisi,
         volume_cible: volume,
         graine: graineAleatoire ? null : graine,
@@ -198,13 +201,19 @@ export function NouvelleCampagnePage({ onAnnuler, onCreee }: NouvelleCampagnePag
       setCreation(false);
     }
   }, [
-    token, nom, palierChoisi, volume, graineAleatoire, graine, actifs,
+    token, palierChoisi, volume, graineAleatoire, graine, actifs,
     reglages, onCreee,
   ]);
 
   return (
     <div className="screen">
       {erreur && <p className="screen-error">{erreur}</p>}
+
+      {referencePrevisionnelle && (
+        <p className="fiche-identifiant" style={{ marginBottom: 10 }}>
+          Référence prévisionnelle : {referencePrevisionnelle}
+        </p>
+      )}
 
       <ol className="fil-etapes">
         {ETAPES.map((libelle, index) => {
@@ -239,18 +248,10 @@ export function NouvelleCampagnePage({ onAnnuler, onCreee }: NouvelleCampagnePag
               tester, dont le rapport sera confronté au corrigé.
             </p>
 
-            <div className="formulaire-lancement">
-              <label className="champ-groupe">
-                <span className="champ-libelle">Nom de la campagne</span>
-                <input
-                  className="champ-console"
-                  value={nom}
-                  maxLength={150}
-                  placeholder="Par exemple : recette de l'outil qualité, août"
-                  onChange={(evenement) => setNom(evenement.target.value)}
-                />
-              </label>
-            </div>
+            <p className="screen-section-lead">
+              Le nom de la campagne est attribué automatiquement, de façon
+              incrémentielle, à la création — plus rien à saisir ici.
+            </p>
           </div>
 
           <section>
@@ -484,7 +485,7 @@ export function NouvelleCampagnePage({ onAnnuler, onCreee }: NouvelleCampagnePag
             <div className="screen-section-head">
               <h2 className="screen-section-title">Récapitulatif</h2>
             </div>
-            <div className="stat-strip">
+            <div className="stat-strip stat-strip--recap">
               <div className="stat-tile">
                 <span className="stat-tile-label">Palier</span>
                 <span className="stat-tile-value">

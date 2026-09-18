@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID
 
@@ -10,10 +10,12 @@ from sqlalchemy import (
     Boolean,
     CheckConstraint,
     Date,
+    DateTime,
     ForeignKey,
     ForeignKeyConstraint,
     Integer,
     Numeric,
+    Sequence,
     String,
     Text,
     UniqueConstraint,
@@ -22,6 +24,16 @@ from sqlalchemy.dialects.postgresql import UUID as PostgreSQLUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import AuditMixin, Base, SimulationScopedMixin
+
+# Numérote les factures (simulation/passage.py:numero_facture), avant
+# permutation sur les 90 000 000 nombres à huit chiffres. Déclarée ici pour
+# qu'une base créée par create_all() — la base de test, la migration 0001 —
+# la possède aussi ; les migrations 0023 et 0025 la créent et la bornent sur
+# une base existante.
+SEQUENCE_FACTURE = Sequence(
+    "SEQ_FACTURE_NUMERO", start=1, minvalue=1, maxvalue=90_000_000,
+    cycle=False, metadata=Base.metadata,
+)
 
 
 class InsuredPerson(AuditMixin, Base):
@@ -76,7 +88,10 @@ class HealthCenter(AuditMixin, Base):
     centre_sante_code: Mapped[str] = mapped_column(
         "CENTRE_SANTE_CODE", String(30), primary_key=True
     )
-    collectivite_code: Mapped[str | None] = mapped_column("COLLECTIVITE_CODE", String(30))
+    collectivite_code: Mapped[str | None] = mapped_column(
+        "COLLECTIVITE_CODE", String(30),
+        ForeignKey("TB_REF_COLLECTIVITES.COLLECTIVITE_CODE", ondelete="SET NULL"),
+    )
     type_etablissement_sanitaire_code: Mapped[str | None] = mapped_column(
         "TYPE_ETABLISSEMENT_SANITAIRE_CODE", String(30)
     )
@@ -96,6 +111,68 @@ class HealthCenter(AuditMixin, Base):
     invoices: Mapped[list[Invoice]] = relationship(back_populates="health_center")
     prior_authorizations: Mapped[list[PriorAuthorization]] = relationship(
         back_populates="health_center"
+    )
+
+
+class Collectivite(AuditMixin, Base):
+    """Localité ou commune de la liste publique des établissements CNAM.
+
+    Porte le nom derrière TB_REF_CENTRES_SANTE.COLLECTIVITE_CODE, qui n'était
+    jusqu'ici qu'un code sans libellé. La clé étrangère depuis les centres
+    (migration 0028) a longtemps manqué : les lignes semées avant le
+    rechargement des référentiels (COL01…) l'auraient violée. Ce n'est plus
+    le cas depuis la liste CNAM (migration 0025).
+
+    Latitude/longitude géocodées (seed/donnees/geocoder_localites.py) :
+    nullables, une localité peut rester sans correspondance trouvée.
+    """
+
+    __tablename__ = "TB_REF_COLLECTIVITES"
+
+    collectivite_code: Mapped[str] = mapped_column(
+        "COLLECTIVITE_CODE", String(30), primary_key=True
+    )
+    collectivite_denomination: Mapped[str] = mapped_column(
+        "COLLECTIVITE_DENOMINATION", String(150), nullable=False
+    )
+    collectivite_latitude: Mapped[Decimal | None] = mapped_column(
+        "COLLECTIVITE_LATITUDE", Numeric(9, 6)
+    )
+    collectivite_longitude: Mapped[Decimal | None] = mapped_column(
+        "COLLECTIVITE_LONGITUDE", Numeric(9, 6)
+    )
+
+
+class Pharmacie(AuditMixin, Base):
+    """Pharmacie où un assuré CMU peut retirer ses médicaments (liste CNAM)."""
+
+    __tablename__ = "TB_REF_PHARMACIES"
+
+    pharmacie_code: Mapped[str] = mapped_column(
+        "PHARMACIE_CODE", String(30), primary_key=True
+    )
+    pharmacie_denomination: Mapped[str] = mapped_column(
+        "PHARMACIE_DENOMINATION", String(255), nullable=False
+    )
+    collectivite_code: Mapped[str] = mapped_column(
+        "COLLECTIVITE_CODE",
+        ForeignKey("TB_REF_COLLECTIVITES.COLLECTIVITE_CODE"),
+        nullable=False,
+    )
+
+
+class Dci(AuditMixin, Base):
+    """Dénomination commune internationale d'un médicament de la liste CMU.
+
+    Porte le libellé derrière TB_REF_MEDICAMENTS.DCI_CODE, qui n'était
+    jusqu'ici qu'une abréviation (PAR, IBU…) sans table.
+    """
+
+    __tablename__ = "TB_REF_DCI"
+
+    dci_code: Mapped[str] = mapped_column("DCI_CODE", String(30), primary_key=True)
+    dci_denomination: Mapped[str] = mapped_column(
+        "DCI_DENOMINATION", String(150), nullable=False
     )
 
 
@@ -336,6 +413,12 @@ class MedicalAct(AuditMixin, Base):
     )
     acte_medical_denomination: Mapped[str] = mapped_column(
         "ACTE_MEDICAL_DENOMINATION", String(255), nullable=False
+    )
+    # Tarif de référence (FCFA). Le moteur facture autour de lui, pas pile
+    # dessus (simulation/passage.py:montant_autour). Nul sur une base chargée
+    # avant la migration 0026 : le moteur retombe alors sur seed/constants.
+    acte_medical_tarif: Mapped[Decimal | None] = mapped_column(
+        "ACTE_MEDICAL_TARIF", Numeric(15, 2)
     )
     liste_types_factures: Mapped[str | None] = mapped_column("LISTE_TYPES_FACTURES", Text)
     liste_genres: Mapped[str | None] = mapped_column("LISTE_GENRES", Text)
@@ -652,11 +735,11 @@ class PriorAuthorization(SimulationScopedMixin, AuditMixin, Base):
     dossier_numero: Mapped[str | None] = mapped_column(
         "DOSSIER_NUMERO", String(50)
     )
-    entente_prealable_date_debut: Mapped[date] = mapped_column(
-        "ENTENTE_PREALABLE_DATE_DEBUT", Date, nullable=False
+    entente_prealable_date_debut: Mapped[datetime] = mapped_column(
+        "ENTENTE_PREALABLE_DATE_DEBUT", DateTime(timezone=True), nullable=False
     )
-    entente_prealable_date_fin: Mapped[date | None] = mapped_column(
-        "ENTENTE_PREALABLE_DATE_FIN", Date
+    entente_prealable_date_fin: Mapped[datetime | None] = mapped_column(
+        "ENTENTE_PREALABLE_DATE_FIN", DateTime(timezone=True)
     )
     entente_prealable_numero_organisme: Mapped[str | None] = mapped_column(
         "ENTENTE_PREALABLE_NUMERO_ORGANISME", String(50)
@@ -706,13 +789,18 @@ class PriorAuthorizationStatus(SimulationScopedMixin, AuditMixin, Base):
         primary_key=True,
     )
     statut_code: Mapped[str] = mapped_column("STATUT_CODE", String(30), primary_key=True)
-    statut_date_debut: Mapped[date] = mapped_column(
-        "STATUT_DATE_DEBUT", Date, primary_key=True
+    statut_date_debut: Mapped[datetime] = mapped_column(
+        "STATUT_DATE_DEBUT", DateTime(timezone=True), primary_key=True
     )
-    agent_code: Mapped[str] = mapped_column(
-        "AGENT_CODE", ForeignKey("TB_REF_AGENTS.AGENT_CODE"), nullable=False
+    # Vide pour une validation d'office : aucun médecin conseil ne l'a
+    # traitée. La base l'accepte depuis la migration 0002 ; le modèle, lui,
+    # la déclarait encore obligatoire.
+    agent_code: Mapped[str | None] = mapped_column(
+        "AGENT_CODE", ForeignKey("TB_REF_AGENTS.AGENT_CODE"), nullable=True
     )
-    statut_date_fin: Mapped[date | None] = mapped_column("STATUT_DATE_FIN", Date)
+    statut_date_fin: Mapped[datetime | None] = mapped_column(
+        "STATUT_DATE_FIN", DateTime(timezone=True)
+    )
 
     prior_authorization: Mapped[PriorAuthorization] = relationship(
         back_populates="statuses"

@@ -23,7 +23,9 @@ def test_le_mot_de_passe_est_verifiable():
 def test_deux_hachages_du_meme_mot_de_passe_different():
     """Le sel doit être unique, sinon deux comptes identiques se repèrent."""
 
-    assert hash_password("identique") != hash_password("identique")
+    premiere_empreinte = hash_password("identique")
+    seconde_empreinte = hash_password("identique")
+    assert premiere_empreinte != seconde_empreinte
 
 
 def test_le_mot_de_passe_temporaire_a_la_bonne_longueur():

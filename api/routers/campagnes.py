@@ -2,23 +2,26 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 
 from anomalies.catalogue import CATALOGUE_INITIAL, DIMENSIONS, DIMENSION_PAR_CODE
 from api.schema import (
     CampagneCreateRequest, CampagneResponse, CorrigeResponse, DimensionResponse,
-    LigneCorrigeResponse, PalierResponse, ProgressionResponse,
-    TypeAnomalieCampagneResponse,
+    EchangeCampagneResponse, FormatExportResponse, LigneCorrigeResponse,
+    PalierResponse, ProchaineReferenceResponse, ProgressionResponse,
+    TransmissionRequest, TypeAnomalieCampagneResponse,
 )
 from auth.dependencies import require_role
 from auth.models import User
 from campagnes import (
-    PALIERS, compter_corrige, creer, lancer, lire, lire_corrige, lister,
-    progression,
+    PALIERS, compter_corrige, creer, historique, lancer, lire, lire_corrige,
+    lister, previsualiser_reference, progression, transmettre,
 )
-from campagnes.models import LIBELLES_STATUTS
+from campagnes.export import exporter, formats_disponibles
+from campagnes.models import LIBELLES_MOTIFS_ECHEC, LIBELLES_STATUTS
 
 router = APIRouter(prefix="/campagnes", tags=["Campagnes"])
 
@@ -31,6 +34,25 @@ async def list_paliers() -> list[PalierResponse]:
     return [PalierResponse.model_validate(palier) for palier in PALIERS.values()]
 
 
+@router.get("/formats", response_model=list[FormatExportResponse],
+            dependencies=[Depends(require_role("observateur"))])
+async def list_formats() -> list[FormatExportResponse]:
+    """Retourne les formats dans lesquels un jeu peut être téléchargé.
+
+    Déclarés par le serveur, comme les paliers et les statuts : ajouter un
+    format ne doit pas demander de retoucher l'écran.
+
+    Cette route est **déclarée avant `/{campagne_id}`** à dessein — FastAPI
+    retient la première qui correspond, et lirait sinon « formats » comme un
+    identifiant de campagne.
+    """
+
+    return [
+        FormatExportResponse.model_validate(format_export)
+        for format_export in formats_disponibles()
+    ]
+
+
 @router.get("/statuts", dependencies=[Depends(require_role("observateur"))])
 async def list_statuts() -> dict[str, str]:
     """Retourne les statuts d'une campagne et leur libellé en français.
@@ -40,6 +62,16 @@ async def list_statuts() -> dict[str, str]:
     """
 
     return LIBELLES_STATUTS
+
+
+@router.get("/motifs-echec", dependencies=[Depends(require_role("observateur"))])
+async def list_motifs_echec() -> dict[str, str]:
+    """Les trois pannes du canal M6, et leur libellé en français.
+
+    Déclarée avant `/{campagne_id}` pour la même raison que `/statuts`.
+    """
+
+    return LIBELLES_MOTIFS_ECHEC
 
 
 @router.get("/dimensions", response_model=list[DimensionResponse],
@@ -93,6 +125,24 @@ async def list_types_anomalies() -> list[TypeAnomalieCampagneResponse]:
     ]
 
 
+@router.get("/prochaine-reference", response_model=ProchaineReferenceResponse,
+            dependencies=[Depends(require_role("observateur"))])
+async def prochaine_reference() -> ProchaineReferenceResponse:
+    """La référence que porterait la prochaine campagne, sans la réserver.
+
+    L'écran de création l'affiche dès sa première étape, avant même que
+    l'opérateur ait choisi un palier. **Purement prévisionnel** : si une
+    autre campagne se crée entre-temps, celle-ci en héritera et la présente
+    campagne prendra le rang suivant à la création réelle.
+
+    Déclarée avant `/{campagne_id}` pour la même raison que `/formats` et
+    `/statuts` : FastAPI retiendrait sinon « prochaine-reference » comme un
+    identifiant de campagne.
+    """
+
+    return ProchaineReferenceResponse(reference=await previsualiser_reference())
+
+
 @router.post("", response_model=CampagneResponse,
              status_code=status.HTTP_201_CREATED)
 async def creer_campagne(
@@ -103,7 +153,7 @@ async def creer_campagne(
 
     try:
         campagne = await creer(
-            requete.libelle, requete.palier, requete.volume_cible,
+            requete.palier, requete.volume_cible,
             requete.graine, utilisateur.utilisateur_uuid,
             {
                 code: reglage.model_dump()
@@ -230,3 +280,93 @@ async def lire_corrige_campagne(
         par_anomalie=par_anomalie,
         lignes=[LigneCorrigeResponse.model_validate(ligne) for ligne in lignes],
     )
+
+
+@router.get("/{campagne_id}/export",
+            dependencies=[Depends(require_role("observateur"))])
+async def exporter_campagne(campagne_id: UUID, format: str = "csv") -> Response:
+    """Remet le jeu de la campagne dans le format demandé.
+
+    Le paramètre s'appelle « format » parce que c'est le mot que lit celui qui
+    consulte l'API ; il masque la fonction interne du même nom, dont on n'a pas
+    l'usage ici.
+
+    Le fichier est renvoyé en un bloc et non en flux : les formats dérivés sont
+    de toute façon construits en mémoire, et le CSV est borné par le volume de
+    la campagne. Un flux ne se justifiera qu'avec les paliers de M8.
+    """
+
+    try:
+        campagne = await lire(campagne_id)
+    except LookupError as absente:
+        raise HTTPException(status_code=404, detail=str(absente)) from absente
+
+    if not campagne.campagne_fichier:
+        # 409 et non 404 : la campagne existe, c'est son jeu qui n'a pas encore
+        # été produit. Les deux cas appellent des gestes différents de la part
+        # de celui qui les lit, ils ne doivent pas porter le même code.
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Cette campagne n'a pas encore été générée : rien à exporter.",
+        )
+
+    try:
+        export = exporter(
+            Path(campagne.campagne_fichier), format, campagne.campagne_reference
+        )
+    except FileNotFoundError as absent:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT,
+                            detail=str(absent)) from absent
+    except ValueError as refus:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail=str(refus)) from refus
+
+    return Response(
+        content=export.contenu,
+        media_type=export.type_mime,
+        headers={
+            # « attachment » déclenche l'enregistrement au lieu de l'affichage,
+            # et impose le nom du fichier — sans quoi le navigateur le
+            # baptiserait « export », du dernier segment de l'adresse.
+            "Content-Disposition": f'attachment; filename="{export.nom_fichier}"',
+        },
+    )
+
+
+@router.post("/{campagne_id}/transmettre", response_model=EchangeCampagneResponse,
+             status_code=status.HTTP_201_CREATED)
+async def transmettre_campagne(
+    campagne_id: UUID, requete: TransmissionRequest | None = None,
+    _utilisateur: User = Depends(require_role("operateur")),
+) -> EchangeCampagneResponse:
+    """Transmet le jeu d'une campagne à l'outil testé (M6).
+
+    Répond une fois l'échange terminé — succès ou échec, les trois pannes
+    distinguées : ce n'est jamais long, un jeu de campagne se transmet en un
+    seul appel HTTP synchrone. Sans adresse, la campagne part vers le témoin.
+    """
+
+    adresse = requete.adresse if requete is not None else None
+    try:
+        echange = await transmettre(campagne_id, adresse)
+    except LookupError as absente:
+        raise HTTPException(status_code=404, detail=str(absente)) from absente
+    except RuntimeError as pas_prete:
+        raise HTTPException(status_code=409, detail=str(pas_prete)) from pas_prete
+    return EchangeCampagneResponse.model_validate(echange)
+
+
+@router.get("/{campagne_id}/echanges", response_model=list[EchangeCampagneResponse],
+            dependencies=[Depends(require_role("observateur"))])
+async def lire_echanges_campagne(campagne_id: UUID) -> list[EchangeCampagneResponse]:
+    """L'historique des transmissions d'une campagne, la plus récente d'abord."""
+
+    try:
+        await lire(campagne_id)
+    except LookupError as absente:
+        raise HTTPException(status_code=404, detail=str(absente)) from absente
+
+    return [
+        EchangeCampagneResponse.model_validate(echange)
+        for echange in await historique(campagne_id)
+    ]

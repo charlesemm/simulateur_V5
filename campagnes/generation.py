@@ -93,7 +93,7 @@ async def _verser_corrige(campagne_id: UUID, constats: list[Constat]) -> None:
 
 async def _executer(campagne_id: UUID, graine: int, volume: int,
                     reglages: dict[str, dict], destination: Path,
-                    suivi: Progression) -> None:
+                    reference: str, suivi: Progression) -> None:
     """Produit le jeu hors de la boucle d'événements, puis range le résultat.
 
     La production est un calcul long et purement synchrone : la laisser dans la
@@ -103,7 +103,7 @@ async def _executer(campagne_id: UUID, graine: int, volume: int,
 
     try:
         empreinte, constats, lignes = await asyncio.to_thread(
-            produire, graine, volume, reglages, destination,
+            produire, graine, volume, reglages, destination, reference,
             lambda faites: setattr(suivi, "lignes_generees", faites),
         )
         suivi.anomalies_posees = len(constats)
@@ -156,7 +156,11 @@ async def lancer(campagne_id: UUID) -> Progression:
         reglages = dict((campagne.campagne_parametres or {}).get("anomalies", {}))
         graine = campagne.campagne_graine
         volume = campagne.campagne_volume_cible
-        destination = chemin_du_jeu(campagne_id, campagne.campagne_reference)
+        # Lue ici, pendant que la session est ouverte : elle entre dans le
+        # marquage de chaque ligne, et y accéder plus tard, hors session,
+        # lèverait une erreur de chargement différé.
+        reference = campagne.campagne_reference
+        destination = chemin_du_jeu(campagne_id, reference)
 
         campagne.campagne_statut = STATUT_GENERATION
         campagne.campagne_empreinte = None
@@ -167,7 +171,8 @@ async def lancer(campagne_id: UUID) -> Progression:
     suivi = Progression(volume_cible=volume)
     PROGRESSIONS[campagne_id] = suivi
     _taches[campagne_id] = asyncio.create_task(
-        _executer(campagne_id, graine, volume, reglages, destination, suivi)
+        _executer(campagne_id, graine, volume, reglages, destination,
+                  reference, suivi)
     )
     return suivi
 

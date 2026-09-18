@@ -138,7 +138,10 @@ export function ConsoleInjectionPage() {
     const presentes = Object.keys(parFamille);
     const connues = ORDRE_FAMILLES.filter((famille) => presentes.includes(famille));
     const autres = presentes.filter((famille) => !ORDRE_FAMILLES.includes(famille));
-    return [...connues, ...autres.sort()];
+    // localeCompare, et non le tri par défaut : celui-ci compare des codes
+    // UTF-16, où « Éligibilité » passerait après « Zone ». Sur un écran qui
+    // sert à retrouver une famille dans une liste, l'ordre est tout.
+    return [...connues, ...autres.sort((a, b) => a.localeCompare(b, "fr"))];
   }, [parFamille]);
 
   return (

@@ -5,7 +5,7 @@ import logoCnam from "../assets/logo.png";
 import type { Onglet } from "../navigation";
 import { EchoLogo } from "./EchoLogo";
 import {
-  DashboardIcon, HomeIcon, InjectionIcon, LogoutIcon, QualiteIcon,
+  ApiIcon, DashboardIcon, HomeIcon, InjectionIcon, LogoutIcon, QualiteIcon,
   ReportsIcon, SimulationsIcon, UsersIcon,
 } from "./Icons";
 
@@ -141,6 +141,16 @@ export function Sidebar({ ongletActif, onNaviguer, moteurEnCours }: SidebarProps
             >
               <UsersIcon className="nav-icon" />
               <span className="nav-text">Administration</span>
+            </button>
+          </RequireRole>
+
+          <RequireRole minimum="administrateur">
+            <button
+              className={`sidebar-nav-item ${ongletActif === "explorateur-api" ? "active" : ""}`}
+              onClick={() => onNaviguer("explorateur-api")}
+            >
+              <ApiIcon className="nav-icon" />
+              <span className="nav-text">Explorateur API</span>
             </button>
           </RequireRole>
           </div>

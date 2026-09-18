@@ -11,6 +11,8 @@ from app.models.referentiels import Country, Department, Locality, Regime, Regio
 from app.models.schema import (
     Agent,
     CenterHealthAgent,
+    Collectivite,
+    Dci,
     HealthCenter,
     HealthProfessional,
     HealthProfessionalCenter,
@@ -26,6 +28,7 @@ from app.models.schema import (
     MedicalSpecialty,
     Medication,
     Pathology,
+    Pharmacie,
     PriorAuthorization,
     PriorAuthorizationMedicalAct,
     PriorAuthorizationProvision,

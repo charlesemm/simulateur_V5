@@ -35,9 +35,11 @@ async def test_la_facture_porte_le_libelle_du_type_pas_le_nom_du_centre(base_vie
     assert facture.centre_sante_type_libelle != "Centre de santé de test"
 
 
-def test_les_six_libelles_de_type_sont_disponibles():
-    assert len(LIBELLES_TYPE_CENTRE) == len(HEALTH_CENTER_TYPES) == 6
+def test_chaque_type_d_etablissement_a_son_libelle():
+    # Six types historiques, douze lus dans la liste publique CNAM.
+    assert len(LIBELLES_TYPE_CENTRE) == len(HEALTH_CENTER_TYPES) == 18
     assert LIBELLES_TYPE_CENTRE["HG"] == "Hôpital général"
+    assert LIBELLES_TYPE_CENTRE["CHU"] == "Centre hospitalier universitaire"
 
 
 # ── X10 : la configuration morte d'Alembic ───────────────────────────────

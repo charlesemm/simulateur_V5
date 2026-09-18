@@ -237,6 +237,7 @@ async def _charger_entente(session, entente_id: int | None) -> PriorAuthorizatio
         type_demande_code=entente.type_demande_code,
         type_hospitalisation_code=entente.type_hospitalisation_code,
         date_debut=entente.entente_prealable_date_debut,
+        date_fin=entente.entente_prealable_date_fin,
         actes=[
             PriorAuthorizationActSchema(
                 acte_medical_code=acte.acte_medical_code,

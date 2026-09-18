@@ -127,6 +127,80 @@ class Campagne(AuditMixin, Base):
     )
 
 
+# ── M6 — Le canal API ────────────────────────────────────────────────────
+
+RESULTAT_SUCCES = "succes"
+RESULTAT_ECHEC = "echec"
+
+# Les trois pannes du chapitre M6, distinguées pour ne jamais se lire comme
+# « l'outil n'a rien détecté » : un silence, un rapport que rien ne peut
+# décoder, un rapport qui répond sans le détail ligne par ligne qu'exige le
+# rapprochement de M7.
+MOTIF_SILENCE = "silence"
+MOTIF_RAPPORT_MALFORME = "rapport_malforme"
+MOTIF_RAPPORT_SANS_DETAIL = "rapport_sans_detail"
+
+MOTIFS_ECHEC = (MOTIF_SILENCE, MOTIF_RAPPORT_MALFORME, MOTIF_RAPPORT_SANS_DETAIL)
+
+LIBELLES_MOTIFS_ECHEC: dict[str, str] = {
+    MOTIF_SILENCE: "L'outil n'a pas répondu",
+    MOTIF_RAPPORT_MALFORME: "Le rapport reçu est mal formé",
+    MOTIF_RAPPORT_SANS_DETAIL: "Le rapport ne détaille pas les lignes",
+}
+
+
+class EchangeCampagne(AuditMixin, Base):
+    """Un envoi du jeu d'une campagne à un outil testé, et ce qui en revient.
+
+    Une ligne par tentative, jamais écrasée : une campagne peut être
+    retransmise, y compris vers des adresses différentes — c'est exactement ce
+    que le banc d'essai de M8 comparera. L'historique complet reste donc
+    consultable, échecs compris.
+    """
+
+    __tablename__ = "TB_CAMPAGNES_ECHANGES"
+    __table_args__ = (
+        Index("IX_ECHANGES_CAMPAGNE", "CAMPAGNE_ID"),
+    )
+
+    echange_id: Mapped[uuid.UUID] = mapped_column(
+        "ECHANGE_ID", PostgreSQLUUID(as_uuid=True), primary_key=True,
+        default=uuid.uuid4,
+    )
+    campagne_id: Mapped[uuid.UUID] = mapped_column(
+        "CAMPAGNE_ID", PostgreSQLUUID(as_uuid=True),
+        ForeignKey("TB_CAMPAGNES.CAMPAGNE_ID", ondelete="CASCADE"),
+        nullable=False,
+    )
+    # L'adresse réellement appelée, pas seulement celle réglée par défaut :
+    # une adresse donnée à la transmission doit rester lisible après coup.
+    echange_adresse: Mapped[str] = mapped_column(
+        "ECHANGE_ADRESSE", String(500), nullable=False
+    )
+    echange_date_envoi: Mapped[datetime] = mapped_column(
+        "ECHANGE_DATE_ENVOI", DateTime(timezone=True), nullable=False
+    )
+    # Nulle quand l'outil n'a jamais répondu.
+    echange_date_reception: Mapped[datetime | None] = mapped_column(
+        "ECHANGE_DATE_RECEPTION", DateTime(timezone=True)
+    )
+    echange_resultat: Mapped[str] = mapped_column(
+        "ECHANGE_RESULTAT", String(20), nullable=False
+    )
+    echange_motif_echec: Mapped[str | None] = mapped_column(
+        "ECHANGE_MOTIF_ECHEC", String(30)
+    )
+    echange_nombre_constats: Mapped[int] = mapped_column(
+        "ECHANGE_NOMBRE_CONSTATS", Integer, nullable=False, default=0
+    )
+    echange_message: Mapped[str | None] = mapped_column("ECHANGE_MESSAGE", Text)
+    # Le rapport complet, pour que M7 puisse le rapprocher du corrigé sans
+    # redemander à l'outil. Nul tant qu'aucun rapport exploitable n'est reçu.
+    echange_rapport: Mapped[dict[str, Any] | None] = mapped_column(
+        "ECHANGE_RAPPORT", JSONB
+    )
+
+
 class CorrigeCampagne(AuditMixin, Base):
     """Le corrigé d'une campagne : une ligne par anomalie posée.
 

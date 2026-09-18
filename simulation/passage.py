@@ -21,7 +21,8 @@ from app.models import (
 from anomalies import anomalies_config
 from anomalies.repository import enregistrer_injections
 from metrics.registry import registry as metrics_registry
-from seed.constants import HEALTH_CENTER_TYPES
+from seed.constants import HEALTH_CENTER_TYPES, INVOICE_TYPES, MEDICAL_ACTS
+from seed.identifiants import numero
 from simulation.aleas import (
     BASE_RALENTIE, COUPURE_BRUTALE, HORLOGE_DECALEE, PERTE_CONNEXION,
     SATURATION_MEMOIRE, PassageInterrompu, ScenarioAleas,
@@ -40,6 +41,52 @@ MOTIF_DROITS_FERMES = "droits_fermes"
 # Elle a longtemps reçu le second, ce qui rendait la colonne inexploitable
 # pour tout regroupement par type.
 LIBELLES_TYPE_CENTRE = dict(HEALTH_CENTER_TYPES)
+
+# Tarif de référence de chaque acte (FCFA), tel que le seed le pose dans
+# TB_REF_ACTES_MEDICAUX.ACTE_MEDICAL_TARIF. Sert de repli tant qu'une base
+# chargée avant la migration 0026 n'a pas la colonne remplie.
+TARIFS_ACTES = {code: Decimal(str(tarif)) for code, *_, tarif in MEDICAL_ACTS}
+
+# Type de facture -> actes qui peuvent en être la prestation principale. Un
+# acte peut valoir pour deux types à la fois (« AMB,HOS » pour l'accueil aux
+# urgences) : il compte alors dans les deux listes. PHA n'a aucun acte propre
+# (le référentiel de pharmacie n'est pas des actes médicaux) : une facture
+# pharmacie s'appuie sur la même visite que l'ambulatoire, avant le retrait
+# des médicaments, qui lui est garanti (voir plus bas).
+TYPES_FACTURE = [code for code, _ in INVOICE_TYPES]
+ACTES_PAR_TYPE_FACTURE: dict[str, list[str]] = {}
+for _code, _libelle, _famille, _types_facture, _tarif in MEDICAL_ACTS:
+    for _type_facture in _types_facture.split(","):
+        ACTES_PAR_TYPE_FACTURE.setdefault(_type_facture, []).append(_code)
+ACTES_PAR_TYPE_FACTURE["PHA"] = ACTES_PAR_TYPE_FACTURE["AMB"]
+
+# Amplitude du montant facturé autour du tarif (demande du 11/09/2026) : d'un
+# centre ou d'un praticien à l'autre, une consultation à 5 000 FCFA peut être
+# facturée 500 comme 10 000. Loi triangulaire : les extrêmes existent, mais
+# la plupart des montants restent proches du tarif.
+VARIATION_MIN, VARIATION_MODE, VARIATION_MAX = 0.1, 1.0, 2.0
+ARRONDI_FCFA = Decimal("50")
+
+
+def montant_autour(tarif: Decimal, tirage: random.Random) -> Decimal:
+    """Montant facturé pour un acte : le tarif décalé, arrondi à 50 FCFA."""
+
+    facteur = Decimal(str(round(
+        tirage.triangular(VARIATION_MIN, VARIATION_MAX, VARIATION_MODE), 4)))
+    montant = (tarif * facteur / ARRONDI_FCFA).quantize(Decimal("1")) * ARRONDI_FCFA
+    return max(montant, ARRONDI_FCFA)
+
+
+async def tarif_acte(code: str) -> Decimal:
+    """Tarif en vigueur de l'acte, lu en base ; repli sur seed/constants."""
+
+    async with async_session_factory() as session:
+        tarif = (await session.execute(
+            select(MedicalAct.acte_medical_tarif)
+            .where(MedicalAct.acte_medical_code == code)
+            .order_by(MedicalAct.acte_medical_date_debut.desc()).limit(1)
+        )).scalar_one_or_none()
+    return tarif if tarif is not None else TARIFS_ACTES.get(code, Decimal("10000"))
 
 
 class Coverage(NamedTuple):
@@ -172,6 +219,49 @@ class PassageSimulation:
                 raise RuntimeError(f"Référentiel vide pour {model.__name__}.")
             return value
 
+    async def numero_facture(self) -> str:
+        """Tire un numéro de facture : huit chiffres, unique pour toujours.
+
+        `FACTURE_NUMERO` est la clé primaire de `TB_FACTURES`, sans remise à
+        zéro par exécution : contrairement au dossier ou à l'entente, il ne
+        peut pas être dérivé du hasard de `passage_id` sur seulement huit
+        chiffres — l'espace (10^8) est trop petit pour une génération de
+        données censée accumuler toutes les lignes de toutes les exécutions
+        (paradoxe des anniversaires : la collision devient probable bien
+        avant d'avoir épuisé l'espace). Une séquence Postgres (migration
+        20260911_0023) garantit l'unicité même sous plusieurs passages
+        concurrents, ce qu'un compteur Python en mémoire ne pourrait pas.
+        """
+        async with async_session_factory() as session:
+            # Les guillemets comptent : nextval() lit son argument comme un
+            # nom SQL et le passerait en minuscules — « seq_facture_numero »,
+            # qui n'existe pas.
+            valeur = (await session.execute(
+                select(func.nextval('"SEQ_FACTURE_NUMERO"'))
+            )).scalar_one()
+        # La séquence garantit l'unicité, la permutation retire l'ordre : deux
+        # factures successives n'ont jamais des numéros qui se suivent
+        # (seed/identifiants.py, migration 20260911_0025).
+        return numero("facture", valeur - 1)
+
+    @property
+    def dossier_numero(self) -> str:
+        """Numéro de dossier : huit caractères alphanumériques, sans préfixe.
+
+        Dérivé du même `passage_id` que la facture et l'entente, pour qu'un
+        même passage retrouve toujours le même dossier.
+        """
+        return self.passage_id[:8].upper()
+
+    @property
+    def entente_prealable_numero(self) -> str:
+        """Numéro d'entente : huit caractères alphanumériques, sans préfixe.
+
+        Autre tranche du même `passage_id` que `dossier_numero`, pour ne pas
+        produire le même numéro sous deux noms différents.
+        """
+        return self.passage_id[8:16].upper()
+
     async def add_status(self, invoice_number: str, code: str) -> None:
         """Persiste et publie un nouveau statut de facture."""
         async with async_session_factory() as session:
@@ -255,9 +345,11 @@ class PassageSimulation:
 
         center = await self.choose(HealthCenter)
         professional = await self.choose(HealthProfessional)
-        invoice_number = f"FAC-{self.simulated_at:%Y%m%d}-{self.passage_id[:10]}"
-        ambulatory = self.random.random() < self.config.ambulatory_probability
-        invoice_type = "AMB" if ambulatory else "DEN"
+        invoice_number = await self.numero_facture()
+        # Les cinq types du référentiel (AMB/DEN/BIO/HOS/PHA), tirés à parts
+        # égales : rien ne dit qu'un passage est plus souvent ambulatoire
+        # qu'hospitalier, alors on ne pondère pas.
+        invoice_type = self.random.choice(TYPES_FACTURE)
         logger.info("[%s] Ouverture %s au centre %s (régime %s à %s %%).",
                     self.passage_id, invoice_number, center.centre_sante_code,
                     coverage.regime_code, coverage.taux)
@@ -279,7 +371,7 @@ class PassageSimulation:
                 assurance_code="CMU", personne_uuid=self.insured_id,
                 type_facture_code=invoice_type,
                 facture_date_soins=date_soins,
-                dossier_numero=f"DOS-{self.passage_id[:12]}",
+                dossier_numero=self.dossier_numero,
                 centre_sante_code=center.centre_sante_code,
                 centre_sante_type_code=self.anomalies.injecter_type_centre(
                     center.type_etablissement_sanitaire_code, invoice_number
@@ -320,9 +412,14 @@ class PassageSimulation:
         await self.sleep(self.random.uniform(
             self.config.consultation_min_seconds, self.config.consultation_max_seconds
         ))
-        base_code = "CONS-GEN" if ambulatory else self.random.choice(["DENT-DET", "DENT-EXT", "DENT-CAR"])
+        base_code = self.random.choice(ACTES_PAR_TYPE_FACTURE[invoice_type])
         await self.ralentir()
-        montant_depense = self.anomalies.injecter_montant(Decimal("10000"), invoice_number)
+        # Le montant suit le tarif de l'acte réellement servi, avec la
+        # variation d'un centre à l'autre ; les anomalies de montant partent
+        # de lui. Le tarif se lit sur base_code, avant qu'une prestation
+        # orpheline ne remplace le code par un code inconnu.
+        base = montant_autour(await tarif_acte(base_code), self.random)
+        montant_depense = self.anomalies.injecter_montant(base, invoice_number)
         quantite_servie = self.anomalies.injecter_quantite(1, 1, invoice_number)
         quantite_servie = self.anomalies.injecter_quantite_nulle(quantite_servie, invoice_number)
         code_prestation = self.anomalies.injecter_code_prestation(base_code, invoice_number)
@@ -330,7 +427,6 @@ class PassageSimulation:
         # Le taux vient du régime de l'assuré ; l'anomalie hors barème lui en
         # substitue un qui appartient à l'autre régime.
         taux = self.anomalies.injecter_taux(coverage.taux, coverage.regime_code, invoice_number)
-        base = Decimal("10000")
         montant_rq = (base * taux / Decimal("100")).quantize(Decimal("0.01"))
         part_assure = self.anomalies.injecter_part_assure(base - montant_rq, invoice_number)
 
@@ -354,9 +450,14 @@ class PassageSimulation:
                         code=code_prestation)
 
         # 4. Prescriptions et Ententes
-        medications = self.random.random() < self.config.medication_probability
-        needs_biology = ambulatory and self.random.random() < self.config.biology_imaging_probability
-        needs_hospital = ambulatory and self.random.random() < self.config.hospitalization_probability
+        # Une facture pharmacie sert justement à retirer des médicaments :
+        # la prescription y est garantie plutôt que tirée. Biologie et
+        # hospitalisation suivent le type de la facture, pas un tirage à
+        # part : une facture BIO/HOS passe toujours par une entente
+        # préalable, c'est ce qui la distingue d'une simple consultation.
+        medications = invoice_type == "PHA" or self.random.random() < self.config.medication_probability
+        needs_biology = invoice_type == "BIO"
+        needs_hospital = invoice_type == "HOS"
 
         if medications:
             medicine = await self.choose(Medication)
@@ -408,10 +509,10 @@ class PassageSimulation:
         act = await self.choose(MedicalAct, criterion)
         async with async_session_factory() as session:
             agreement = PriorAuthorization(
-                entente_prealable_numero=f"EP-{self.passage_id[:12]}",
+                entente_prealable_numero=self.entente_prealable_numero,
                 centre_sante_code=center_code, personne_uuid=self.insured_id,
-                dossier_numero=f"DOS-{self.passage_id[:12]}",
-                entente_prealable_date_debut=self.simulated_at.date(),
+                dossier_numero=self.dossier_numero,
+                entente_prealable_date_debut=self.simulated_at,
                 organisme_code="CNAM-CI", facture_numero=invoice_number,
                 type_demande_code="hospitalisation" if hospital else "acte",
                 type_hospitalisation_code="standard" if hospital else None,
@@ -432,14 +533,23 @@ class PassageSimulation:
         accepted = automatic or self.random.random() < self.config.prior_authorization_acceptance_probability
         advisor = None if automatic else await self.choose(Agent, Agent.agent_type_code == "medecin_conseil")
         status = "validee_office" if automatic else ("acceptee" if accepted else "refusee")
+        # Le tarif de l'acte tiré, pas un forfait : un scanner n'a pas le prix
+        # d'une glycémie. Même variation que pour la prestation.
+        tarif = act.acte_medical_tarif or TARIFS_ACTES.get(
+            act.acte_medical_code, Decimal("50000") if hospital else Decimal("15000"))
         amount = self.anomalies.injecter_montant(
-            Decimal("50000") if hospital else Decimal("15000"),
-            f"EP-{self.passage_id[:12]}",
+            montant_autour(tarif, self.random),
+            self.entente_prealable_numero,
         )
         cmu_amount = ((amount * taux / Decimal("100")).quantize(Decimal("0.01"))
                       if accepted else Decimal("0"))
+        # Date de fin de l'entente = moment de la décision, pas une échéance
+        # de validité : le moteur ne modélise aucune durée de couverture.
+        decision_at = self.simulated_at + timedelta(seconds=round(response_delay))
 
         async with async_session_factory() as session:
+            agreement = await session.get(PriorAuthorization, agreement_id)
+            agreement.entente_prealable_date_fin = decision_at
             session.add(PriorAuthorizationMedicalAct(
                 entente_prealable_id=agreement_id, acte_medical_code=act.acte_medical_code,
                 professionnel_sante_code=professional_code,
@@ -455,7 +565,7 @@ class PassageSimulation:
             ))
             session.add(PriorAuthorizationStatus(
                 entente_prealable_id=agreement_id, statut_code=status,
-                statut_date_debut=self.simulated_at.date(),
+                statut_date_debut=decision_at,
                 agent_code=None if advisor is None else advisor.agent_code,
                 simulation_id=self.simulation_id,
                 utilisateur_id_creation="simulation",

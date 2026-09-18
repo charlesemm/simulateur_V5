@@ -273,7 +273,9 @@ export function LancementPage({ typeSimulation, onAnnuler, onDemarre }: Lancemen
                 min={1}
                 max={86400}
                 value={vitesse}
-                onChange={(evenement) => setVitesse(Number(evenement.target.value))}
+                onChange={(evenement) =>
+                  setVitesse(Math.max(1, Math.min(86400, Number(evenement.target.value))))
+                }
               />
             </label>
 
@@ -285,7 +287,13 @@ export function LancementPage({ typeSimulation, onAnnuler, onDemarre }: Lancemen
                 min={1}
                 max={200}
                 value={limite}
-                onChange={(evenement) => setLimite(Number(evenement.target.value))}
+                onChange={(evenement) =>
+                  // Le serveur refuse tout au-delà de 200 (HTTP 422) : sans ce
+                  // garde-fou, taper une valeur au clavier au-delà du `max`
+                  // affiché envoie une requête que le moteur ne démarre jamais,
+                  // et rien n'expliquait pourquoi aucune anomalie n'apparaissait.
+                  setLimite(Math.max(1, Math.min(200, Number(evenement.target.value))))
+                }
               />
             </label>
 

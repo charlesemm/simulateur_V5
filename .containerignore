@@ -11,4 +11,12 @@ campagnes/output/
 *.md
 tests/
 .env
+# .env.local sert de contournement local au bug réseau Podman/WSL
+# (dashboard/.env.local, VITE_API_URL=http://localhost:8000) : s'il entre
+# dans l'image, npm run build fige cette adresse dans le JS compilé, et le
+# dashboard ne marche plus que depuis Windows via localhost -- jamais via
+# l'IP WSL, jamais pour un autre poste. La production doit rester relative
+# (dashboard/src/services/api.ts:12-23).
+**/.env.local
+**/.env.*.local
 .claude/

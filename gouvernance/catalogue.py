@@ -90,6 +90,15 @@ CATALOGUE: tuple[FicheTable, ...] = (
     FicheTable("TB_EVENEMENTS_METIER", PILOTAGE,
                "Journal des événements produits par le moteur",
                "Service données", COURANTE, False),
+    FicheTable("TB_REF_COLLECTIVITES", OFFRE_SOINS,
+               "Localités des établissements et pharmacies (liste CNAM)",
+               "Direction de l'offre de soins", COURANTE, False),
+    FicheTable("TB_REF_PHARMACIES", OFFRE_SOINS,
+               "Pharmacies où retirer les médicaments CMU (liste CNAM)",
+               "Direction de l'offre de soins", IMPORTANTE, False),
+    FicheTable("TB_REF_DCI", OFFRE_SOINS,
+               "Dénominations communes des médicaments de la liste CMU",
+               "Direction de la pharmacie et du médicament", COURANTE, False),
 )
 
 
@@ -109,6 +118,12 @@ LIGNAGE: tuple[Lien, ...] = (
     Lien("seed/runner.py", "TB_ASSURES_DROITS", "Peuplement du référentiel"),
     Lien("seed/runner.py", "TB_REF_CENTRES_SANTE", "Peuplement du référentiel"),
     Lien("seed/runner.py", "TB_REF_AGENTS", "Peuplement du référentiel"),
+    Lien("seed/donnees", "TB_REF_CENTRES_SANTE", "Liste publique CNAM"),
+    Lien("seed/donnees", "TB_REF_PHARMACIES", "Liste publique CNAM"),
+    Lien("seed/donnees", "TB_REF_MEDICAMENTS", "Liste publique CNAM"),
+    Lien("TB_REF_COLLECTIVITES", "TB_REF_CENTRES_SANTE", "Localité de l'établissement"),
+    Lien("TB_REF_COLLECTIVITES", "TB_REF_PHARMACIES", "Localité de la pharmacie"),
+    Lien("TB_REF_DCI", "TB_REF_MEDICAMENTS", "Dénomination commune"),
     Lien("TB_REF_ASSURES", "TB_FACTURES", "Moteur de passage"),
     Lien("TB_ASSURES_DROITS", "TB_FACTURES", "Contrôle des droits à l'accueil"),
     Lien("TB_ASSURES_DROITS", "TB_REFUS_ACCUEIL", "Contrôle des droits à l'accueil"),

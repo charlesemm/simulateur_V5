@@ -40,3 +40,11 @@ desktop.ini
 .DS_Store
 FSE.pptx
 assuré
+# ── Analyse de qualité (SonarQube) ──────────────────────────────────────────
+# Répertoire de travail du scanner et rapports de couverture : régénérés à
+# chaque analyse, ils n'ont rien à faire dans l'historique.
+.scannerwork/
+coverage.xml
+.coverage
+htmlcov/
+dashboard/coverage/

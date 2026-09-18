@@ -111,6 +111,15 @@ class PalierResponse(ApiModel):
     description: str
 
 
+class FormatExportResponse(ApiModel):
+    """Un format de téléchargement du jeu d'une campagne (M4)."""
+
+    code: str
+    libelle: str
+    extension: str
+    description: str
+
+
 class DimensionResponse(ApiModel):
     """Une des huit dimensions de qualité du cahier des charges."""
 
@@ -150,15 +159,21 @@ class ReglageAnomalieCampagne(ApiModel):
     taux: float = Field(gt=0.0, le=1.0)
 
 
+class ProchaineReferenceResponse(ApiModel):
+    """La référence que porterait la prochaine campagne, sans la réserver."""
+
+    reference: str
+
+
 class CampagneCreateRequest(ApiModel):
     """Ouvre une campagne de test.
 
-    Tout est facultatif : sans libellé la campagne prend son horodatage, sans
-    volume celui que propose le palier, et sans graine une graine tirée — que
-    la réponse renvoie, car c'est elle qui rend la campagne rejouable.
+    Tout est facultatif : le libellé n'est plus saisi — il découle de la
+    référence incrémentielle attribuée par le serveur —, sans volume celui
+    que propose le palier, et sans graine une graine tirée — que la réponse
+    renvoie, car c'est elle qui rend la campagne rejouable.
     """
 
-    libelle: str | None = Field(default=None, max_length=150)
     palier: str | None = None
     volume_cible: int | None = Field(default=None, ge=100, le=5_000_000)
     graine: int | None = Field(default=None, ge=1, le=2_147_483_647)
@@ -219,6 +234,53 @@ class CorrigeResponse(ApiModel):
     total: int
     par_anomalie: dict[str, int]
     lignes: list[LigneCorrigeResponse]
+
+
+# ── M6 — Le canal API ────────────────────────────────────────────────────
+
+class ConstatTemoinResponse(ApiModel):
+    """Un constat rendu par un outil testé : où, et ce qu'il y a vu.
+
+    En texte libre plutôt qu'un code du catalogue : un vrai outil ne connaît
+    jamais le vocabulaire interne d'ÉCHO. Le rapprochement de M7 travaillera
+    sur « ligne + champ », pas sur ce texte.
+    """
+
+    ligne: int
+    champ: str | None = None
+    type: str
+
+
+class RapportTemoinResponse(ApiModel):
+    """Le rapport que rend un outil qui respecte le contrat du canal M6."""
+
+    outil: str
+    constats: list[ConstatTemoinResponse]
+
+
+class TransmissionRequest(ApiModel):
+    """Ce que l'écran peut préciser avant de transmettre une campagne.
+
+    L'adresse est facultative : sans elle, la campagne part vers le témoin.
+    La donner permet de rejouer les trois pannes du cahier à volonté, ou plus
+    tard de brancher le vrai outil sans toucher au code.
+    """
+
+    adresse: str | None = None
+
+
+class EchangeCampagneResponse(ApiModel):
+    """Un envoi à l'outil testé, et ce qui en est revenu."""
+
+    echange_id: UUID
+    campagne_id: UUID
+    echange_adresse: str
+    echange_date_envoi: datetime
+    echange_date_reception: datetime | None
+    echange_resultat: str
+    echange_motif_echec: str | None
+    echange_nombre_constats: int
+    echange_message: str | None
 
 
 class CadenceResponse(ApiModel):
@@ -418,7 +480,11 @@ class PriorAuthorizationSchema(ApiModel):
     entente_prealable_numero: str | None
     type_demande_code: str | None
     type_hospitalisation_code: str | None
-    date_debut: date | None
+    # datetime, pas date : ENTENTE_PREALABLE_DATE_DEBUT porte désormais
+    # l'heure (migration 20260911_0024). Un type `date` ici la tronquerait
+    # silencieusement à la sortie de l'API.
+    date_debut: datetime | None
+    date_fin: datetime | None
     actes: list[PriorAuthorizationActSchema]
 
 

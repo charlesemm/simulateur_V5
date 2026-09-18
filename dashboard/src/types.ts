@@ -77,6 +77,14 @@ export interface PalierCampagne {
   description: string;
 }
 
+/** Un format de téléchargement du jeu d'une campagne (M4). */
+export interface FormatExport {
+  code: string;
+  libelle: string;
+  extension: string;
+  description: string;
+}
+
 /** Une des huit dimensions de qualité du cahier des charges. */
 export interface DimensionQualite {
   code: string;
@@ -148,6 +156,22 @@ export interface Corrige {
   total: number;
   par_anomalie: Record<string, number>;
   lignes: LigneCorrige[];
+}
+
+/** Un envoi du jeu d'une campagne à l'outil testé, et ce qui en est revenu (M6).
+ *
+ *  `echange_motif_echec` distingue les trois pannes du cahier des charges —
+ *  aucune ne se lit comme « l'outil n'a rien détecté ». */
+export interface EchangeCampagne {
+  echange_id: string;
+  campagne_id: string;
+  echange_adresse: string;
+  echange_date_envoi: string;
+  echange_date_reception: string | null;
+  echange_resultat: "succes" | "echec";
+  echange_motif_echec: "silence" | "rapport_malforme" | "rapport_sans_detail" | null;
+  echange_nombre_constats: number;
+  echange_message: string | null;
 }
 
 /** Une exécution d'une journée donnée, avec les rapports produits pour elle.

@@ -4,6 +4,7 @@ import asyncio
 import logging
 import os
 import random
+import re
 from datetime import date, datetime, timedelta, timezone
 import unicodedata
 from decimal import Decimal
@@ -11,23 +12,29 @@ from typing import Any
 from uuid import NAMESPACE_URL, uuid5
 
 from faker import Faker
-from sqlalchemy import  func, inspect
+from sqlalchemy import func, inspect
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import async_session_factory
 from app.models import (
-    Agent, CenterHealthAgent, Country, Department, HealthCenter,
-    HealthProfessional, HealthProfessionalCenter,
+    Agent, CenterHealthAgent, Collectivite, Country, Dci, Department,
+    HealthCenter, HealthProfessional, HealthProfessionalCenter,
     HealthProfessionalMedicalSpecialty, InsuredBirthInfo, InsuredIdentifier,
     InsuredPerson, InsuredProfession, InsuredRight, Locality, MedicalAct,
-    MedicalSpecialty, Medication, Pathology, Regime, Region, TypeInvoice,
+    MedicalSpecialty, Medication, Pathology, Pharmacie, Regime, Region,
+    TypeInvoice,
 )
 
 from seed.constants import (
     COUNTRIES, HEALTH_CENTER_TYPES, INVOICE_TYPES, IVORIAN_CITIES,
-    IVORIAN_DISTRICTS, IVORIAN_FIRST_NAMES, IVORIAN_LAST_NAMES, MEDICAL_ACTS,
-    MEDICAL_SPECIALTIES, MEDICATION_SEEDS, PATHOLOGY_LABELS, PROFESSIONS,
+    IVORIAN_DISTRICTS, IVORIAN_FIRST_NAMES, IVORIAN_LAST_NAMES, MEDECINS_CONSEILS,
+    MEDICAL_ACTS, MEDICAL_SPECIALTIES, PATHOLOGY_LABELS, PROFESSIONS,
 )
+from seed.donnees import (
+    COORDONNEES_LOCALITES, ETABLISSEMENTS, MEDICAMENTS, PHARMACIES,
+    lire as lire_donnees,
+)
+from seed.identifiants import brouiller, numero, numero_securite_sociale
 from anomalies import anomalies_config, apply_anomalies_to_row
 from anomalies.repository import enregistrer_injections
 
@@ -66,6 +73,8 @@ def _taux_couverture() -> float:
 
 TAUX_COUVERTURE = _taux_couverture()
 ANNEE_DROITS = 2026
+NOMBRE_ASSURES = 100_000
+
 random_generator = random.Random(RANDOM_SEED)
 fake = Faker("fr_FR")
 Faker.seed(RANDOM_SEED)
@@ -154,22 +163,69 @@ def audit_values() -> dict[str, str]:
 
     return {"utilisateur_id_creation": "seed.py"}
 
-def build_health_centers() -> list[dict[str, Any]]:
-    """Construit trente centres variés répartis dans quinze localités."""
 
+# ── Offre de soins : la liste publique de la CNAM ────────────────────────
+#
+# Établissements, pharmacies et localités viennent de seed/donnees (liste
+# ipscnam.ci). Les noms sont officiels ; les codes, eux, sont propres au
+# simulateur et suivent la règle commune : que des chiffres, jamais
+# consécutifs (seed/identifiants.py). Le rang d'une ligne dans le fichier
+# fixe son numéro : le fichier est trié, le seed reste reproductible.
+
+def build_collectivites(etablissements: list[dict[str, str]],
+                        pharmacies: list[dict[str, str]]) -> list[dict[str, Any]]:
+    """Une ligne par localité citée, qu'elle ait un établissement ou une pharmacie.
+
+    Latitude/longitude viennent du géocodage committé (voir
+    seed/donnees/geocoder_localites.py) ; une localité sans correspondance
+    y reste vide, et donc ici aussi.
+    """
+
+    noms = sorted({ligne["localite"] for ligne in etablissements}
+                  | {ligne["localite"] for ligne in pharmacies})
+    coordonnees = {ligne["localite"]: ligne for ligne in lire_donnees(COORDONNEES_LOCALITES)}
+    return [
+        {"collectivite_code": numero("collectivite", rang),
+         "collectivite_denomination": nom,
+         "collectivite_latitude": coordonnees[nom]["latitude"] or None,
+         "collectivite_longitude": coordonnees[nom]["longitude"] or None,
+         **audit_values()}
+        for rang, nom in enumerate(noms)
+    ]
+
+
+def build_health_centers(etablissements: list[dict[str, str]],
+                         codes_collectivite: dict[str, str]) -> list[dict[str, Any]]:
+    """Les 1 510 établissements de la liste CNAM, avec leur localité réelle."""
+
+    types_connus = {code for code, _ in HEALTH_CENTER_TYPES}
     rows = []
-    for index in range(30):
-        type_code, type_label = HEALTH_CENTER_TYPES[index % len(HEALTH_CENTER_TYPES)]
-        city = IVORIAN_CITIES[index % len(IVORIAN_CITIES)]
+    for rang, ligne in enumerate(etablissements):
+        if ligne["type_code"] not in types_connus:
+            raise ValueError(f"Type d'établissement inconnu : {ligne['type_code']}.")
         rows.append({
-            "centre_sante_code": f"CS{index + 1:03d}",
-            "collectivite_code": f"COL{index % 15 + 1:02d}",
-            "type_etablissement_sanitaire_code": type_code,
-            "centre_sante_numero_immatriculation": f"CI-CMU-{index + 1:05d}",
-            "centre_sante_denomination": f"{type_label} de {city}",
+            "centre_sante_code": numero("centre", rang),
+            "collectivite_code": codes_collectivite[ligne["localite"]],
+            "type_etablissement_sanitaire_code": ligne["type_code"],
+            "centre_sante_numero_immatriculation": numero("immatriculation_centre", rang),
+            "centre_sante_denomination": ligne["denomination"],
             **audit_values(),
         })
     return rows
+
+
+def build_pharmacies(pharmacies: list[dict[str, str]],
+                     codes_collectivite: dict[str, str]) -> list[dict[str, Any]]:
+    """Les pharmacies de la liste CNAM où un assuré CMU retire ses médicaments."""
+
+    return [
+        {"pharmacie_code": numero("pharmacie", rang),
+         "pharmacie_denomination": ligne["denomination"],
+         "collectivite_code": codes_collectivite[ligne["localite"]],
+         **audit_values()}
+        for rang, ligne in enumerate(pharmacies)
+    ]
+
 
 def synthetic_identity(index: int) -> tuple[str, str]:
     """Mélange de façon déterministe noms ivoiriens et prénoms Faker."""
@@ -181,63 +237,93 @@ def synthetic_identity(index: int) -> tuple[str, str]:
     )
     return last_name, first_name
 
-def build_agents() -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    """Crée cinquante agents d'accueil affectés et dix médecins conseils centraux."""
+
+def _agent(rang_gestion: int, identite: int, code: str, type_agent: str) -> dict[str, Any]:
+    """Une fiche agent, anomalies du seed appliquées."""
+
+    last_name, first_name = synthetic_identity(identite)
+    email_root = (normalize_text(f"{first_name}.{last_name}").lower()
+                  .replace("'", "").replace(" ", ""))
+    row = {
+        "agent_code": code,
+        "agent_code_gestion": numero("agent_gestion", rang_gestion),
+        "agent_prenoms": first_name,
+        "agent_nom": last_name,
+        "agent_email": f"{email_root}.{code}@cmu.demo.ci",
+        "agent_type_code": type_agent,
+        **audit_values(),
+    }
+    return apply_anomalies_to_row(row, anomalies_seed, "agent")
+
+
+def build_agents(centres: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Un agent d'accueil par centre, et vingt médecins conseils centraux.
+
+    Les deux populations restent dans TB_REF_AGENTS mais n'ont pas la même
+    longueur de code — cinq chiffres pour l'accueil, quatre pour les médecins
+    conseils : un numéro ne peut jamais désigner l'un et l'autre, et sa
+    longueur suffit à dire lequel.
+    """
 
     agents, assignments = [], []
-    for index in range(60):
-        last_name, first_name = synthetic_identity(index)
-        agent_code = f"AG{index + 1:03d}"
-        agent_type = "accueil" if index < 50 else "medecin_conseil"
-        email_root = normalize_text(f"{first_name}.{last_name}").lower().replace("'", "")
-        
-        # Créer le dict de l'agent
-        agent_row = {
-            "agent_code": agent_code,
-            "agent_code_gestion": f"GEST{index + 1:04d}",
-            "agent_prenoms": first_name,
-            "agent_nom": last_name,
-            "agent_email": f"{email_root}.{index + 1}@cmu.demo.ci",
-            "agent_type_code": agent_type,
+    for rang, centre in enumerate(centres):
+        code = numero("agent_accueil", rang)
+        agents.append(_agent(rang, rang, code, "accueil"))
+        assignments.append({
+            "centre_sante_code": centre["centre_sante_code"],
+            "agent_code": code,
+            "date_debut": VALID_FROM,
+            "date_fin": None,
             **audit_values(),
-        }
-        
-        # Appliquer les anomalies
-        agent_row = apply_anomalies_to_row(agent_row, anomalies_seed, "agent")
-        
-        # Ajouter à la liste
-        agents.append(agent_row)
-        
-        # Les médecins conseils appartiennent au niveau central et ne reçoivent
-        # donc volontairement aucune affectation géographique.
-        if agent_type == "accueil":
-            assignments.append({
-                "centre_sante_code": f"CS{index % 30 + 1:03d}",
-                "agent_code": agent_code,
+        })
+
+    # Les médecins conseils appartiennent au niveau central et ne reçoivent
+    # donc volontairement aucune affectation géographique.
+    for rang in range(MEDECINS_CONSEILS):
+        code = numero("medecin_conseil", rang)
+        agents.append(_agent(len(centres) + rang, 5_000 + rang, code, "medecin_conseil"))
+    return agents, assignments
+
+
+def build_professionals(centres: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
+    """Deux professionnels par centre : un médecin et un infirmier."""
+
+    professionals, specialties, centers = [], [], []
+    for rang_centre, centre in enumerate(centres):
+        for position, type_code in enumerate(("medecin", "infirmier")):
+            rang = rang_centre * 2 + position
+            last_name, first_name = synthetic_identity(rang + 300)
+            code = numero("professionnel", rang)
+            professionals.append({
+                "professionnel_sante_code": code,
+                "nom": last_name,
+                "prenoms": first_name,
+                "type_code": type_code,
+                # Un seul espace de rangs pour les deux ordres : un médecin et
+                # un infirmier ne peuvent pas porter le même numéro.
+                "numero_ordre": numero("numero_ordre", rang),
+                "statut": "actif",
+                **audit_values(),
+            })
+            centers.append({
+                "professionnel_sante_code": code,
+                "centre_sante_code": centre["centre_sante_code"],
                 "date_debut": VALID_FROM,
                 "date_fin": None,
                 **audit_values(),
             })
-    return agents, assignments
+            if type_code == "medecin":
+                specialties.append({
+                    "professionnel_sante_code": code,
+                    "specialite_medicale_code": MEDICAL_SPECIALTIES[rang_centre % len(MEDICAL_SPECIALTIES)][0],
+                    "date_debut": VALID_FROM,
+                    "date_fin": None,
+                    **audit_values(),
+                })
+    return professionals, specialties, centers
 
-# Le multiplicateur est impair et non divisible par cinq : il n'a donc aucun
-# diviseur commun avec le modulo, ce qui fait de la transformation une
-# bijection. Deux assurés ne peuvent mathématiquement pas partager un numéro.
-SECU_MULTIPLICATEUR = 3_141_592_653
-SECU_DECALAGE = 2_718_281_829
-SECU_MODULO = 10 ** 10
 
-
-def numero_securite_sociale(index: int) -> str:
-    """Produit un numéro de treize caractères commençant par 384.
-
-    Les dix chiffres suivants paraissent tirés au hasard mais restent uniques
-    et stables : un même index redonne toujours le même numéro, et augmenter
-    le nombre d'assurés ne redistribue pas ceux qui existent déjà.
-    """
-
-    suffixe = (SECU_MULTIPLICATEUR * index + SECU_DECALAGE) % SECU_MODULO
-    return f"384{suffixe:010d}"
+# ── Assurés ──────────────────────────────────────────────────────────────
 
 # Le régime n'est pas un attribut propre de l'assuré : il découle de ce qu'il
 # fait. Cette table de correspondance est la seule source de vérité, et elle
@@ -273,13 +359,13 @@ def build_insured_people() -> list[dict[str, Any]]:
     """Crée cent mille assurés aux identifiants stables et non séquentiels."""
 
     rows = []
-    for index in range(100000):
+    for index in range(NOMBRE_ASSURES):
         last_name, first_name = synthetic_identity(index + 100)
         date_naissance, regime = insured_profile(index)
         insured_row = {
             "personne_uuid": uuid5(NAMESPACE_URL, f"cmu-demo-assure-{index + 1}"),
-            "numero_recepisse": f"REC-{2026}-{index + 1:06d}",
-            "assure_numero_identifiant": f"CMU{index + 1:010d}",
+            "numero_recepisse": numero("recepisse", index),
+            "assure_numero_identifiant": numero("assure_identifiant", index),
             "numero_secu": numero_securite_sociale(index),
             "civilite_code": "MME" if index % 2 == 0 else "M",
             "assure_nom": last_name,
@@ -295,48 +381,17 @@ def build_insured_people() -> list[dict[str, Any]]:
         rows.append(insured_row)
     return rows
 
-def build_professionals() -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
-    """Crée cent médecins, cinquante infirmiers et leurs affectations."""
 
-    professionals, specialties, centers = [], [], []
-    for index in range(150):
-        last_name, first_name = synthetic_identity(index + 300)
-        code = f"PS{index + 1:04d}"
-        is_physician = index < 100
-        professionals.append({
-            "professionnel_sante_code": code,
-            "nom": last_name,
-            "prenoms": first_name,
-            "type_code": "medecin" if is_physician else "infirmier",
-            "numero_ordre": f"OMCI-{index + 1:06d}" if is_physician else f"ONICI-{index + 1:06d}",
-            "statut": "actif",
-            **audit_values(),
-        })
-        centers.append({
-            "professionnel_sante_code": code,
-            "centre_sante_code": f"CS{index % 30 + 1:03d}",
-            "date_debut": VALID_FROM,
-            "date_fin": None,
-            **audit_values(),
-        })
-        if is_physician:
-            specialties.append({
-                "professionnel_sante_code": code,
-                "specialite_medicale_code": MEDICAL_SPECIALTIES[index % len(MEDICAL_SPECIALTIES)][0],
-                "date_debut": VALID_FROM,
-                "date_fin": None,
-                **audit_values(),
-            })
-    return professionals, specialties, centers
+# ── Nomenclatures ────────────────────────────────────────────────────────
 
 def build_pathologies() -> list[dict[str, Any]]:
-    """Transforme les cent libellés en codes alphanumériques de trois caractères."""
+    """Transforme les cent libellés en codes numériques de trois chiffres."""
 
     return [
         {
-            "pathologie_code": f"{chr(65 + index // 10)}{index % 10 + 1:02d}",
+            "pathologie_code": numero("pathologie", index),
             "pathologie_date_debut": VALID_FROM,
-            "sous_chapitre_code": f"CH{index // 10 + 1:02d}",
+            "sous_chapitre_code": numero("sous_chapitre", index // 10),
             "pathologie_denomination": label,
             "pathologie_date_fin": None,
             "pathologie_statut": "actif",
@@ -345,35 +400,86 @@ def build_pathologies() -> list[dict[str, Any]]:
         for index, label in enumerate(PATHOLOGY_LABELS)
     ]
 
-def build_medications() -> list[dict[str, Any]]:
-    """Décline cinquante molécules en deux cents présentations crédibles."""
+
+# Forme pharmaceutique lue dans le libellé, de la plus distinctive à la plus
+# courante : « SOL INJECTABLE » doit tomber en injectable, pas en solution
+# buvable. Codes mnémoniques, comme les types d'établissement.
+FORMES_MEDICAMENT = (
+    ("INJ", r"INJ|\bAMP\b|AMPOULE|PERF|\bI\.?V\b|S/C|SERINGUE|STYLO|CARTOUCHE|FLACON DE \d+ ?ML"),
+    ("COL", r"COLLYRE|\bCOLL\b|OPHT"),
+    ("BUV", r"SIROP|\bSIR\b|SUSP|BUV|GOUTTES|\bGTT\b|\bPDR\b|POUDRE|SACHET|\bSAC\b"),
+    ("TOP", r"POMMADE|\bPOM\b|CREME|\bCR\b|\bGEL\b|LOTION|DERM|SPRAY|POUDRE CUT"),
+    ("SUP", r"SUPPO|OVULE|\bOV\b|VAG"),
+    ("CPR", r"CPR|COMPRIM|GELULE|\bGLE|CAPS|\bCP\b|DRAG|\bCOMP\b"),
+)
+FORME_PAR_DEFAUT = "DIV"
+
+# Tarif indicatif (FCFA) des spécialités dont la CNAM ne publie pas le prix.
+# Hypothèse consignée dans seed/provenance.py.
+TARIFS_INDICATIFS = {"CPR": 2500, "BUV": 2000, "INJ": 3500, "COL": 2500,
+                     "TOP": 1800, "SUP": 2000, FORME_PAR_DEFAUT: 2000}
+
+
+def forme_medicament(libelle: str) -> str:
+    return next((code for code, motif in FORMES_MEDICAMENT
+                 if re.search(motif, libelle.upper())), FORME_PAR_DEFAUT)
+
+
+def tarif_medicament(rang: int, prix_publie: str, forme: str) -> Decimal:
+    """Le prix CNAM quand il est publié ; sinon un tarif indicatif selon la
+    forme, décalé de ±30 % de façon stable pour ne pas aligner 741 prix
+    identiques."""
+
+    if prix_publie:
+        return Decimal(prix_publie)
+    variation = random.Random(RANDOM_SEED + 50_000 + rang).uniform(0.7, 1.3)
+    return (Decimal(TARIFS_INDICATIFS[forme]) * Decimal(str(round(variation, 2)))).quantize(Decimal("1"))
+
+
+def build_dci(medicaments: list[dict[str, str]]) -> list[dict[str, Any]]:
+    """Une ligne par dénomination commune de la liste CMU."""
+
+    return [
+        {"dci_code": numero("dci", rang), "dci_denomination": nom, **audit_values()}
+        for rang, nom in enumerate(sorted({ligne["dci"] for ligne in medicaments}))
+    ]
+
+
+def build_medications(medicaments: list[dict[str, str]],
+                      codes_dci: dict[str, str]) -> list[dict[str, Any]]:
+    """Les 918 spécialités de la liste CMU publiée par la CNAM.
+
+    Le laboratoire, le conditionnement et la présentation ne sont pas publiés :
+    ils restent vides plutôt que d'être inventés.
+    """
 
     rows = []
-    for molecule_index, (name, dci, presentations, base_tariff) in enumerate(MEDICATION_SEEDS):
-        for presentation_index, presentation in enumerate(presentations):
-            index = molecule_index * 4 + presentation_index
-            rows.append({
-                "medicament_code": f"MED{index + 1:04d}",
-                "medicament_date_debut": VALID_FROM,
-                "type_code": "GEN",
-                "medicament_denomination": f"{name} {presentation}",
-                "medicament_ean13": calculate_ean13(f"618000{index + 1:06d}"),
-                "dci_code": dci,
-                "laboratoire_code": f"LAB{index % 12 + 1:02d}",
-                "famille_forme_code": "FORME",
-                "conditionnement_code": f"COND{presentation_index + 1}",
-                "presentation_code": f"PRE{presentation_index + 1}",
-                "liste_types_factures": "PHA",
-                "liste_genres": "M,F",
-                "medicament_quantite_maximum": 3,
-                "medicament_age_minimum": 0,
-                "medicament_age_maximum": 120,
-                "medicament_hapax_statut": False,
-                "medicament_tarif_default": Decimal(base_tariff + presentation_index * 250),
-                "medicament_statut": "actif",
-                "medicament_date_fin": None,
-                **audit_values(),
-            })
+    for rang, ligne in enumerate(medicaments):
+        forme = forme_medicament(ligne["libelle"])
+        rows.append({
+            "medicament_code": numero("medicament", rang),
+            "medicament_date_debut": VALID_FROM,
+            "type_code": None,
+            "medicament_denomination": ligne["libelle"],
+            # 618 est le préfixe GS1 de la Côte d'Ivoire ; les neuf chiffres
+            # d'article suivent la règle commune, le dernier est la clé EAN.
+            "medicament_ean13": calculate_ean13("618" + numero("ean13_article", rang)),
+            "dci_code": codes_dci[ligne["dci"]],
+            "laboratoire_code": None,
+            "famille_forme_code": forme,
+            "conditionnement_code": None,
+            "presentation_code": None,
+            "liste_types_factures": "PHA",
+            "liste_genres": "M,F",
+            "medicament_quantite_maximum": 3,
+            "medicament_age_minimum": 0,
+            "medicament_age_maximum": 120,
+            "medicament_hapax_statut": False,
+            "medicament_tarif_default": tarif_medicament(rang, ligne["prix_fcfa"], forme),
+            "medicament_statut": "actif",
+            "medicament_date_fin": None,
+            **audit_values(),
+        })
     return rows
 
 def build_medical_acts() -> list[dict[str, Any]]:
@@ -383,9 +489,10 @@ def build_medical_acts() -> list[dict[str, Any]]:
         {
             "acte_medical_code": code,
             "acte_medical_date_debut": VALID_FROM,
-            "article_code": f"ART{index + 1:03d}",
+            "article_code": numero("article_acte", index),
             "acte_medical_type": act_type,
             "acte_medical_denomination": label,
+            "acte_medical_tarif": Decimal(tariff),
             "liste_types_factures": invoice_types,
             "liste_genres": "M,F",
             "acte_medical_age_minimum": 0,
@@ -438,13 +545,15 @@ def build_localisation() -> tuple[list[dict[str, Any]], list[dict[str, Any]], li
     """Décline les districts en départements puis en localités.
 
     Le code de chaque niveau préfixe celui du niveau suivant, ce qui rend la
-    hiérarchie lisible sans jointure : CIV -> CIV001 -> CIV0011 -> CIV00111.
+    hiérarchie lisible sans jointure : six chiffres pour la région, un de
+    plus pour le département, un de plus pour la localité (412893 ->
+    4128937 -> 41289372). Aucun niveau n'est numéroté dans l'ordre.
     """
 
     regions, departments, localities = [], [], []
 
     for district_index, (nom, latitude, longitude) in enumerate(IVORIAN_DISTRICTS):
-        region_code = f"CIV{district_index + 1:03d}"
+        region_code = numero("region", district_index)
         regions.append({
             "pays_code": "CIV", "region_type": "D", "region_code": region_code,
             "region_date_debut": VALID_FROM_TS, "region_denomination": nom,
@@ -457,7 +566,8 @@ def build_localisation() -> tuple[list[dict[str, Any]], list[dict[str, Any]], li
         # Chaque district reçoit deux départements, chaque département quatre
         # localités : cent douze localités au total, de quoi peupler une carte.
         for department_index in range(2):
-            department_code = f"{region_code}{department_index + 1}"
+            department_code = region_code + brouiller(
+                department_index, 1, f"departement:{region_code}")
             departments.append({
                 "region_code": region_code, "departement_type": "P",
                 "departement_code": department_code,
@@ -472,7 +582,8 @@ def build_localisation() -> tuple[list[dict[str, Any]], list[dict[str, Any]], li
             for locality_index in range(4):
                 localities.append({
                     "departement_code": department_code, "localite_type": "S",
-                    "localite_code": f"{department_code}{locality_index + 1}",
+                    "localite_code": department_code + brouiller(
+                        locality_index, 1, f"localite:{department_code}"),
                     "localite_date_debut": VALID_FROM_TS,
                     "localite_denomination": IVORIAN_CITIES[
                         (district_index * 8 + department_index * 4 + locality_index)
@@ -512,14 +623,15 @@ def build_insured_identifiers(assures: list[dict[str, Any]]) -> list[dict[str, A
             "identifiant_date_fin": None,
             **audit_values(),
         })
-        # Trois assurés sur dix présentent en plus une pièce d'identité.
+        # Trois assurés sur dix présentent en plus une pièce d'identité. Le
+        # type est porté par sa colonne : le numéro, lui, n'a plus de préfixe.
         if generator.random() < 0.30:
             type_code = generator.choice(["CNI", "PASSPT", "ATTEST"])
             rows.append({
                 "personne_uuid": assure["personne_uuid"],
                 "type_identifiant_code": type_code,
                 "identifiant_date_debut": VALID_FROM_TS,
-                "identifiant_numero": f"{type_code}{generator.randrange(10 ** 9):09d}",
+                "identifiant_numero": numero("piece_identite", index),
                 "identifiant_date_fin": None,
                 **audit_values(),
             })
@@ -609,7 +721,9 @@ def build_insured_rights(assures: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "personne_uuid": assure["personne_uuid"],
                 "droits_annee": ANNEE_DROITS,
                 "droits_mois": mois,
-                "droits_id": f"DRT-{ANNEE_DROITS}{mois:02d}-{index + 1:08d}",
+                # Un rang par (assuré, mois) : douze numéros distincts par
+                # assuré, aucun ne suit le précédent.
+                "droits_id": numero("droits", index * 12 + mois - 1),
                 "droits_statut": 0 if mois in mois_fermes else 1,
                 "droits_date_debut": debut,
                 "droits_date_fin": fin - timedelta(seconds=1),
@@ -621,20 +735,41 @@ async def seed_database() -> None:
     """Peuple toutes les tables référentielles dans une transaction unique."""
 
     logger.info("Démarrage du peuplement référentiel CMU.")
-    agents, agent_assignments = build_agents()
-    professionals, professional_specialties, professional_centers = build_professionals()
+    etablissements = lire_donnees(ETABLISSEMENTS)
+    officines = lire_donnees(PHARMACIES)
+    liste_cmu = lire_donnees(MEDICAMENTS)
+
+    collectivites = build_collectivites(etablissements, officines)
+    codes_collectivite = {ligne["collectivite_denomination"]: ligne["collectivite_code"]
+                          for ligne in collectivites}
+    centres = build_health_centers(etablissements, codes_collectivite)
+    dci = build_dci(liste_cmu)
+    codes_dci = {ligne["dci_denomination"]: ligne["dci_code"] for ligne in dci}
+
+    agents, agent_assignments = build_agents(centres)
+    professionals, professional_specialties, professional_centers = build_professionals(centres)
     regions, departments, localities = build_localisation()
     datasets = {
-        "assures": build_insured_people(), "centres": build_health_centers(),
+        "assures": build_insured_people(), "centres": centres,
+        "pharmacies": build_pharmacies(officines, codes_collectivite),
         "agents": agents, "affectations_agents": agent_assignments,
         "professionnels": professionals, "specialites_professionnels": professional_specialties,
         "centres_professionnels": professional_centers, "pathologies": build_pathologies(),
-        "medicaments": build_medications(), "actes": build_medical_acts(),
+        "medicaments": build_medications(liste_cmu, codes_dci), "actes": build_medical_acts(),
     }
-    expected = {"assures": 100000, "centres": 30, "agents": 60, "affectations_agents": 50,
-                "professionnels": 150, "specialites_professionnels": 100,
-                "centres_professionnels": 150, "pathologies": 100,
-                "medicaments": 200, "actes": 30}
+    # Les volumes suivent la liste CNAM : un agent d'accueil et deux
+    # professionnels par établissement, vingt médecins conseils au-dessus.
+    expected = {
+        "assures": NOMBRE_ASSURES, "centres": len(etablissements),
+        "pharmacies": len(officines),
+        "agents": len(etablissements) + MEDECINS_CONSEILS,
+        "affectations_agents": len(etablissements),
+        "professionnels": 2 * len(etablissements),
+        "specialites_professionnels": len(etablissements),
+        "centres_professionnels": 2 * len(etablissements),
+        "pathologies": len(PATHOLOGY_LABELS), "medicaments": len(liste_cmu),
+        "actes": len(MEDICAL_ACTS),
+    }
     assert all(len(datasets[key]) == value for key, value in expected.items()), "Volumétrie invalide."
 
     specialties = [{"specialite_medicale_code": code, "denomination": label, **audit_values()}
@@ -655,11 +790,14 @@ async def seed_database() -> None:
             await upsert_rows(session, Locality, localities)
 
             await upsert_rows(session, InsuredPerson, datasets["assures"])
+            await upsert_rows(session, Collectivite, collectivites)
             await upsert_rows(session, HealthCenter, datasets["centres"])
+            await upsert_rows(session, Pharmacie, datasets["pharmacies"])
             await upsert_rows(session, Agent, datasets["agents"])
             await upsert_rows(session, MedicalSpecialty, specialties)
             await upsert_rows(session, HealthProfessional, datasets["professionnels"])
             await upsert_rows(session, Pathology, datasets["pathologies"])
+            await upsert_rows(session, Dci, dci)
             await upsert_rows(session, Medication, datasets["medicaments"])
             await upsert_rows(session, MedicalAct, datasets["actes"])
             await upsert_rows(session, TypeInvoice, invoice_types)

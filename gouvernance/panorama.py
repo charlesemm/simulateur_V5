@@ -23,6 +23,17 @@ from gouvernance.catalogue import CATALOGUE
 PREFIXE = "TB\\_%"
 
 
+def _identifiant(nom: str) -> str:
+    """Un nom de table, protégé : PostgreSQL double les guillemets internes.
+
+    Le nom vient de `pg_tables`, donc de la base elle-même — mais poser les
+    guillemets à la main sans doubler ceux qu'il contient tient seulement tant
+    que personne ne crée une table au nom exotique.
+    """
+
+    return '"' + nom.replace('"', '""') + '"'
+
+
 async def panorama() -> list[dict[str, Any]]:
     """Décrit chaque table : colonnes, clé primaire, clés étrangères, volume."""
 
@@ -43,7 +54,7 @@ async def panorama() -> list[dict[str, Any]]:
         for table in tables:
             fiche = fiches.get(table)
             nombre = (await session.execute(
-                text(f'SELECT count(*) FROM "{table}"')
+                text(f"SELECT count(*) FROM {_identifiant(table)}")
             )).scalar_one()
 
             resultat.append({
