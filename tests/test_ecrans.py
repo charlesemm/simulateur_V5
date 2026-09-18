@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import uuid
 
+import pytest
 from sqlalchemy import func, select
 
 from app.database import async_session_factory
@@ -35,6 +36,16 @@ async def test_la_recherche_d_assures_filtre_sur_le_nom(client_api):
     assert resultat["total"] == 1
     assert resultat["assures"][0]["nom"] == "Kouassi"
     assert resultat["assures"][0]["droits_ouverts"] is True
+
+
+@pytest.mark.parametrize("saisie", ["%", "_", "%%", "K_uassi"])
+async def test_les_jokers_saisis_sont_cherches_comme_des_caracteres(client_api, saisie):
+    """Avant l'échappement (AUDIT Q04), « % » rendait tout le référentiel."""
+
+    reponse = await client_api.get("/assures", params={"recherche": saisie})
+
+    assert reponse.status_code == 200
+    assert reponse.json()["total"] == 0
 
 
 async def test_la_liste_des_assures_est_paginee(client_api):

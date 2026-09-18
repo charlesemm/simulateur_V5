@@ -21,6 +21,27 @@ router = APIRouter(
 )
 
 
+# Caractère d'échappement des motifs LIKE : une seule barre oblique inverse.
+ECHAPPEMENT = "\\"
+
+
+def _motif_recherche(saisie: str) -> str:
+    """Prépare un motif ILIKE où « % » et « _ » restent des caractères.
+
+    Sans échappement, un « % » saisi n'était pas cherché mais interprété :
+    la recherche rendait tout le référentiel, au prix de quatre parcours
+    complets de la table.
+    """
+
+    echappee = (
+        saisie.strip()
+        .replace(ECHAPPEMENT, ECHAPPEMENT * 2)
+        .replace("%", f"{ECHAPPEMENT}%")
+        .replace("_", f"{ECHAPPEMENT}_")
+    )
+    return f"%{echappee}%"
+
+
 @router.get("")
 async def list_assures(recherche: str | None = None,
                        limite: int = Query(default=50, ge=1, le=200),
@@ -30,12 +51,12 @@ async def list_assures(recherche: str | None = None,
     async with async_session_factory() as session:
         base = select(InsuredPerson)
         if recherche:
-            motif = f"%{recherche.strip()}%"
+            motif = _motif_recherche(recherche)
             base = base.where(or_(
-                InsuredPerson.assure_nom.ilike(motif),
-                InsuredPerson.assure_prenoms.ilike(motif),
-                InsuredPerson.numero_secu.ilike(motif),
-                InsuredPerson.assure_numero_identifiant.ilike(motif),
+                InsuredPerson.assure_nom.ilike(motif, escape=ECHAPPEMENT),
+                InsuredPerson.assure_prenoms.ilike(motif, escape=ECHAPPEMENT),
+                InsuredPerson.numero_secu.ilike(motif, escape=ECHAPPEMENT),
+                InsuredPerson.assure_numero_identifiant.ilike(motif, escape=ECHAPPEMENT),
             ))
 
         total = (await session.execute(
