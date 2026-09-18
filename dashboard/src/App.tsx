@@ -20,6 +20,7 @@ import { CampagnesPage } from "./components/CampagnesPage";
 import { NouvelleCampagnePage } from "./components/NouvelleCampagnePage";
 import { BilanExecutionPage, type FrappeBilan } from "./components/BilanExecutionPage";
 import { AdministrationPage } from "./components/AdministrationPage";
+import { ApiExplorerPage } from "./components/ApiExplorerPage";
 import { ConsoleInjectionPage } from "./components/ConsoleInjectionPage";
 import { LancementPage } from "./components/LancementPage";
 import { QualitePage } from "./components/QualitePage";
@@ -247,6 +248,12 @@ function DashboardShell() {
             {ongletActif === "administration" && (
               <RequireRole minimum="administrateur">
                 <AdministrationPage />
+              </RequireRole>
+            )}
+
+            {ongletActif === "explorateur-api" && (
+              <RequireRole minimum="administrateur">
+                <ApiExplorerPage />
               </RequireRole>
             )}
           </div>

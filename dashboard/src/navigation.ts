@@ -14,7 +14,8 @@ export type Onglet =
   | "campagne-nouvelle"
   | "rapports"
   | "dashboard"
-  | "administration";
+  | "administration"
+  | "explorateur-api";
 
 export const TITRES: Record<Onglet, { titre: string; sousTitre: string }> = {
   accueil: {
@@ -64,5 +65,9 @@ export const TITRES: Record<Onglet, { titre: string; sousTitre: string }> = {
   administration: {
     titre: "Administration",
     sousTitre: "Comptes, volumétrie des tables et purge des exécutions",
+  },
+  "explorateur-api": {
+    titre: "Explorateur API",
+    sousTitre: "Toutes les routes de l'API, leur description et un banc de test",
   },
 };

@@ -2174,3 +2174,139 @@
   align-items: center;
   gap: 12px;
 }
+
+/* ── Explorateur API ────────────────────────────────────────────────────
+   Une route par ligne, dépliable sur son propre formulaire de test. Le
+   verbe HTTP porte sa couleur : GET se lit, POST/PUT/PATCH transforment,
+   DELETE supprime — la couleur doit prévenir avant que l'admin ne clique.
+*/
+.api-methode {
+  flex: none;
+  display: inline-block;
+  min-width: 58px;
+  text-align: center;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+}
+
+.api-methode-get { background: var(--cnam-blue-light); color: var(--cnam-blue-dark); border: 1px solid var(--cnam-blue-border); }
+.api-methode-post { background: var(--cnam-green-light); color: var(--cnam-green-dark); border: 1px solid var(--cnam-green-border); }
+.api-methode-put,
+.api-methode-patch { background: var(--cnam-orange-light); color: #a75600; border: 1px solid var(--cnam-orange-border); }
+.api-methode-delete { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+
+.endpoint-ligne {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 12px 16px;
+  border: none;
+  border-bottom: 1px solid var(--border-subtle);
+  background: none;
+  font: inherit;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+  transition: background var(--transition);
+}
+
+.endpoint-ligne:hover { background: var(--surface-hover); }
+
+.endpoint-bloc:last-child .endpoint-ligne:last-child { border-bottom: none; }
+
+.endpoint-chemin {
+  flex: none;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 0.83rem;
+  color: var(--text-main);
+  word-break: break-all;
+}
+
+.endpoint-resume {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.endpoint-auth {
+  flex: none;
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-light);
+}
+
+.endpoint-corps {
+  padding: 16px 18px 18px;
+  background: var(--surface-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.endpoint-description {
+  margin: 0 0 14px;
+  font-size: 0.84rem;
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+
+.endpoint-champs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.endpoint-corps textarea.champ-console {
+  width: 100%;
+  min-height: 140px;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 0.78rem;
+  resize: vertical;
+}
+
+.endpoint-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.endpoint-reponse {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: var(--rayon-sm);
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 380px;
+  overflow: auto;
+}
+
+.endpoint-reponse--ok {
+  background: var(--cnam-green-light);
+  border: 1px solid var(--cnam-green-border);
+  color: var(--cnam-green-dark);
+}
+
+.endpoint-reponse--erreur {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+}
+
+.endpoint-reponse-tete {
+  font-weight: 700;
+  margin-bottom: 6px;
+}

@@ -146,6 +146,15 @@ export function TerminalIcon({ className = "", size = 16 }: IconProps) {
   );
 }
 
+/** Chevrons de code, `< >` : la route qu'on inspecte et qu'on interroge. */
+export function ApiIcon({ className = "", size = 18 }: IconProps) {
+  return (
+    <svg width={size} height={size} className={`svg-icon ${className}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 8.25L3.75 12l4.5 3.75m7.5-7.5L20.25 12l-4.5 3.75M13.5 4.5l-3 15" />
+    </svg>
+  );
+}
+
 export function TrashIcon({ className = "", size = 16 }: IconProps) {
   return (
     <svg width={size} height={size} className={`svg-icon ${className}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
