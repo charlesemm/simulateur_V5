@@ -1,5 +1,24 @@
 # Mettre ÉCHO en service sur le serveur `srv-gouv`
 
+> ## ⚠️ Ce guide a été écrit avant le déploiement réel
+>
+> L'installation en place depuis le 2026-09-22 **diffère de ce document sur trois
+> points**, découverts sur le terrain :
+>
+> | Ce guide dit | La réalité |
+> |---|---|
+> | Caddy fait le portier (parties 5.1 à 5.4) | **nginx de l'hôte** — `srv-gouv` est partagée, nginx y occupe déjà 80 et 443 pour `socle.ipscnam.ci` |
+> | Copier les fichiers par `scp` (partie 3) | `curl` depuis GitHub, le dépôt étant public |
+> | Créer un jeton GHCR (partie 5.1) | Rien à faire, l'image est publique |
+>
+> **Pour exploiter ou mettre à jour ÉCHO, suivre
+> [GUIDE_EXPLOITATION.md](GUIDE_EXPLOITATION.md)**, qui décrit l'installation
+> réelle et la routine de mise à jour.
+>
+> Ce document-ci reste utile pour le *pourquoi* de chaque choix — la partie A en
+> particulier, qui explique les notions (image, conteneur, volume, TLS) et reste
+> entièrement valable.
+
 > **Ce guide décrit une installation précise**, pas un cas général : ÉCHO, sur
 > la machine `srv-gouv.ipscnam.ci` de l'IPS-CNAM, sous Oracle Linux, accessible
 > depuis le réseau interne uniquement.
