@@ -9,12 +9,18 @@
 #   2. Il n'a PLUS AUCUNE valeur par défaut pour les secrets. La forme « :? »
 #      fait échouer le lancement avec un message clair plutôt que de démarrer
 #      sur « echo_dev_2026 » sans que personne ne s'en aperçoive.
-#   3. Il NE PUBLIE PLUS le port 8000. Caddy est le seul point d'entrée, et
-#      il joint l'API par le réseau interne. Rien d'autre n'est joignable.
+#   3. Il ne publie le port 8000 que sur la BOUCLE LOCALE. Le portier est le
+#      nginx de l'hôte, qui joint l'API en 127.0.0.1:8000.
 #
 # Déploiement INTERNE : ÉCHO n'est joignable que depuis le réseau de
-# l'IPS-CNAM. Le certificat ne vient donc pas de Let's Encrypt — voir le
-# Caddyfile, qui explique ce que cela change.
+# l'IPS-CNAM, en HTTPS, derrière le nginx déjà installé sur srv-gouv.
+#
+# ⚠️ Il n'y a PLUS de service caddy ici. srv-gouv est une machine partagée où
+# nginx occupe déjà 80 et 443 pour socle.ipscnam.ci : deux programmes ne
+# peuvent pas écouter le même port. C'est donc ce nginx qui termine le TLS
+# (avec le wildcard *.ipscnam.ci déjà en place) et relaie vers l'API. Tout ce
+# que faisait le Caddyfile — blocage du témoin, en-têtes de sécurité, montée
+# en WebSocket — est repris dans deploiement/nginx/echo.ipscnam.ci.conf.
 #
 # Voir GUIDE_DEPLOIEMENT.md pour la marche à suivre.
 # ═══════════════════════════════════════════════════════════════
@@ -54,10 +60,14 @@ services:
   api:
     image: "${ECHO_IMAGE:?absent du .env - voir GUIDE_DEPLOIEMENT.md section 10}"
     restart: unless-stopped
-    # Pas de « ports: ». C'est le changement le plus important de ce fichier.
-    # Publier 8000 offrirait l'API en clair à tout le réseau de la machine,
-    # court-circuitant le TLS de Caddy : un jeton de session y circulerait
-    # sans chiffrement. Caddy joint « api:8000 » par le réseau interne.
+    # « 127.0.0.1: » en tête n'est pas décoratif, c'est la protection la plus
+    # importante de ce fichier. Sans ce préfixe, Podman publierait sur
+    # 0.0.0.0 : l'API serait offerte EN CLAIR à tout le réseau, et n'importe
+    # qui pourrait court-circuiter le TLS de nginx — un jeton de session y
+    # circulerait sans chiffrement. Lié à la boucle locale, seul un processus
+    # de la machine elle-même y accède, et nginx est le seul à le faire.
+    ports:
+      - "127.0.0.1:8000:8000"
     environment:
       DATABASE_URL: postgresql+asyncpg://echo:${POSTGRES_PASSWORD}@postgres:5432/echo_db
       # Le navigateur refuse une réponse dont l'origine n'est pas déclarée.
@@ -71,18 +81,26 @@ services:
       # Le schéma OpenAPI ne se lit qu'avec un jeton, /docs et /redoc sont
       # fermés. L'explorateur d'API du tableau de bord reste utilisable.
       ECHO_DOCS_PUBLIQUES: "false"
-      # Uvicorn croit l'en-tête X-Forwarded-For de Caddy : sans cela, chaque
-      # requête semble venir de Caddy, et le frein des connexions par adresse
-      # (auth/limitation.py) bloquerait tout le monde à la fois. « * » est sûr
-      # ICI parce que le port 8000 n'est publié nulle part : seuls les
-      # conteneurs de ce compose joignent l'API. Ne pas le poser dans le
-      # compose.yaml de la racine, qui publie 8000.
+      # Uvicorn croit l'en-tête X-Forwarded-For de nginx : sans cela, chaque
+      # requête semble venir du relais, et le frein des connexions par adresse
+      # (auth/limitation.py) bloquerait tout le monde à la fois.
+      #
+      # « * » veut dire « faire confiance à n'importe quelle source ». Ce
+      # n'est acceptable que parce que le port est lié à 127.0.0.1 : seul un
+      # processus de srv-gouv l'atteint. Restriction qui subsiste, à savoir :
+      # srv-gouv est partagée, donc un autre compte ayant un shell dessus
+      # pourrait forger cet en-tête et contourner le frein des connexions.
+      #
+      # À durcir une fois le service démarré : relever l'adresse réelle que
+      # voit uvicorn (journaux de l'api) et la nommer ici à la place de « * ».
+      # Elle n'est pas 127.0.0.1 — Podman réécrit la source en l'adresse de
+      # sa passerelle — d'où « * » pour un premier démarrage qui fonctionne.
       FORWARDED_ALLOW_IPS: "*"
       # Canal M6 : les hôtes vers lesquels une campagne peut être transmise.
       # Le témoin local y figure toujours ; ajoutez le vrai outil testé.
       ECHO_HOTES_OUTIL_TESTE: "${ECHO_HOTES_OUTIL_TESTE:-127.0.0.1,localhost}"
       # Clé que le témoin exige dans l'en-tête X-Echo-Cle. Facultative : le
-      # témoin n'est de toute façon pas relayé par Caddy.
+      # témoin n'est de toute façon pas relayé par nginx (il y répond 404).
       ECHO_CLE_OUTIL_TESTE: "${ECHO_CLE_OUTIL_TESTE:-}"
       JWT_SECRET_KEY: "${JWT_SECRET_KEY:?absent du .env - generez-la, voir GUIDE_DEPLOIEMENT.md section 10}"
       # Seule variable facultative du fichier, et deliberement : elle ne sert
@@ -109,34 +127,11 @@ services:
       migrations:
         condition: service_completed_successfully
 
-  # ── Caddy : TLS et point d'entrée unique ────────────────────
-  caddy:
-    image: docker.io/library/caddy:2-alpine
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro,Z
-      # Le certificat du domaine et sa clé (voir Caddyfile). Sans ces deux
-      # fichiers dans « ./certs », Caddy refuse de démarrer.
-      - ./certs:/etc/caddy/certs:ro,Z
-      #
-      # L'état de Caddy et son journal d'accès (/data/acces.log). Si l'on
-      # revient un jour à « tls internal », son autorité de certification
-      # vivra ici aussi : sans ce volume, elle changerait à chaque redémarrage.
-      - caddy_data:/data
-      - caddy_config:/config
-    environment:
-      ECHO_DOMAINE: "${ECHO_DOMAINE:?absent du .env - voir GUIDE_DEPLOIEMENT.md section 10}"
-      # Pas d'adresse de courriel : elle ne servait qu'à Let's Encrypt, qui
-      # ne joue aucun rôle dans un déploiement interne.
-    depends_on:
-      - api
+  # Le portier n'est pas ici : c'est le nginx de l'hôte, configuré par
+  # deploiement/nginx/echo.ipscnam.ci.conf. Il termine le TLS et relaie vers
+  # 127.0.0.1:8000. Voir l'en-tête de ce fichier pour le pourquoi.
 
 volumes:
   pgdata:
   rapports:
   jeux:
-  caddy_data:
-  caddy_config:
