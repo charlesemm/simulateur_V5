@@ -66,11 +66,32 @@ ACTES_PAR_TYPE_FACTURE["PHA"] = ACTES_PAR_TYPE_FACTURE["AMB"]
 # la plupart des montants restent proches du tarif.
 VARIATION_MIN, VARIATION_MODE, VARIATION_MAX = 0.1, 1.0, 2.0
 ARRONDI_FCFA = Decimal("50")
+# Une hospitalisation se facture entre 1 000 et 7 000 FCFA (demande du
+# 21/09/2026), avec de la variation : loi triangulaire centrée sur le tarif de
+# l'acte, ramené à 4 500 au plus (les urgences, à 15 000, servent aussi des
+# factures hospitalières). Aucun montant n'est écrêté : pas de paquet à 7 000.
+HOSPITALISATION_MIN = Decimal("1000")
+PLAFOND_HOSPITALISATION = Decimal("7000")
+MODE_HOSPITALISATION_MAX = Decimal("4500")
+# Chance qu'une facture ambulatoire, dentaire ou pharmacie passe aussi par une
+# entente préalable (demande du 21/09/2026 : elle peut concerner tout type).
+# Biologie/imagerie et hospitalisation y passent toujours.
+PROBABILITE_ENTENTE_AUTRES = 0.30
 
 
-def montant_autour(tarif: Decimal, tirage: random.Random) -> Decimal:
-    """Montant facturé pour un acte : le tarif décalé, arrondi à 50 FCFA."""
+def montant_autour(tarif: Decimal, tirage: random.Random,
+                   hospitalisation: bool = False) -> Decimal:
+    """Montant facturé pour un acte : le tarif décalé, arrondi à 50 FCFA.
 
+    Une hospitalisation varie entre HOSPITALISATION_MIN et PLAFOND_HOSPITALISATION.
+    """
+
+    if hospitalisation:
+        mode = min(tarif, MODE_HOSPITALISATION_MAX)
+        valeur = tirage.triangular(float(HOSPITALISATION_MIN),
+                                   float(PLAFOND_HOSPITALISATION), float(mode))
+        montant = (Decimal(str(round(valeur, 2))) / ARRONDI_FCFA).quantize(Decimal("1")) * ARRONDI_FCFA
+        return min(max(montant, HOSPITALISATION_MIN), PLAFOND_HOSPITALISATION)
     facteur = Decimal(str(round(
         tirage.triangular(VARIATION_MIN, VARIATION_MAX, VARIATION_MODE), 4)))
     montant = (tarif * facteur / ARRONDI_FCFA).quantize(Decimal("1")) * ARRONDI_FCFA
@@ -418,7 +439,8 @@ class PassageSimulation:
         # variation d'un centre à l'autre ; les anomalies de montant partent
         # de lui. Le tarif se lit sur base_code, avant qu'une prestation
         # orpheline ne remplace le code par un code inconnu.
-        base = montant_autour(await tarif_acte(base_code), self.random)
+        base = montant_autour(await tarif_acte(base_code), self.random,
+                              hospitalisation=invoice_type == "HOS")
         montant_depense = self.anomalies.injecter_montant(base, invoice_number)
         quantite_servie = self.anomalies.injecter_quantite(1, 1, invoice_number)
         quantite_servie = self.anomalies.injecter_quantite_nulle(quantite_servie, invoice_number)
@@ -472,11 +494,11 @@ class PassageSimulation:
                 await session.commit()
             await self.emit("medicament.prescrit", facture_numero=invoice_number, code=medicine.medicament_code)
 
-        if needs_biology or needs_hospital:
+        if needs_biology or needs_hospital or self.random.random() < PROBABILITE_ENTENTE_AUTRES:
             await self.process_prior_authorization(
                 invoice_number, center.centre_sante_code,
                 professional.professionnel_sante_code, needs_hospital,
-                coverage.taux,
+                coverage.taux, invoice_type,
             )
 
         if medications:
@@ -493,19 +515,24 @@ class PassageSimulation:
 
     async def process_prior_authorization(self, invoice_number: str, center_code: str,
                                           professional_code: str, hospital: bool,
-                                          taux: Decimal) -> None:
+                                          taux: Decimal, invoice_type: str = "BIO") -> None:
         """Crée, attend et décide une entente préalable acte par acte.
+
+        « hospitalisation » vaut pour un séjour, « acte » pour toute autre
+        demande d'accord préalable sur un acte (biologie, imagerie, soins...).
 
         Le taux reçu est celui du régime de l'assuré : un bénéficiaire du
         régime d'assistance médicale voit son acte pris en charge à 100 %.
         """
         if hospital:
             criterion = MedicalAct.acte_medical_code.like("HOS-%")
-        else:
+        elif invoice_type == "BIO":
             criterion = (
                     MedicalAct.acte_medical_code.like("BIO-%")
                     | MedicalAct.acte_medical_code.like("IMG-%")
             )
+        else:
+            criterion = MedicalAct.acte_medical_code.in_(ACTES_PAR_TYPE_FACTURE[invoice_type])
         act = await self.choose(MedicalAct, criterion)
         async with async_session_factory() as session:
             agreement = PriorAuthorization(
@@ -538,7 +565,7 @@ class PassageSimulation:
         tarif = act.acte_medical_tarif or TARIFS_ACTES.get(
             act.acte_medical_code, Decimal("50000") if hospital else Decimal("15000"))
         amount = self.anomalies.injecter_montant(
-            montant_autour(tarif, self.random),
+            montant_autour(tarif, self.random, hospitalisation=hospital),
             self.entente_prealable_numero,
         )
         cmu_amount = ((amount * taux / Decimal("100")).quantize(Decimal("0.01"))

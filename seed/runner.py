@@ -48,7 +48,7 @@ logger = logging.getLogger(__name__)
 
 ## initialialisation du faker
 RANDOM_SEED = 225
-VALID_FROM = date(2026,8, 17)
+VALID_FROM = date(2026, 6, 1)
 
 # Les tables historisées veulent un horodatage, pas une date : on fige le
 # même instant partout pour que le seed reste reproductible.
