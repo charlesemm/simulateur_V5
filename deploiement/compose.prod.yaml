@@ -30,7 +30,13 @@ services:
   # ── Base de données ──────────────────────────────────────────
   postgres:
     image: docker.io/library/postgres:16-alpine
-    restart: unless-stopped
+    # « always » et non « unless-stopped », pour une raison qui ne se voit
+    # qu'au redémarrage de la machine : podman-restart.service, le service qui
+    # relance les conteneurs au démarrage, lance « podman start --all --filter
+    # restart-policy=always ». Un conteneur en « unless-stopped » n'entre pas
+    # dans ce filtre — le serveur revenait en ligne sans ÉCHO, en donnant
+    # l'illusion d'être couvert puisque le service, lui, était bien actif.
+    restart: always
     environment:
       POSTGRES_DB: echo_db
       POSTGRES_USER: echo
@@ -59,7 +65,8 @@ services:
   # ── API + dashboard ─────────────────────────────────────────
   api:
     image: "${ECHO_IMAGE:?absent du .env - voir GUIDE_DEPLOIEMENT.md section 10}"
-    restart: unless-stopped
+    # « always » : voir la note sur le service postgres ci-dessus.
+    restart: always
     # « 127.0.0.1: » en tête n'est pas décoratif, c'est la protection la plus
     # importante de ce fichier. Sans ce préfixe, Podman publierait sur
     # 0.0.0.0 : l'API serait offerte EN CLAIR à tout le réseau, et n'importe
