@@ -15,11 +15,12 @@ services:
       POSTGRES_DB: echo_db
       POSTGRES_USER: echo
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-echo_dev_2026}
-    # Aucun port publié : la base n'est jointe que par les autres conteneurs,
-    # sur le réseau interne. L'exposer sur la machine hôte l'offrirait à tout
-    # le réseau sans qu'aucun service n'en ait besoin. Pour l'inspecter depuis
-    # le poste, ouvrir un tunnel le temps voulu :
-    #   podman-compose exec postgres psql -U echo -d echo_db
+    # Publié temporairement sur 5433 (5432 est déjà pris par le PostgreSQL
+    # natif du poste) pour une inspection DBeaver -- à retirer une fois fini.
+    # Alternative sans rien publier :
+    #   podman compose exec postgres psql -U echo -d echo_db
+    ports:
+      - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:

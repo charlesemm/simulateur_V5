@@ -53,3 +53,8 @@ coverage.xml
 .coverage
 htmlcov/
 dashboard/coverage/
+
+# ── Environnement local (généré, jamais commité) ────────────────────────────
+.local/
+.cache/
+.sonar/
