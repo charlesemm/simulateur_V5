@@ -1,7 +1,7 @@
 .counter {
   font-size: 16px;
   padding: 5px 10px;
-  border-radius: 5px;
+  border-radius: var(--rayon-xs);
   color: var(--accent);
   background: var(--accent-bg);
   border: 2px solid transparent;
@@ -118,7 +118,7 @@
   a {
     color: var(--text-h);
     font-size: 16px;
-    border-radius: 6px;
+    border-radius: var(--rayon-xs);
     background: var(--social-bg);
     display: flex;
     padding: 6px 12px;
@@ -189,16 +189,16 @@
   display: block;
   margin: 0.5rem 0;
   padding: 0.5rem 0.75rem;
-  border-radius: 6px;
+  border-radius: var(--rayon-xs);
   background: rgba(0, 0, 0, 0.25);
-  font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
-  font-size: 1.15rem;
+  font-family: var(--mono);
+  font-size: var(--txt-lg);
   letter-spacing: 0.08em;
   user-select: all;
 }
 
 .temp-password-note {
   display: block;
-  font-size: 0.8rem;
+  font-size: var(--txt-sm);
   opacity: 0.85;
 }

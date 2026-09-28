@@ -9,6 +9,7 @@ import type {
 } from "../types";
 import { dateCourte } from "./format-execution";
 import "./Screens.css";
+import { EtatBloc } from "./EtatBloc";
 
 interface FicheCampagneProps {
   campagne: Campagne;
@@ -273,12 +274,12 @@ export function FicheCampagne({
         </div>
       </div>
 
-      {erreur && <p className="screen-error">{erreur}</p>}
+      {erreur && <EtatBloc ton="erreur">{erreur}</EtatBloc>}
       {suivi?.erreur && (
-        <p className="screen-error">
+        <EtatBloc ton="erreur">
           Génération interrompue : {suivi.erreur}. La campagne est repassée à
           « créée » — un jeu à moitié produit n'a aucune valeur.
-        </p>
+        </EtatBloc>
       )}
 
       <div className="stat-strip">
@@ -388,7 +389,7 @@ export function FicheCampagne({
       {/* ── M6 : le canal vers l'outil testé ── */}
       {genere && (
         <div className="canal-bloc">
-          <h3 className="screen-section-title" style={{ marginTop: 0 }}>
+          <h3 className="screen-section-title">
             Transmettre à l'outil testé
           </h3>
           <p className="export-aide">
@@ -423,11 +424,9 @@ export function FicheCampagne({
           </RequireRole>
 
           {echanges.length === 0 ? (
-            <div className="screen-empty" style={{ marginTop: 12 }}>
-              Aucune transmission pour l'instant.
-            </div>
+            <EtatBloc ton="vide">Aucune transmission pour l'instant.</EtatBloc>
           ) : (
-            <div className="screen-table-wrap" style={{ marginTop: 12 }}>
+            <div className="screen-table-wrap ecart-haut-s">
               <table className="screen-table">
                 <thead>
                   <tr>
@@ -478,14 +477,14 @@ export function FicheCampagne({
       )}
 
       {/* ── Ce qui a été demandé ── */}
-      <h3 className="screen-section-title" style={{ marginTop: 20 }}>
+      <h3 className="screen-section-title ecart-haut-l">
         Anomalies demandées
       </h3>
       {anomalies.length === 0 ? (
-        <div className="screen-empty">
+        <EtatBloc ton="vide">
           Aucune anomalie : le jeu produit est sain. Cette campagne ne mesurera
           que les fausses alertes de l'outil testé.
-        </div>
+        </EtatBloc>
       ) : (
         <div className="screen-table-wrap">
           <table className="screen-table">
@@ -523,7 +522,7 @@ export function FicheCampagne({
       {/* ── Le corrigé ── */}
       {genere && corrige && (
         <>
-          <h3 className="screen-section-title" style={{ marginTop: 20 }}>
+          <h3 className="screen-section-title ecart-haut-l">
             Corrigé — {entier(corrige.total)} anomalie
             {corrige.total > 1 ? "s" : ""} posée{corrige.total > 1 ? "s" : ""}
           </h3>
@@ -534,9 +533,9 @@ export function FicheCampagne({
           </p>
 
           {corrige.total === 0 ? (
-            <div className="screen-empty">
+            <EtatBloc ton="vide">
               Aucune anomalie posée : le jeu est sain, comme demandé.
-            </div>
+            </EtatBloc>
           ) : (
             <>
               <div className="screen-table-wrap">
@@ -595,7 +594,7 @@ export function FicheCampagne({
       )}
 
       {!genere && !enGeneration && (
-        <p className="screen-section-lead" style={{ marginTop: 16 }}>
+        <p className="screen-section-lead ecart-haut-m">
           Le jeu de données n'est pas encore produit. La campagne existe, elle
           est numérotée, et sa graine est fixée : elle produira toujours le même
           jeu.

@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { API_URL } from "../services/api";
+import { EtatBloc } from "./EtatBloc";
 
 interface UserRow {
   utilisateur_uuid: string;
@@ -174,14 +175,10 @@ export function UsersPage() {
 
   return (
     <main className="page-container">
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">Gestion des Utilisateurs & Rôles</h1>
-          <p className="page-subtitle">
-            Administration des comptes d'accès, permissions et statuts
-          </p>
-        </div>
-      </div>
+      <h2 className="screen-section-title">Comptes et rôles</h2>
+      <p className="screen-section-lead">
+        Les comptes d'accès, leurs rôles et leurs statuts.
+      </p>
 
       <div className="users-layout-grid">
         {/* Colonne Gauche : Liste des utilisateurs */}
@@ -190,8 +187,8 @@ export function UsersPage() {
             <h2>Comptes enregistrés ({users.length})</h2>
           </div>
 
-          <div className="table-wrapper">
-            <table className="clean-table">
+          <div className="screen-table-wrap">
+            <table className="screen-table">
               <thead>
                 <tr>
                   <th>Utilisateur</th>
@@ -277,8 +274,8 @@ export function UsersPage() {
                 ))}
                 {users.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="table-empty">
-                      Aucun utilisateur trouvé.
+                    <td colSpan={4}>
+                      <EtatBloc ton="vide" discret>Aucun utilisateur trouvé.</EtatBloc>
                     </td>
                   </tr>
                 )}
@@ -296,10 +293,10 @@ export function UsersPage() {
             </p>
           </div>
 
-          {erreur && <div className="alert-box alert-error">{erreur}</div>}
-          {succes && <div className="alert-box alert-success">{succes}</div>}
+          {erreur && <EtatBloc ton="erreur">{erreur}</EtatBloc>}
+          {succes && <EtatBloc ton="succes">{succes}</EtatBloc>}
           {motDePasseTemporaire && (
-            <div className="alert-box alert-success">
+            <div className="etat-bloc etat-bloc--succes bloc-mot-de-passe">
               <code className="temp-password">{motDePasseTemporaire}</code>
               <span className="temp-password-note">
                 Il ne sera plus affiché : notez-le maintenant. Son remplacement
@@ -313,7 +310,7 @@ export function UsersPage() {
               <label className="form-label">Nom complet</label>
               <input
                 className="form-input"
-                placeholder="Ex: Jean Kouassi"
+                placeholder="Ex. : Jean Kouassi"
                 value={nomComplet}
                 onChange={(e) => setNomComplet(e.target.value)}
                 required
@@ -321,7 +318,7 @@ export function UsersPage() {
             </div>
 
             <div className="form-group">
-              <label className="form-label">Adresse email</label>
+              <label className="form-label">Adresse e-mail</label>
               <input
                 type="email"
                 className="form-input"
@@ -336,7 +333,7 @@ export function UsersPage() {
               <label className="form-label">Nom d'utilisateur</label>
               <input
                 className="form-input"
-                placeholder="Ex: j.kouassi"
+                placeholder="Ex. : j.kouassi"
                 value={nomUtilisateur}
                 onChange={(e) => setNomUtilisateur(e.target.value)}
                 required
@@ -361,7 +358,7 @@ export function UsersPage() {
             </div>
 
             <button type="submit" className="btn btn-start btn-block" disabled={creating}>
-              {creating ? "Création en cours..." : "Enregistrer le compte"}
+              {creating ? "Création en cours…" : "Enregistrer le compte"}
             </button>
           </form>
         </section>

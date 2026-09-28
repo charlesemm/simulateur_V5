@@ -7,6 +7,7 @@ import type {
 } from "../types";
 import { StatutPastille, dateCourte, duree } from "./format-execution";
 import "./Screens.css";
+import { EtatBloc } from "./EtatBloc";
 
 interface SimulationsPageProps {
   /** Exécution à ouvrir d'emblée, quand on arrive depuis l'accueil. */
@@ -147,14 +148,14 @@ export function SimulationsPage({ executionInitiale = null }: SimulationsPagePro
 
   return (
     <div className="screen">
-      {erreur && <p className="screen-error">{erreur}</p>}
+      {erreur && <EtatBloc ton="erreur">{erreur}</EtatBloc>}
 
       <section>
         <h2 className="screen-section-title">Historique des exécutions</h2>
         {executions.length === 0 ? (
-          <div className="screen-empty">
+          <EtatBloc ton="vide">
             Aucune exécution enregistrée. Lancez un type depuis l'accueil.
-          </div>
+          </EtatBloc>
         ) : (
           <div className="screen-table-wrap">
             <table className="screen-table">
@@ -220,7 +221,7 @@ export function SimulationsPage({ executionInitiale = null }: SimulationsPagePro
 
             {anomaliesParametrees.length > 0 && (
               <>
-                <h3 className="screen-section-title" style={{ marginTop: 22 }}>
+                <h3 className="screen-section-title ecart-haut-l">
                   Anomalies — demandé puis obtenu
                 </h3>
                 <div className="cellules">
@@ -240,7 +241,7 @@ export function SimulationsPage({ executionInitiale = null }: SimulationsPagePro
                   ))}
                 </div>
                 {anomaliesParametrees.some((ligne) => ligne.injectees === 0) && (
-                  <p className="stat-tile-hint" style={{ marginTop: 10 }}>
+                  <p className="stat-tile-hint ecart-haut-s">
                     Un type demandé mais jamais injecté n'est pas forcément une
                     panne : à faible taux, une exécution courte peut ne jamais
                     tomber dessus.
@@ -251,7 +252,7 @@ export function SimulationsPage({ executionInitiale = null }: SimulationsPagePro
 
             {aleasParametres.length > 0 && (
               <>
-                <h3 className="screen-section-title" style={{ marginTop: 22 }}>
+                <h3 className="screen-section-title ecart-haut-l">
                   Aléas demandés
                 </h3>
                 <div className="cellules">
@@ -268,7 +269,7 @@ export function SimulationsPage({ executionInitiale = null }: SimulationsPagePro
               </>
             )}
 
-            <h3 className="screen-section-title" style={{ marginTop: 22 }}>
+            <h3 className="screen-section-title ecart-haut-l">
               Cadence demandée
             </h3>
             <div className="cellules">

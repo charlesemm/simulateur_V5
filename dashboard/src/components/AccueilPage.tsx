@@ -6,6 +6,7 @@ import { api } from "../services/api";
 import type { ProfilSimulation, SimulationRun, SimulationStatus } from "../types";
 import { StatutPastille, dateCourte, duree } from "./format-execution";
 import "./Screens.css";
+import { EtatBloc } from "./EtatBloc";
 
 interface AccueilPageProps {
   onVoirExecution: (simulationId: string) => void;
@@ -74,18 +75,10 @@ export function AccueilPage({
   }, [token, rafraichir]);
 
   const enCours = statut?.etat === "en_cours";
-  const passagesCumules = executions.reduce(
-    (total, execution) => total + execution.passages_reussis,
-    0
-  );
-  // La tuile « type en cours » emprunte la couleur du type qui tourne.
-  const couleurDuType =
-    profils.find((profil) => profil.code === statut?.type_simulation)?.couleur
-    ?? "var(--text-light)";
 
   return (
     <div className="screen">
-      {erreur && <p className="screen-error">{erreur}</p>}
+      {erreur && <EtatBloc ton="erreur">{erreur}</EtatBloc>}
 
       <section className="home-hero">
         <div className={`home-status${enCours ? " home-status--live" : ""}`}>
@@ -112,45 +105,6 @@ export function AccueilPage({
           ) : null}
         </div>
 
-        <div className="home-kpis">
-          <div
-            className="stat-tile stat-tile--accent"
-            style={{ ["--tuile-couleur" as string]: couleurDuType }}
-          >
-            <span className="stat-tile-label">Type</span>
-            <span className="stat-tile-value">
-              {enCours ? (statut?.type_simulation ?? "—") : "—"}
-            </span>
-            <span className="stat-tile-hint">
-              {enCours ? `Vitesse ×${statut?.vitesse ?? 0}` : "Aucun moteur ouvert"}
-            </span>
-          </div>
-          <div
-            className="stat-tile stat-tile--accent"
-            style={{ ["--tuile-couleur" as string]: "var(--cnam-blue-vif)" }}
-          >
-            <span className="stat-tile-label">Exécutions</span>
-            <span className="stat-tile-value">{executions.length}</span>
-            <span className="stat-tile-hint">Les cinq dernières</span>
-          </div>
-          <div
-            className="stat-tile stat-tile--accent"
-            style={{ ["--tuile-couleur" as string]: "var(--cnam-green-vif)" }}
-          >
-            <span className="stat-tile-label">Passages réussis</span>
-            <span className="stat-tile-value">{passagesCumules}</span>
-            <span className="stat-tile-hint">Sur ces cinq exécutions</span>
-          </div>
-          <div className={`stat-tile stat-tile--accent${enCours ? " vivante" : ""}`}>
-            <span className="stat-tile-label">Moteur</span>
-            <span className="stat-tile-value">{enCours ? "En cours" : "Arrêté"}</span>
-            <span className="stat-tile-hint">
-              {enCours
-                ? `${statut?.passages_actifs ?? 0} passage(s) en parallèle`
-                : "Aucune exécution ouverte"}
-            </span>
-          </div>
-        </div>
       </section>
 
       <section>
@@ -163,7 +117,11 @@ export function AccueilPage({
           action.
         </p>
         <div className="type-grid">
-          {profils.map((profil) => {
+          {/* Les types ouverts d'abord : ce sont les seuls sur lesquels on
+              peut agir. Le tri est stable, l'ordre du serveur est gardé. */}
+          {[...profils]
+            .sort((a, b) => Number(!a.disponible) - Number(!b.disponible))
+            .map((profil) => {
             // C'est le serveur qui dit ce qui est ouvert : grisage écrit ici,
             // il fallait retoucher le navigateur pour ouvrir un type.
             const enAttente = !profil.disponible;
@@ -242,7 +200,7 @@ export function AccueilPage({
             );
           })}
           {profils.length === 0 && (
-            <div className="screen-empty">Les types de simulation n'ont pas pu être chargés.</div>
+            <EtatBloc ton="vide">Les types de simulation n'ont pas pu être chargés.</EtatBloc>
           )}
         </div>
       </section>
@@ -257,9 +215,9 @@ export function AccueilPage({
           )}
         </div>
         {executions.length === 0 ? (
-          <div className="screen-empty">
+          <EtatBloc ton="vide">
             Aucune exécution enregistrée pour l'instant. Lancez un type ci-dessus.
-          </div>
+          </EtatBloc>
         ) : (
           <div className="screen-table-wrap">
             <table className="screen-table">

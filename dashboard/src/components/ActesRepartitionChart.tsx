@@ -2,6 +2,7 @@
 import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { KpiSnapshot } from "../types";
 import { TOOLTIP_STYLE } from "./chartTheme";
+import { EtatBloc } from "./EtatBloc";
 
 interface ActesRepartitionChartProps {
   snapshot: KpiSnapshot | null;
@@ -47,7 +48,7 @@ export function ActesRepartitionChart({ snapshot }: ActesRepartitionChartProps) 
       </div>
 
       {donnees.length === 0 ? (
-        <p className="chart-empty">Aucun acte enregistré sur la fenêtre.</p>
+        <EtatBloc ton="vide" discret>Aucun acte enregistré sur la fenêtre.</EtatBloc>
       ) : (
         <div className="chart-container">
           <ResponsiveContainer width="100%" height={240}>

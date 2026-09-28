@@ -1,5 +1,6 @@
 import type { TechnicalMetricsSnapshot } from "../types";
 import { ActivityIcon, BoltIcon, ClockIcon, CpuIcon, ShieldCheckIcon, WifiIcon } from "./Icons";
+import { EtatBloc } from "./EtatBloc";
 
 interface TechMetricCardsProps {
   metrics: TechnicalMetricsSnapshot | null;
@@ -30,7 +31,7 @@ export function TechMetricCards({ metrics, loading }: TechMetricCardsProps) {
   }
 
   if (!metrics) {
-    return <p className="empty-state">Aucune métrique technique disponible.</p>;
+    return <EtatBloc ton="vide">Aucune métrique technique disponible.</EtatBloc>;
   }
 
   const saturation = metrics.passages_simultanes_max

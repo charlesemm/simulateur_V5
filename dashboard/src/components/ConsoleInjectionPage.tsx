@@ -4,6 +4,7 @@ import { useAuth } from "../auth/AuthContext";
 import { API_URL, api } from "../services/api";
 import type { SimulationStatus, TypeAnomalie } from "../types";
 import "./Screens.css";
+import { EtatBloc } from "./EtatBloc";
 
 const DECLENCHEMENTS: Array<{ valeur: string; libelle: string }> = [
   { valeur: "continu", libelle: "Continu — toute l'exécution" },
@@ -146,8 +147,8 @@ export function ConsoleInjectionPage() {
 
   return (
     <div className="screen">
-      {erreur && <p className="screen-error">{erreur}</p>}
-      {message && <div className="bandeau-info">{message}</div>}
+      {erreur && <EtatBloc ton="erreur">{erreur}</EtatBloc>}
+      {message && <EtatBloc ton="succes">{message}</EtatBloc>}
 
       {!enCours && (
         <div className="bandeau-info">
@@ -163,7 +164,7 @@ export function ConsoleInjectionPage() {
           <div className="stat-tile">
             <span className="stat-tile-label">Injection</span>
             <span className="stat-tile-value">{global?.enabled ? "Ouverte" : "Coupée"}</span>
-            <label className="toggle-switch-label" style={{ marginTop: 10 }}>
+            <label className="toggle-switch-label ecart-haut-s">
               <input
                 type="checkbox"
                 className="toggle-checkbox"
@@ -184,7 +185,7 @@ export function ConsoleInjectionPage() {
             <span className="stat-tile-hint">
               Utilisé par les types qui n'ont pas de taux propre
             </span>
-            <div className="champ-pourcentage" style={{ marginTop: 8 }}>
+            <div className="champ-pourcentage ecart-haut-s">
               <input
                 type="number"
                 className="champ-console"
@@ -281,7 +282,7 @@ export function ConsoleInjectionPage() {
                 </div>
               </div>
 
-              <div className="anomalie-ligne" style={{ marginTop: 12 }}>
+              <div className="anomalie-ligne ecart-haut-s">
                 <span>Moment</span>
               </div>
               <select
@@ -303,7 +304,7 @@ export function ConsoleInjectionPage() {
 
               {(type.anomalie_declenchement === "differe" ||
                 type.anomalie_declenchement === "demarrage") && (
-                <div className="anomalie-ligne" style={{ marginTop: 10 }}>
+                <div className="anomalie-ligne ecart-haut-s">
                   <span>Délai (s)</span>
                   <input
                     type="number"
@@ -348,7 +349,7 @@ export function ConsoleInjectionPage() {
       })}
 
       {catalogue.length === 0 && (
-        <div className="screen-empty">Le catalogue d'anomalies n'a pas pu être chargé.</div>
+        <EtatBloc ton="vide">Le catalogue d'anomalies n'a pas pu être chargé.</EtatBloc>
       )}
 
       {/* Les aléas ne sont plus ici : ils se déclenchent depuis l'écran de

@@ -2,6 +2,7 @@
 import type { KpiSnapshot } from "../types";
 import { ActivityIcon, BoltIcon, ClockIcon, CpuIcon, ReportsIcon, ShieldCheckIcon } from "./Icons";
 import { formatDelai, formatMontant } from "./format";
+import { EtatBloc } from "./EtatBloc";
 
 interface ActiviteMetierCardsProps {
   snapshot: KpiSnapshot | null;
@@ -20,7 +21,7 @@ export function ActiviteMetierCards({ snapshot, loading }: ActiviteMetierCardsPr
   }
 
   if (!snapshot) {
-    return <p className="empty-state">Aucune donnée d'activité disponible.</p>;
+    return <EtatBloc ton="vide">Aucune donnée d'activité disponible.</EtatBloc>;
   }
 
   const { passages, montants, ententes, charge_centres, actes_repartition, window } = snapshot;

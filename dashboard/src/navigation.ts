@@ -7,24 +7,19 @@ export type Onglet =
   | "lancement"
   | "encours"
   | "bilan"
-  | "injection"
   | "simulations"
   | "qualite"
   | "campagnes"
   | "campagne-nouvelle"
   | "rapports"
-  | "dashboard"
   | "administration"
   | "explorateur-api";
 
+/** Le titre de chaque écran, et la phrase qui dit ce qu'on y fait. */
 export const TITRES: Record<Onglet, { titre: string; sousTitre: string }> = {
   accueil: {
     titre: "Vue d'ensemble",
     sousTitre: "Lancez une simulation et retrouvez l'activité récente",
-  },
-  injection: {
-    titre: "Scénarios & anomalies",
-    sousTitre: "Préparez les données atypiques et les aléas à simuler",
   },
   simulations: {
     titre: "Historique des simulations",
@@ -54,12 +49,8 @@ export const TITRES: Record<Onglet, { titre: string; sousTitre: string }> = {
     titre: "Nouvelle campagne",
     sousTitre: "Volume à générer et graine de reproduction",
   },
-  dashboard: {
-    titre: "Supervision technique",
-    sousTitre: "Surveillez la santé et les performances du moteur en temps réel",
-  },
   rapports: {
-    titre: "Rapports & exports",
+    titre: "Rapports et exports",
     sousTitre: "Générez des synthèses par période ou par exécution",
   },
   administration: {

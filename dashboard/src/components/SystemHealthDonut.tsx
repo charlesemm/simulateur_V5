@@ -1,5 +1,6 @@
 import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import type { TechnicalMetricsSnapshot } from "../types";
+import { EtatBloc } from "./EtatBloc";
 
 interface SystemHealthDonutProps {
   metrics: TechnicalMetricsSnapshot | null;
@@ -11,7 +12,7 @@ export function SystemHealthDonut({ metrics }: SystemHealthDonutProps) {
       <article className="chart-card">
         <h2 className="chart-title">Fiabilité d'Exécution</h2>
         <p className="chart-subtitle">Taux d'exécution du moteur</p>
-        <p className="chart-empty">En attente de données...</p>
+        <EtatBloc ton="vide" discret>En attente de données…</EtatBloc>
       </article>
     );
   }
@@ -39,7 +40,7 @@ export function SystemHealthDonut({ metrics }: SystemHealthDonutProps) {
       </div>
 
       {total === 0 ? (
-        <p className="chart-empty">Aucun passage exécuté depuis le démarrage.</p>
+        <EtatBloc ton="vide" discret>Aucun passage exécuté depuis le démarrage.</EtatBloc>
       ) : (
         <div className="chart-container">
           <ResponsiveContainer width="100%" height={220}>

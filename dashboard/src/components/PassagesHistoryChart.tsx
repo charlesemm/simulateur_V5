@@ -2,6 +2,7 @@
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { HistoryPoint } from "../types";
 import { TOOLTIP_STYLE } from "./chartTheme";
+import { EtatBloc } from "./EtatBloc";
 
 interface PassagesHistoryChartProps {
   history: HistoryPoint[];
@@ -42,7 +43,7 @@ export function PassagesHistoryChart({ history }: PassagesHistoryChartProps) {
       </div>
 
       {points.length === 0 ? (
-        <p className="chart-empty">En attente des premiers passages...</p>
+        <EtatBloc ton="vide" discret>En attente des premiers passages…</EtatBloc>
       ) : (
         <div className="chart-container">
           <ResponsiveContainer width="100%" height={240}>

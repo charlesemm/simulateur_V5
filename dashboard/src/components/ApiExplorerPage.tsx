@@ -10,6 +10,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { API_URL } from "../services/api";
 import "./Screens.css";
+import { EtatBloc } from "./EtatBloc";
 
 interface OpenApiParameter {
   name: string;
@@ -326,10 +327,10 @@ export function ApiExplorerPage() {
 
   return (
     <div className="screen">
-      {erreurChargement && <p className="screen-error">{erreurChargement}</p>}
+      {erreurChargement && <EtatBloc ton="erreur">{erreurChargement}</EtatBloc>}
 
       <section>
-        <div className="stat-strip" style={{ marginBottom: 14 }}>
+        <div className="stat-strip ecart-bas-m">
           <div className="stat-tile">
             <span className="stat-tile-label">Routes exposées</span>
             <span className="stat-tile-value">{totalRoutes}</span>
@@ -355,10 +356,10 @@ export function ApiExplorerPage() {
         />
       </section>
 
-      {chargement && <p className="stat-tile-hint">Chargement du schéma de l'API…</p>}
+      {chargement && <EtatBloc ton="chargement">Chargement du schéma de l'API…</EtatBloc>}
 
       {!chargement && groupes.length === 0 && (
-        <p className="screen-empty">Aucune route ne correspond à « {recherche} ».</p>
+        <EtatBloc ton="vide">Aucune route ne correspond à « {recherche} ».</EtatBloc>
       )}
 
       {groupes.map(([tag, liste]) => {
@@ -437,7 +438,7 @@ export function ApiExplorerPage() {
                                   setCorpsTexte((etat) => ({ ...etat, [ep.id]: evenement.target.value }))
                                 }
                               />
-                              {erreursCorps[ep.id] && <p className="screen-error">{erreursCorps[ep.id]}</p>}
+                              {erreursCorps[ep.id] && <EtatBloc ton="erreur">{erreursCorps[ep.id]}</EtatBloc>}
                             </div>
                           )}
 

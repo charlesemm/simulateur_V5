@@ -1,6 +1,7 @@
 // Suivi des ententes préalables : issue des décisions et délais de traitement.
 import type { KpiSnapshot } from "../types";
 import { formatDelai } from "./format";
+import { EtatBloc } from "./EtatBloc";
 
 interface EntentesPanelProps {
   snapshot: KpiSnapshot | null;
@@ -44,7 +45,7 @@ export function EntentesPanel({ snapshot }: EntentesPanelProps) {
       </div>
 
       {lignes.length === 0 ? (
-        <p className="chart-empty">Aucune entente traitée sur la fenêtre.</p>
+        <EtatBloc ton="vide" discret>Aucune entente traitée sur la fenêtre.</EtatBloc>
       ) : (
         <div className="ententes-repartition">
           {lignes.map((ligne) => (

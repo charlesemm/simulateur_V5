@@ -5,8 +5,8 @@ import logoCnam from "../assets/logo.png";
 import type { Onglet } from "../navigation";
 import { EchoLogo } from "./EchoLogo";
 import {
-  ApiIcon, DashboardIcon, HomeIcon, InjectionIcon, LogoutIcon, QualiteIcon,
-  ReportsIcon, SimulationsIcon, UsersIcon,
+  ApiIcon, HomeIcon, LogoutIcon, QualiteIcon, ReportsIcon, SimulationsIcon,
+  UsersIcon,
 } from "./Icons";
 
 interface SidebarProps {
@@ -22,22 +22,25 @@ export function Sidebar({ ongletActif, onNaviguer, moteurEnCours }: SidebarProps
   return (
     <aside className="app-sidebar">
       <div className="sidebar-top">
+        {/* La marque ÉCHO — logo et nom sur une ligne — ramène à l'accueil,
+            comme sur tout site. La CNAM, la maison, juste en dessous. */}
         <div className="sidebar-brand">
-          <div className="sidebar-product">
-            <EchoLogo size={42} className="sidebar-logo" id="sidebar" />
-            <div className="sidebar-brand-meta">
-              <span className="sidebar-brand-title">ÉCHO</span>
-              <span className="sidebar-brand-sub">Simulation & qualité des données</span>
-            </div>
-          </div>
-          <div className="sidebar-cnam-lockup">
-            <span className="sidebar-cnam-caption">Une solution pour</span>
+          <button
+            type="button"
+            className="sidebar-accueil"
+            onClick={() => onNaviguer("accueil")}
+            title="Revenir à la vue d'ensemble"
+          >
+            <EchoLogo size={40} className="sidebar-logo" id="sidebar" />
+            <span className="sidebar-brand-title">ÉCHO</span>
+          </button>
+          <span className="sidebar-logo-cnam-fond">
             <img
               src={logoCnam}
               alt="Caisse Nationale d'Assurance Maladie"
               className="sidebar-logo-cnam"
             />
-          </div>
+          </span>
         </div>
 
         <nav className="sidebar-nav" aria-label="Navigation principale">
@@ -51,16 +54,6 @@ export function Sidebar({ ongletActif, onNaviguer, moteurEnCours }: SidebarProps
             <HomeIcon className="nav-icon" />
             <span className="nav-text">Vue d'ensemble</span>
           </button>
-
-          <RequireRole minimum="operateur">
-            <button
-              className={`sidebar-nav-item sidebar-nav-item--injection ${ongletActif === "injection" ? "active" : ""}`}
-              onClick={() => onNaviguer("injection")}
-            >
-              <InjectionIcon className="nav-icon" />
-              <span className="nav-text">Scénarios & anomalies</span>
-            </button>
-          </RequireRole>
 
           </div>
 
@@ -123,16 +116,6 @@ export function Sidebar({ ongletActif, onNaviguer, moteurEnCours }: SidebarProps
 
           <div className="sidebar-nav-group">
             <span className="sidebar-nav-section-title">Gérer</span>
-
-          <RequireRole minimum="operateur">
-            <button
-              className={`sidebar-nav-item ${ongletActif === "dashboard" ? "active" : ""}`}
-              onClick={() => onNaviguer("dashboard")}
-            >
-              <DashboardIcon className="nav-icon" />
-              <span className="nav-text">Supervision</span>
-            </button>
-          </RequireRole>
 
           <RequireRole minimum="administrateur">
             <button

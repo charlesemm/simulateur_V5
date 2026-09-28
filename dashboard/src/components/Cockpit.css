@@ -27,7 +27,6 @@
   flex-direction: column;
   background: var(--sol);
   color: var(--texte);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   overflow-y: auto;
 }
 
@@ -88,10 +87,10 @@
   align-items: center;
   gap: 8px;
   padding: 4px 12px;
-  border-radius: 100px;
+  border-radius: var(--rayon-pilule);
   background: color-mix(in srgb, var(--teinte) 18%, transparent);
   border: 1px solid color-mix(in srgb, var(--teinte) 45%, transparent);
-  font-size: .66rem;
+  font-size: var(--txt-2xs);
   font-weight: 700;
   letter-spacing: .14em;
   text-transform: uppercase;
@@ -112,7 +111,7 @@
 }
 
 .cockpit-nom {
-  font-size: 1.35rem;
+  font-size: var(--txt-xl);
   font-weight: 700;
   letter-spacing: -.02em;
   margin: 6px 0 2px;
@@ -120,7 +119,7 @@
 }
 
 .cockpit-cadence {
-  font-size: .84rem;
+  font-size: var(--txt-base);
   color: var(--texte-doux);
 }
 
@@ -136,14 +135,14 @@
 
 .cockpit-chrono-valeur {
   display: block;
-  font-size: 1.7rem;
+  font-size: var(--txt-3xl);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   line-height: 1;
 }
 
 .cockpit-chrono-libelle {
-  font-size: .66rem;
+  font-size: var(--txt-2xs);
   letter-spacing: .12em;
   text-transform: uppercase;
   color: var(--texte-faible);
@@ -151,13 +150,13 @@
 
 .cockpit-bouton {
   padding: 11px 20px;
-  border-radius: 9px;
+  border-radius: var(--rayon-sm);
   border: 1px solid transparent;
   font: inherit;
-  font-size: .86rem;
+  font-size: var(--txt-base);
   font-weight: 600;
   cursor: pointer;
-  transition: background 160ms ease, border-color 160ms ease, transform 160ms ease;
+  transition: background var(--transition), border-color var(--transition), transform var(--transition);
 }
 
 .cockpit-bouton:active { transform: translateY(1px); }
@@ -191,7 +190,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  font-size: .7rem;
+  font-size: var(--txt-2xs);
   font-weight: 700;
   letter-spacing: .16em;
   text-transform: uppercase;
@@ -217,7 +216,7 @@
   padding: 18px 20px;
   background: var(--panneau);
   border: 1px solid var(--bord);
-  border-radius: 12px;
+  border-radius: var(--rayon-sm);
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -232,7 +231,7 @@
 }
 
 .cockpit-compteur-nom {
-  font-size: .76rem;
+  font-size: var(--txt-xs);
   color: var(--texte-doux);
   line-height: 1.35;
 }
@@ -256,8 +255,8 @@
   background: var(--panneau);
   border: 1px solid var(--bord);
   border-left: 3px solid var(--alea);
-  border-radius: 12px;
-  transition: background 160ms ease, transform 160ms ease, box-shadow 160ms ease;
+  border-radius: var(--rayon-sm);
+  transition: background var(--transition), transform var(--transition), box-shadow var(--transition);
 }
 
 .cockpit-alea:hover {
@@ -269,7 +268,7 @@
 .cockpit-alea:active { transform: translateY(0); }
 
 .cockpit-alea-nature {
-  font-size: .62rem;
+  font-size: var(--txt-2xs);
   font-weight: 700;
   letter-spacing: .14em;
   text-transform: uppercase;
@@ -277,14 +276,32 @@
 }
 
 .cockpit-alea-nom {
-  font-size: .95rem;
+  font-size: var(--txt-md);
   font-weight: 600;
   line-height: 1.35;
 }
 
 .cockpit-alea-compte {
-  font-size: .74rem;
+  font-size: var(--txt-xs);
   color: var(--texte-faible);
+}
+
+/* Une anomalie armée reste allumée : contrairement à l'aléa, qui frappe
+   une fois, elle agit tant qu'on ne la désarme pas. */
+.cockpit-alea--armee {
+  background: color-mix(in srgb, var(--alea) 22%, var(--panneau));
+  border-color: color-mix(in srgb, var(--alea) 60%, var(--bord));
+}
+
+.cockpit-alea--armee .cockpit-alea-compte {
+  color: var(--alea);
+  font-weight: 600;
+}
+
+.cockpit-alea:disabled {
+  opacity: .6;
+  cursor: progress;
+  transform: none;
 }
 
 .cockpit-alea.frappe .cockpit-alea-compte {
@@ -307,17 +324,17 @@
   padding: 14px 18px;
   background: var(--panneau);
   border: 1px solid var(--bord);
-  border-radius: 10px;
+  border-radius: var(--rayon-sm);
 }
 
 .cockpit-injection-nom {
-  font-size: .82rem;
+  font-size: var(--txt-sm);
   color: var(--texte-doux);
   line-height: 1.3;
 }
 
 .cockpit-injection-nombre {
-  font-size: 1.5rem;
+  font-size: var(--txt-2xl);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: var(--famille);
@@ -328,9 +345,9 @@
 .cockpit-flux {
   background: var(--panneau);
   border: 1px solid var(--bord);
-  border-radius: 12px;
+  border-radius: var(--rayon-sm);
   overflow: hidden;
-  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-family: var(--mono);
 }
 
 .cockpit-flux-ligne {
@@ -339,7 +356,7 @@
   gap: 16px;
   padding: 8px 18px;
   border-bottom: 1px solid var(--panneau-clair);
-  font-size: .78rem;
+  font-size: var(--txt-sm);
   animation: cockpit-arrivee 220ms ease-out both;
 }
 
@@ -361,23 +378,23 @@
 .cockpit-flux-passage { color: var(--texte-faible); flex-shrink: 0; }
 
 .cockpit-vide {
-  padding: 26px;
+  padding: var(--espace-5);
   text-align: center;
   color: var(--texte-faible);
-  font-size: .86rem;
+  font-size: var(--txt-base);
 }
 
 .cockpit-erreur {
-  padding: 12px 18px;
-  border-radius: 9px;
-  background: rgba(229, 72, 77, .14);
-  border: 1px solid rgba(229, 72, 77, .4);
-  color: #ffb4b6;
-  font-size: .86rem;
+  padding: var(--espace-3) var(--espace-4);
+  border-radius: var(--rayon-sm);
+  background: color-mix(in srgb, var(--cnam-rouge) 18%, transparent);
+  border: 1px solid color-mix(in srgb, var(--cnam-rouge) 45%, transparent);
+  color: #ffc9c6;
+  font-size: var(--txt-base);
 }
 
 .cockpit-aide {
-  font-size: .8rem;
+  font-size: var(--txt-sm);
   color: var(--texte-faible);
   margin: -8px 0 14px;
   max-width: 74ch;
@@ -389,7 +406,7 @@
 .cockpit-progression {
   background: var(--panneau);
   border: 1px solid var(--bord);
-  border-radius: 12px;
+  border-radius: var(--rayon-sm);
   padding: 18px 22px;
 }
 
@@ -402,7 +419,7 @@
 }
 
 .cockpit-progression-libelle {
-  font-size: .7rem;
+  font-size: var(--txt-2xs);
   font-weight: 700;
   letter-spacing: .16em;
   text-transform: uppercase;
@@ -411,7 +428,7 @@
 
 .cockpit-progression-chiffres {
   flex: 1;
-  font-size: .84rem;
+  font-size: var(--txt-base);
   color: var(--texte-doux);
   font-variant-numeric: tabular-nums;
 }
@@ -419,7 +436,7 @@
 .cockpit-progression-chiffres b { color: var(--texte); }
 
 .cockpit-progression-part {
-  font-size: 1.35rem;
+  font-size: var(--txt-xl);
   font-weight: 700;
   line-height: 1;
   font-variant-numeric: tabular-nums;
@@ -428,7 +445,7 @@
 
 .cockpit-jauge {
   height: 9px;
-  border-radius: 100px;
+  border-radius: var(--rayon-pilule);
   background: var(--sol);
   border: 1px solid var(--panneau-clair);
   overflow: hidden;
@@ -436,7 +453,7 @@
 
 .cockpit-jauge-remplie {
   height: 100%;
-  border-radius: 100px;
+  border-radius: var(--rayon-pilule);
   background: var(--teinte, var(--texte));
   transition: width 600ms cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -445,7 +462,7 @@
   display: flex;
   justify-content: space-between;
   margin-top: 7px;
-  font-size: .72rem;
+  font-size: var(--txt-xs);
   color: var(--texte-faible);
   font-variant-numeric: tabular-nums;
 }
@@ -456,7 +473,7 @@
   flex-direction: column;
   background: var(--panneau);
   border: 1px solid var(--bord);
-  border-radius: 12px;
+  border-radius: var(--rayon-sm);
   overflow: hidden;
 }
 
@@ -473,7 +490,7 @@
 
 .cockpit-fil-heure {
   flex: none;
-  font-size: .78rem;
+  font-size: var(--txt-sm);
   color: var(--texte-faible);
   font-variant-numeric: tabular-nums;
 }
@@ -488,14 +505,14 @@
 
 .cockpit-fil-nom {
   flex: 1;
-  font-size: .92rem;
+  font-size: var(--txt-md);
   font-weight: 600;
   min-width: 0;
 }
 
 .cockpit-fil-nature {
   flex: none;
-  font-size: .62rem;
+  font-size: var(--txt-2xs);
   font-weight: 700;
   letter-spacing: .14em;
   text-transform: uppercase;
