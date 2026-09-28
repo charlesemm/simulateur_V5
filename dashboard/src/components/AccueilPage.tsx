@@ -7,6 +7,7 @@ import type { ProfilSimulation, SimulationRun, SimulationStatus } from "../types
 import { activableAuClavier } from "./clavier";
 import { StatutPastille, dateCourte, duree } from "./format-execution";
 import "./Screens.css";
+import { EtatBloc } from "./EtatBloc";
 
 interface AccueilPageProps {
   onVoirExecution: (simulationId: string) => void;
@@ -95,7 +96,7 @@ export function AccueilPage({
 
   return (
     <div className="screen">
-      {erreur && <p className="screen-error" role="alert">{erreur}</p>}
+      {erreur && <EtatBloc ton="erreur">{erreur}</EtatBloc>}
 
       <section className="home-hero">
         <div className={`home-status${enCours ? " home-status--live" : ""}`}>
@@ -161,6 +162,7 @@ export function AccueilPage({
             </span>
           </div>
         </div>
+
       </section>
 
       <section>
@@ -173,7 +175,11 @@ export function AccueilPage({
           action.
         </p>
         <div className="type-grid">
-          {profils.map((profil) => {
+          {/* Les types ouverts d'abord : ce sont les seuls sur lesquels on
+              peut agir. Le tri est stable, l'ordre du serveur est gardé. */}
+          {[...profils]
+            .sort((a, b) => Number(!a.disponible) - Number(!b.disponible))
+            .map((profil) => {
             // C'est le serveur qui dit ce qui est ouvert : grisage écrit ici,
             // il fallait retoucher le navigateur pour ouvrir un type.
             const enAttente = !profil.disponible;
@@ -259,7 +265,7 @@ export function AccueilPage({
             </div>
           )}
           {profilsCharges && profils.length === 0 && (
-            <div className="screen-empty">Les types de simulation n'ont pas pu être chargés.</div>
+            <EtatBloc ton="vide">Les types de simulation n'ont pas pu être chargés.</EtatBloc>
           )}
         </div>
       </section>
@@ -282,9 +288,9 @@ export function AccueilPage({
             ))}
           </div>
         ) : executions.length === 0 ? (
-          <div className="screen-empty">
+          <EtatBloc ton="vide">
             Aucune exécution enregistrée pour l'instant. Lancez un type ci-dessus.
-          </div>
+          </EtatBloc>
         ) : (
           <div className="screen-table-wrap">
             <table className="screen-table">

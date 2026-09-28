@@ -5,6 +5,7 @@ import { api } from "../services/api";
 import type { PaireMdm, RapportQualite, SimulationRun } from "../types";
 import { dateCourte } from "./format-execution";
 import "./Screens.css";
+import { EtatBloc } from "./EtatBloc";
 
 /**
  * Ce qui a été semé et que les règles n'ont pas vu.
@@ -48,6 +49,7 @@ export function QualitePage() {
   const [rapport, setRapport] = useState<RapportQualite | null>(null);
   const [paires, setPaires] = useState<PaireMdm[]>([]);
   const [erreur, setErreur] = useState<string | null>(null);
+  const [confirmation, setConfirmation] = useState<string | null>(null);
   const [chargement, setChargement] = useState(false);
 
   useEffect(() => {
@@ -71,6 +73,7 @@ export function QualitePage() {
 
   const analyser = useCallback(async () => {
     setChargement(true);
+    setConfirmation(null);
     try {
       const [resultat, verite] = await Promise.all([
         api.getRapportQualite(token, selection || null),
@@ -79,6 +82,9 @@ export function QualitePage() {
       setRapport(resultat);
       setPaires(verite);
       setErreur(null);
+      setConfirmation(
+        `Analyse terminée : ${verite.length} paire(s) comparée(s).`
+      );
     } catch (raison) {
       setErreur((raison as Error).message);
     } finally {
@@ -96,7 +102,10 @@ export function QualitePage() {
 
   return (
     <div className="screen">
-      {erreur && <p className="screen-error" role="alert">{erreur}</p>}
+      {erreur && <EtatBloc ton="erreur">{erreur}</EtatBloc>}
+      {!erreur && confirmation && (
+        <EtatBloc ton="succes">{confirmation}</EtatBloc>
+      )}
 
       <section>
         <h2 className="screen-section-title">Périmètre analysé</h2>
@@ -166,9 +175,9 @@ export function QualitePage() {
           <section>
             <h2 className="screen-section-title">Demandé, injecté, détecté</h2>
             {rapport.confrontation.length === 0 ? (
-              <div className="screen-empty">
+              <EtatBloc ton="vide">
                 Aucune anomalie sur ce périmètre : rien à confronter.
-              </div>
+              </EtatBloc>
             ) : (
               <div className="screen-table-wrap">
                 <table className="screen-table">
@@ -264,10 +273,10 @@ export function QualitePage() {
           )}
         </div>
         {paires.length === 0 ? (
-          <div className="screen-empty">
+          <EtatBloc ton="vide">
             Aucune identité jumelle sur ce périmètre. Lancez une simulation de
             type MDM pour en fabriquer.
-          </div>
+          </EtatBloc>
         ) : (
           <>
             <div className="stat-strip">

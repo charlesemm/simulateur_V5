@@ -1,10 +1,12 @@
 // dashboard/src/components/LancementPage.tsx
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { useToast } from "../hooks/useToast";
 import { api } from "../services/api";
 import type { CadenceMoteur, ProfilSimulation, TypeAnomalie } from "../types";
 import "./Screens.css";
+import { EtatBloc } from "./EtatBloc";
+import { FilEtapes } from "./FilEtapes";
 
 interface LancementPageProps {
   /** Type de simulation à préparer : QUALITE, MDM, ENTREPOT ou GOUVERNANCE. */
@@ -45,12 +47,53 @@ const ORDRE_FAMILLES = [
  * l'avance n'apprend rien, on ne sait plus s'il a frappé au moment qui
  * comptait.
  */
+/* Les mêmes trois moments que la création d'une campagne : on règle,
+   on choisit les anomalies, on relit avant de partir. */
+const ETAPES_LANCEMENT = [
+  "Type et cadence",
+  "Anomalies à injecter",
+  "Récapitulatif",
+];
+
 export function LancementPage({ typeSimulation, onAnnuler, onDemarre }: LancementPageProps) {
   const { token } = useAuth();
   const { toast } = useToast();
   const [profil, setProfil] = useState<ProfilSimulation | null>(null);
   const [catalogue, setCatalogue] = useState<TypeAnomalie[]>([]);
   const [erreur, setErreur] = useState<string | null>(null);
+
+  // Le fil d'étapes de cet écran ne commande rien : la page reste d'un
+  // seul tenant, tous les réglages visibles pendant qu'on les ajuste.
+  // Il dit seulement où l'on se trouve, et ramène à la section voulue.
+  const sectionReglages = useRef<HTMLElement | null>(null);
+  const sectionAnomalies = useRef<HTMLElement | null>(null);
+  const sectionRecap = useRef<HTMLDivElement | null>(null);
+  const [etapeVue, setEtapeVue] = useState(1);
+
+  useEffect(() => {
+    const sections = [sectionReglages, sectionAnomalies, sectionRecap];
+    const observateur = new IntersectionObserver(
+      (entrees) => {
+        // La section la plus haute encore visible fait foi : en défilant,
+        // l'œil suit le haut de l'écran, pas le milieu.
+        const visibles = entrees
+          .filter((entree) => entree.isIntersecting)
+          .map((entree) => sections.findIndex((s) => s.current === entree.target))
+          .filter((rang) => rang >= 0);
+        if (visibles.length > 0) setEtapeVue(Math.min(...visibles) + 1);
+      },
+      { rootMargin: "-16px 0px -55% 0px" }
+    );
+    for (const section of sections) {
+      if (section.current) observateur.observe(section.current);
+    }
+    return () => observateur.disconnect();
+  }, []);
+
+  const allerA = useCallback((rang: number) => {
+    const cible = [sectionReglages, sectionAnomalies, sectionRecap][rang - 1];
+    cible.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
   const [demarrage, setDemarrage] = useState(false);
 
   const [nom, setNom] = useState("");
@@ -238,10 +281,12 @@ export function LancementPage({ typeSimulation, onAnnuler, onDemarre }: Lancemen
 
   return (
     <div className="screen">
-      {erreur && <p className="screen-error" role="alert">{erreur}</p>}
+      {erreur && <EtatBloc ton="erreur">{erreur}</EtatBloc>}
+
+      <FilEtapes etapes={ETAPES_LANCEMENT} courante={etapeVue} onAller={allerA} />
 
       <div className="launch-grid">
-      <section className="launch-setup">
+      <section className="launch-setup" ref={sectionReglages} id="lancement-reglages">
         <div
           className="fiche fiche--type"
           style={{ ["--type-couleur" as string]: profil?.couleur ?? "var(--cnam-green)" }}
@@ -332,7 +377,7 @@ export function LancementPage({ typeSimulation, onAnnuler, onDemarre }: Lancemen
                 <span className="estimation-valeur">≈ {entier(estimation.parHeure)}</span>
                 <div>
                   <div className="estimation-quoi">passages par heure</div>
-                  <div className="estimation-detail">au rythme d’arrivée du moteur</div>
+                  <div className="estimation-detail">au rythme d'arrivée du moteur</div>
                 </div>
               </div>
 
@@ -366,23 +411,23 @@ export function LancementPage({ typeSimulation, onAnnuler, onDemarre }: Lancemen
                 abîmé sans l'avoir voulu. */}
             {estimation.partTouchee >= 0.5 && (
               <p className="estimation-alerte">
-                <b>Plus d’une ligne sur deux</b> portera une anomalie. C’est
+                <b>Plus d'une ligne sur deux</b> portera une anomalie. C'est
                 utile pour éprouver les règles de contrôle, mais un tel jeu ne
                 ressemble plus à des données réelles — évitez-le pour alimenter
-                le MDM ou l’entrepôt.
+                le MDM ou l'entrepôt.
               </p>
             )}
 
             <p className="estimation-note">
               Recalculé à chaque réglage. Le nombre de <b>factures</b> sera
               inférieur : les assurés sans droits ouverts sont refusés à
-              l’accueil et ne produisent aucune facture.
+              l'accueil et ne produisent aucune facture.
             </p>
           </div>
         )}
       </section>
 
-      <section>
+      <section ref={sectionAnomalies} id="lancement-anomalies">
         <h2 className="screen-section-title">
           Anomalies à injecter — {actives} type(s) actif(s)
         </h2>
@@ -531,12 +576,13 @@ export function LancementPage({ typeSimulation, onAnnuler, onDemarre }: Lancemen
       <section className="bandeau-info">
         Les scénarios d'aléa ne se règlent pas ici : ce sont des actions que
         vous déclencherez à la main, pendant l'exécution, depuis l'écran de
-        suivi qui s'ouvrira au démarrage.
+        suivi qui s'ouvrira au démarrage. Les anomalies réglées en « Manuel »
+        s'y arment aussi.
       </section>
 
       {/* Le dernier coup d'œil avant le départ : une erreur de saisie coûte
           encore zéro ici, et deux heures une fois le moteur parti. */}
-      <div className="recap-lancement">
+      <div className="recap-lancement" ref={sectionRecap} id="lancement-recap">
         <span className="recap-libelle">Au départ</span>
         <span className="recap-texte">
           <b
@@ -547,7 +593,7 @@ export function LancementPage({ typeSimulation, onAnnuler, onDemarre }: Lancemen
           </b>
           {" · vitesse "}<b>×{vitesse}</b>
           {" · "}<b>{limite}</b>{" passages en parallèle"}
-          {" · "}<b>{actives}</b>{" type(s) d’anomalie"}
+          {" · "}<b>{actives}</b>{" type(s) d'anomalie"}
           {estimation && (
             <>
               {" pour "}

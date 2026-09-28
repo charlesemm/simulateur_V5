@@ -5,6 +5,8 @@ import { useToast } from "../hooks/useToast";
 import { api } from "../services/api";
 import type { DimensionQualite, PalierCampagne, TypeAnomalieCampagne } from "../types";
 import "./Screens.css";
+import { EtatBloc } from "./EtatBloc";
+import { FilEtapes } from "./FilEtapes";
 
 interface NouvelleCampagnePageProps {
   onAnnuler: () => void;
@@ -230,34 +232,15 @@ export function NouvelleCampagnePage({ onAnnuler, onCreee }: NouvelleCampagnePag
 
   return (
     <div className="screen">
-      {erreur && <p className="screen-error" role="alert">{erreur}</p>}
+      {erreur && <EtatBloc ton="erreur">{erreur}</EtatBloc>}
 
       {referencePrevisionnelle && (
-        <p className="reference-previsionnelle">
-          Référence prévisionnelle : <b>{referencePrevisionnelle}</b>
+        <p className="fiche-identifiant ecart-bas-s">
+          Référence prévisionnelle : {referencePrevisionnelle}
         </p>
       )}
 
-      <ol className="fil-etapes" aria-label="Étapes de la création">
-        {ETAPES.map((libelle, index) => {
-          const rang = index + 1;
-          return (
-            <li
-              key={libelle}
-              className={`fil-etape${rang === etape ? " fil-etape--active" : ""}${
-                rang < etape ? " fil-etape--faite" : ""
-              }`}
-              aria-current={rang === etape ? "step" : undefined}
-            >
-              <span className="fil-etape-rang" aria-hidden="true">{rang < etape ? "✓" : rang}</span>
-              <span className="fil-etape-libelle">
-                {libelle}
-                {rang < etape && <span className="ui-sr-only"> (terminée)</span>}
-              </span>
-            </li>
-          );
-        })}
-      </ol>
+      <FilEtapes etapes={ETAPES} courante={etape} />
 
       {/* ── Étape 1 : ce que la campagne va produire ── */}
       {etape === 1 && (
@@ -317,9 +300,9 @@ export function NouvelleCampagnePage({ onAnnuler, onCreee }: NouvelleCampagnePag
                 </div>
               ))}
               {charge && paliers.length === 0 && (
-                <div className="screen-empty">
+                <EtatBloc ton="vide">
                   Les paliers n'ont pas pu être chargés.
-                </div>
+                </EtatBloc>
               )}
             </div>
           </section>
@@ -502,12 +485,12 @@ export function NouvelleCampagnePage({ onAnnuler, onCreee }: NouvelleCampagnePag
 
           {dimensionsVides.length > 0 && (
             <section>
-              <div className="screen-empty">
+              <EtatBloc ton="vide">
                 <b>Trois dimensions n'ont encore aucun injecteur :</b>{" "}
                 {dimensionsVides.map((dimension) => dimension.libelle).join(", ")}.
                 Une campagne ne peut donc pas les éprouver aujourd'hui, et son
                 score n'en dira rien.
-              </div>
+              </EtatBloc>
             </section>
           )}
         </>
@@ -555,11 +538,11 @@ export function NouvelleCampagnePage({ onAnnuler, onCreee }: NouvelleCampagnePag
           <section>
             <h3 className="screen-section-title">Ce qui sera injecté</h3>
             {actifs.length === 0 ? (
-              <div className="screen-empty">
+              <EtatBloc ton="vide">
                 Aucune anomalie retenue : le jeu produit sera sain. C'est un
                 test valable — il ne mesure que les fausses alertes de l'outil —
                 mais il ne dira rien de ce qu'il sait détecter.
-              </div>
+              </EtatBloc>
             ) : (
               <div className="screen-table-wrap">
                 <table className="screen-table">
@@ -594,7 +577,7 @@ export function NouvelleCampagnePage({ onAnnuler, onCreee }: NouvelleCampagnePag
               anomalie ne les vise. C'est à retenir avant de comparer deux
               campagnes entre elles.
             </p>
-            <div className="screen-empty">
+            <EtatBloc ton="vide">
               {dimensions
                 .filter(
                   (dimension) =>
@@ -604,7 +587,7 @@ export function NouvelleCampagnePage({ onAnnuler, onCreee }: NouvelleCampagnePag
                 )
                 .map((dimension) => dimension.libelle)
                 .join(", ") || "Aucune : les huit dimensions sont éprouvées."}
-            </div>
+            </EtatBloc>
           </section>
         </>
       )}

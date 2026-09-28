@@ -8,6 +8,7 @@ import type {
 import { activableAuClavier } from "./clavier";
 import { StatutPastille, dateCourte, duree } from "./format-execution";
 import "./Screens.css";
+import { EtatBloc } from "./EtatBloc";
 
 interface SimulationsPageProps {
   /** Exécution à ouvrir d'emblée, quand on arrive depuis l'accueil. */
@@ -171,7 +172,7 @@ export function SimulationsPage({ executionInitiale = null }: SimulationsPagePro
 
   return (
     <div className="screen">
-      {erreur && <p className="screen-error" role="alert">{erreur}</p>}
+      {erreur && <EtatBloc ton="erreur">{erreur}</EtatBloc>}
 
       <section>
         <div className="screen-section-head">
@@ -191,9 +192,9 @@ export function SimulationsPage({ executionInitiale = null }: SimulationsPagePro
             ))}
           </div>
         ) : executions.length === 0 ? (
-          <div className="screen-empty">
+          <EtatBloc ton="vide">
             Aucune exécution enregistrée. Lancez un type depuis l'accueil.
-          </div>
+          </EtatBloc>
         ) : (
           <div className="screen-table-wrap">
             <table className="screen-table">

@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { useToast } from "../hooks/useToast";
 import { API_URL } from "../services/api";
+import { EtatBloc } from "./EtatBloc";
 
 interface UserRow {
   utilisateur_uuid: string;
@@ -219,8 +220,8 @@ export function UsersPage() {
             <h2>Comptes enregistrés ({users.length})</h2>
           </div>
 
-          <div className="table-wrapper">
-            <table className="clean-table">
+          <div className="screen-table-wrap">
+            <table className="screen-table">
               <thead>
                 <tr>
                   <th>Utilisateur</th>
@@ -342,8 +343,8 @@ export function UsersPage() {
                 )}
                 {chargee && users.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="table-empty">
-                      Aucun utilisateur trouvé.
+                    <td colSpan={4}>
+                      <EtatBloc ton="vide" discret>Aucun utilisateur trouvé.</EtatBloc>
                     </td>
                   </tr>
                 )}
@@ -361,10 +362,10 @@ export function UsersPage() {
             </p>
           </div>
 
-          {erreur && <div className="alert-box alert-error" role="alert">{erreur}</div>}
-          {succes && <div className="alert-box alert-success" role="status">{succes}</div>}
+          {erreur && <EtatBloc ton="erreur">{erreur}</EtatBloc>}
+          {succes && <EtatBloc ton="succes">{succes}</EtatBloc>}
           {motDePasseTemporaire && (
-            <div className="alert-box alert-success">
+            <div className="etat-bloc etat-bloc--succes bloc-mot-de-passe">
               <div className="temp-password-ligne">
                 <code className="temp-password">{motDePasseTemporaire}</code>
                 <button
@@ -389,7 +390,7 @@ export function UsersPage() {
                 id="compte-nom-complet"
                 className="form-input"
                 autoComplete="name"
-                placeholder="Ex: Jean Kouassi"
+                placeholder="Ex. : Jean Kouassi"
                 value={nomComplet}
                 onChange={(e) => setNomComplet(e.target.value)}
                 required
@@ -397,7 +398,7 @@ export function UsersPage() {
             </div>
 
             <div className="form-group">
-              <label className="form-label" htmlFor="compte-email">Adresse email</label>
+              <label className="form-label" htmlFor="compte-email">Adresse e-mail</label>
               <input
                 id="compte-email"
                 type="email"
@@ -416,7 +417,7 @@ export function UsersPage() {
                 id="compte-identifiant"
                 className="form-input"
                 autoComplete="username"
-                placeholder="Ex: j.kouassi"
+                placeholder="Ex. : j.kouassi"
                 value={nomUtilisateur}
                 onChange={(e) => setNomUtilisateur(e.target.value)}
                 required
@@ -450,7 +451,7 @@ export function UsersPage() {
               {creating && (
                 <span className="ui-spinner ui-spinner--petit ui-spinner--inverse" aria-hidden="true" />
               )}
-              {creating ? "Création en cours..." : "Enregistrer le compte"}
+              {creating ? "Création en cours…" : "Enregistrer le compte"}
             </button>
           </form>
         </section>

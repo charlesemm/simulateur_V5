@@ -21,6 +21,11 @@
   gap: var(--espace-4);
 }
 
+/* Rangée 4 : un seul élément plein largeur (terminal de logs), pas de grille. */
+.dashboard-row-4 {
+  display: block;
+}
+
 /* ── Section « activité métier » ────────────────────────────────── */
 
 .dashboard-section {

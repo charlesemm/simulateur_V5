@@ -5,6 +5,7 @@ import { api } from "../services/api";
 import type { ExecutionDetail, TypeAnomalie } from "../types";
 import { dateCourte, duree } from "./format-execution";
 import "./Screens.css";
+import { EtatBloc } from "./EtatBloc";
 
 /** Un aléa frappé pendant l'exécution, tel que le poste de pilotage l'a vu. */
 export interface FrappeBilan {
@@ -100,7 +101,7 @@ export function BilanExecutionPage({
   if (erreur) {
     return (
       <div className="screen">
-        <p className="screen-error" role="alert">{erreur}</p>
+        <EtatBloc ton="erreur">{erreur}</EtatBloc>
         <button className="btn btn-outline" onClick={onAccueil}>
           Retour à l&rsquo;accueil
         </button>
@@ -135,7 +136,7 @@ export function BilanExecutionPage({
       <div className="bilan-bandeau">
         <div className="bilan-sceau" aria-hidden="true">
           <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-               strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+               strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
             <path d="m5 13 4 4L19 7" />
           </svg>
         </div>
@@ -182,7 +183,7 @@ export function BilanExecutionPage({
       <section>
         <h2 className="screen-section-title">Ce qui a été produit<span className="rule" /></h2>
         {Object.keys(detail?.volumetrie ?? {}).length === 0 ? (
-          <div className="screen-empty">Cette exécution n&rsquo;a produit aucune ligne.</div>
+          <EtatBloc ton="vide">Cette exécution n&rsquo;a produit aucune ligne.</EtatBloc>
         ) : (
           <div className="bilan-volumetrie">
             {Object.entries(detail?.volumetrie ?? {}).map(([cle, nombre]) => (
@@ -205,7 +206,7 @@ export function BilanExecutionPage({
             <span className="bilan-total">{parFamille.total.toLocaleString("fr-FR")} au total</span>
           </h2>
           {parFamille.lignes.length === 0 ? (
-            <div className="screen-empty">Aucune anomalie n&rsquo;a été posée.</div>
+            <EtatBloc ton="vide">Aucune anomalie n&rsquo;a été posée.</EtatBloc>
           ) : (
             <div className="bilan-panneau">
               {parFamille.lignes.map((ligne) => (
@@ -242,7 +243,7 @@ export function BilanExecutionPage({
             <span className="bilan-total">{frappes.length}</span>
           </h2>
           {frappes.length === 0 ? (
-            <div className="screen-empty">Aucun aléa n&rsquo;a été déclenché.</div>
+            <EtatBloc ton="vide">Aucun aléa n&rsquo;a été déclenché.</EtatBloc>
           ) : (
             <div className="bilan-panneau">
               {frappes.map((frappe) => (
@@ -272,7 +273,7 @@ export function BilanExecutionPage({
         <button type="button" className="bilan-suite bilan-suite--qualite" onClick={onVoirQualite}>
           <span className="bilan-suite-icone" aria-hidden="true">
             <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                 strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                 strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
               <path d="m9 12 2 2 4-4M12 3l8 4v5c0 5-3.4 8.5-8 9.9C7.4 20.5 4 17 4 12V7l8-4z" />
             </svg>
           </span>
@@ -288,7 +289,7 @@ export function BilanExecutionPage({
         <button type="button" className="bilan-suite bilan-suite--export" onClick={onExporter}>
           <span className="bilan-suite-icone" aria-hidden="true">
             <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                 strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                 strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 3v12m-5-5 5 5 5-5M4 19h16" />
             </svg>
           </span>

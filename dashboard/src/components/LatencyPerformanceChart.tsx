@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { TechnicalMetricsSnapshot } from "../types";
 import { GRADUATION, HABILLAGE, LEGENDE_STYLE, TOOLTIP_LIBELLE, TOOLTIP_STYLE, legendeEnEncre, usePaletteGraphique } from "./chartTheme";
+import { EtatBloc } from "./EtatBloc";
 
 interface PointLatence {
   heure: string;
@@ -59,7 +60,7 @@ export function LatencyPerformanceChart({ metrics }: LatencyPerformanceChartProp
       </div>
 
       {points.length === 0 ? (
-        <p className="chart-empty">En attente des mesures de latence...</p>
+        <EtatBloc ton="vide" discret>En attente des mesures de latence…</EtatBloc>
       ) : (
         <div className="chart-container">
           <ResponsiveContainer width="100%" height={240}>
