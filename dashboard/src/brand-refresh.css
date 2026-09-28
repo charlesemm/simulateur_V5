@@ -23,7 +23,6 @@
   border-color: var(--couleur-action-survol);
 }
 
-.page-container,
 .dashboard-content-space {
   width: min(100%, 1440px);
   margin-inline: auto;
@@ -35,7 +34,6 @@
 
 .tech-metric-card,
 .chart-card,
-.reports-card,
 .alea-card {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -47,16 +45,5 @@
   transform: translateY(-2px);
   border-color: var(--cnam-blue-border);
   box-shadow: var(--shadow-hover);
-}
-
-.page-title {
-  color: var(--text-main);
-  font-size: 1.55rem;
-}
-
-.info-banner {
-  border-color: var(--cnam-blue-border);
-  background: var(--cnam-blue-light);
-  border-radius: 14px;
 }
 

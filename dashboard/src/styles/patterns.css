@@ -959,6 +959,511 @@ h3.screen-section-title {
   pointer-events: none;
 }
 
+/* ── Écrans à en-tête propre (Rapports, comptes) ────────────────── */
+
+.page-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-6);
+  width: min(100%, var(--largeur-contenu));
+  margin-inline: auto;
+  animation: ecran-entree var(--duree-lente) var(--courbe-sortie) both;
+}
+
+.page-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espace-4);
+}
+
+.page-title {
+  color: var(--couleur-texte);
+  font-size: var(--texte-xl);
+  font-weight: var(--graisse-titre);
+  letter-spacing: -0.02em;
+  line-height: var(--interligne-serre);
+}
+
+.page-subtitle {
+  margin-top: var(--espace-1);
+  color: var(--couleur-texte-doux);
+  font-size: var(--texte-sm);
+}
+
+/* ── Messages hérités (alert-box) ───────────────────────────────── */
+
+.alert-box {
+  padding: var(--espace-3) var(--espace-4);
+  border: 1px solid var(--couleur-info-bord);
+  border-left-width: 4px;
+  border-radius: var(--rayon-xs);
+  background: var(--couleur-info-fond);
+  color: var(--couleur-info);
+  font-size: var(--texte-sm);
+  font-weight: var(--graisse-moyenne);
+  overflow-wrap: anywhere;
+}
+
+.alert-error {
+  border-color: var(--couleur-erreur-bord);
+  border-left-color: var(--couleur-erreur-vif);
+  background: var(--couleur-erreur-fond);
+  color: var(--couleur-erreur);
+}
+
+/* Utilisée par la gestion des comptes, jamais stylée jusqu'ici : le
+   message de réussite s'affichait en texte nu. */
+.alert-success {
+  border-color: var(--couleur-succes-bord);
+  border-left-color: var(--couleur-succes);
+  background: var(--couleur-succes-fond);
+  color: var(--couleur-succes);
+}
+
+.bandeau-succes {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-3);
+  padding: var(--espace-3) var(--espace-4);
+  border: 1px solid var(--couleur-succes-bord);
+  border-left: 4px solid var(--couleur-succes);
+  border-radius: var(--rayon-xs);
+  background: var(--couleur-succes-fond);
+  color: var(--couleur-succes);
+  font-size: var(--texte-sm);
+  font-weight: var(--graisse-forte);
+  overflow-wrap: anywhere;
+}
+
+.info-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--espace-3);
+  padding: var(--espace-3) var(--espace-4);
+  border: 1px solid var(--couleur-info-bord);
+  border-radius: var(--rayon-sm);
+  background: var(--couleur-info-fond);
+  color: var(--bleu-700);
+  font-size: var(--texte-sm);
+  line-height: var(--interligne);
+}
+
+.info-banner-badge {
+  flex: none;
+  padding: 2px 8px;
+  border-radius: var(--rayon-xs);
+  background: var(--couleur-info);
+  color: var(--gris-0);
+  font-size: var(--texte-2xs);
+  font-weight: var(--graisse-titre);
+  letter-spacing: 0.06em;
+}
+
+/* ── Badges hérités (badge-*) ───────────────────────────────────── */
+
+.badge-green,
+.badge-excel {
+  border: 1px solid var(--couleur-succes-bord);
+  background: var(--couleur-succes-fond);
+  color: var(--couleur-succes);
+}
+
+.badge-blue,
+.badge-csv {
+  border: 1px solid var(--couleur-info-bord);
+  background: var(--couleur-info-fond);
+  color: var(--couleur-info);
+}
+
+.badge-orange {
+  border: 1px solid var(--couleur-alerte-bord);
+  background: var(--couleur-alerte-fond);
+  color: var(--couleur-alerte);
+}
+
+.badge-gray {
+  border: 1px solid var(--couleur-bord);
+  background: var(--couleur-surface-douce);
+  color: var(--couleur-texte-doux);
+}
+
+.badge-pdf {
+  border: 1px solid var(--couleur-erreur-bord);
+  background: var(--couleur-erreur-fond);
+  color: var(--couleur-erreur);
+}
+
+.empty-state {
+  display: grid;
+  place-items: center;
+  min-height: 105px;
+  padding: var(--espace-4);
+  border: 1px dashed var(--couleur-bord);
+  border-radius: var(--rayon-sm);
+  color: var(--couleur-texte-doux);
+  font-size: var(--texte-sm);
+  text-align: center;
+}
+
+/* ── Boutons hérités : téléchargement, danger, rafraîchissement ─── */
+
+.btn-download {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 var(--espace-3);
+  border: 1px solid var(--couleur-bord);
+  border-radius: var(--rayon-xs);
+  background: var(--couleur-surface);
+  color: var(--couleur-lien);
+  font: inherit;
+  font-size: var(--texte-sm);
+  font-weight: var(--graisse-forte);
+  cursor: pointer;
+  transition: background-color var(--duree-rapide) var(--courbe), border-color var(--duree-rapide) var(--courbe);
+}
+
+.btn-download:hover {
+  border-color: var(--cnam-blue-border);
+  background: var(--cnam-blue-light);
+}
+
+.btn-danger,
+.btn-danger-outline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 var(--espace-4);
+  border: 1px solid var(--couleur-erreur);
+  border-radius: var(--rayon-xs);
+  font: inherit;
+  font-size: var(--texte-sm);
+  font-weight: var(--graisse-titre);
+  cursor: pointer;
+  transition: background-color var(--duree-rapide) var(--courbe), color var(--duree-rapide) var(--courbe);
+}
+
+.btn-danger {
+  background: var(--couleur-erreur);
+  color: var(--gris-0);
+}
+
+.btn-danger:hover:not(:disabled) {
+  border-color: #991b1b;
+  background: #991b1b;
+}
+
+.btn-danger-outline {
+  background: var(--couleur-surface);
+  color: var(--couleur-erreur);
+}
+
+.btn-danger-outline:hover:not(:disabled) {
+  background: var(--couleur-erreur-fond);
+}
+
+.btn-danger:disabled,
+.btn-danger-outline:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-icon-refresh {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--couleur-bord);
+  border-radius: var(--rayon-xs);
+  background: var(--couleur-surface);
+  color: var(--couleur-texte-doux);
+  cursor: pointer;
+  transition: background-color var(--duree-rapide) var(--courbe), color var(--duree-rapide) var(--courbe);
+}
+
+.btn-icon-refresh:hover {
+  background: var(--couleur-surface-survol);
+  color: var(--couleur-texte);
+}
+
+/* Confirmation posée dans la page, avant une action irréversible. */
+.confirm-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espace-3) var(--espace-4);
+  margin-bottom: var(--espace-4);
+  padding: var(--espace-3) var(--espace-4);
+  border-radius: var(--rayon-sm);
+  font-size: var(--texte-sm);
+  animation: ui-apparait var(--duree) var(--courbe-sortie);
+}
+
+.confirm-danger {
+  border: 1px solid var(--couleur-erreur-bord);
+  border-left: 4px solid var(--couleur-erreur-vif);
+  background: var(--couleur-erreur-fond);
+  color: var(--couleur-texte);
+}
+
+.confirm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espace-2);
+}
+
+/* Anneau de bouton plein pendant un export. */
+.rouet {
+  display: inline-block;
+  flex: none;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: var(--gris-0);
+  border-radius: 50%;
+  animation: ui-tourne 700ms linear infinite;
+}
+
+/* ── Rapports & exports ─────────────────────────────────────────── */
+
+.periode-champs {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--espace-3);
+}
+
+.alea-carte .periode-champs .champ-groupe {
+  flex: 0 1 190px;
+  min-width: 160px;
+}
+
+.rapports-grille {
+  overflow: hidden;
+  border: 1px solid var(--couleur-bord);
+  border-radius: var(--rayon-md);
+  background: var(--couleur-surface);
+  box-shadow: var(--ombre-2);
+}
+
+.rapports-entete,
+.rapports-ligne {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 190px 190px;
+  align-items: center;
+  gap: var(--espace-4);
+  padding: var(--espace-3) var(--espace-5);
+}
+
+.rapports-entete {
+  border-bottom: 1px solid var(--couleur-bord);
+  background: var(--couleur-surface-douce);
+  color: var(--couleur-texte-doux);
+  font-size: var(--texte-2xs);
+  font-weight: var(--graisse-titre);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.rapports-ligne {
+  border-bottom: 1px solid var(--couleur-bord-doux);
+  transition: background-color var(--duree-rapide) var(--courbe);
+}
+
+.rapports-ligne:hover {
+  background: var(--couleur-surface-douce);
+}
+
+.rapports-ligne:last-child {
+  border-bottom: none;
+}
+
+.rapports-nom {
+  min-width: 0;
+}
+
+.rapports-nom strong {
+  display: block;
+  font-size: var(--texte-md);
+  overflow-wrap: anywhere;
+}
+
+.rapports-meta {
+  display: block;
+  margin-top: 2px;
+  color: var(--couleur-texte-doux);
+  font-size: var(--texte-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.rapports-fichier {
+  display: flex;
+}
+
+.rapports-absent {
+  color: var(--couleur-texte-doux);
+  font-size: var(--texte-sm);
+  font-style: italic;
+}
+
+.rapports-produire {
+  grid-column: 1 / -1;
+  padding-top: var(--espace-1);
+}
+
+.reports-card {
+  padding: var(--espace-5);
+  border: 1px solid var(--couleur-bord);
+  border-radius: var(--rayon-md);
+  background: var(--couleur-surface);
+  box-shadow: var(--ombre-2);
+}
+
+.reports-card-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espace-3);
+  margin-bottom: var(--espace-4);
+  padding-bottom: var(--espace-3);
+  border-bottom: 1px solid var(--couleur-bord-doux);
+}
+
+.reports-card-header h2 {
+  color: var(--couleur-texte);
+  font-size: var(--texte-lg);
+  font-weight: var(--graisse-titre);
+}
+
+.reports-card-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-2);
+}
+
+.empty-reports {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--espace-2);
+  padding: var(--espace-10) var(--espace-5);
+  color: var(--couleur-texte-doux);
+  text-align: center;
+}
+
+.empty-icon-svg {
+  width: 36px;
+  height: 36px;
+  margin-bottom: var(--espace-1);
+  color: var(--couleur-bord-fort);
+}
+
+.empty-subtext {
+  color: var(--couleur-texte-doux);
+  font-size: var(--texte-sm);
+}
+
+.reports-list-clean {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-2);
+  list-style: none;
+}
+
+.report-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espace-3);
+  padding: var(--espace-3) var(--espace-4);
+  border: 1px solid var(--couleur-bord);
+  border-radius: var(--rayon-sm);
+  background: var(--couleur-surface-douce);
+  transition:
+    background-color var(--duree-rapide) var(--courbe),
+    box-shadow var(--duree-rapide) var(--courbe);
+}
+
+.report-item:hover {
+  background: var(--couleur-surface);
+  box-shadow: var(--ombre-1);
+}
+
+.report-item-left,
+.report-item-right {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-3);
+  min-width: 0;
+}
+
+.report-icon-box {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--rayon-xs);
+}
+
+.icon-box-pdf {
+  border: 1px solid var(--couleur-erreur-bord);
+  background: var(--couleur-erreur-fond);
+  color: var(--couleur-erreur);
+}
+
+.icon-box-excel {
+  border: 1px solid var(--couleur-succes-bord);
+  background: var(--couleur-succes-fond);
+  color: var(--couleur-succes);
+}
+
+.report-file-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.report-file-name {
+  color: var(--couleur-texte);
+  font-family: var(--police-mono);
+  font-size: var(--texte-sm);
+  overflow-wrap: anywhere;
+}
+
+.report-file-meta {
+  color: var(--couleur-texte-doux);
+  font-size: var(--texte-xs);
+}
+
+.file-type-pill {
+  padding: 2px 8px;
+  border-radius: var(--rayon-xs);
+  font-size: var(--texte-2xs);
+  font-weight: var(--graisse-titre);
+  letter-spacing: 0.04em;
+}
+
+@media (max-width: 760px) {
+  .rapports-entete {
+    display: none;
+  }
+
+  .rapports-ligne {
+    grid-template-columns: 1fr;
+    gap: var(--espace-3);
+    padding: var(--espace-4);
+  }
+}
+
 /* ── Pastilles de statut ────────────────────────────────────────── */
 
 .pastille {

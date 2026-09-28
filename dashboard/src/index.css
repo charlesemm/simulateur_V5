@@ -216,26 +216,6 @@ svg {
   border-radius: 999px;
 }
 
-.badge-green {
-  background: var(--cnam-green-light);
-  color: var(--cnam-green-dark);
-}
-
-.badge-blue {
-  background: var(--cnam-blue-light);
-  color: var(--cnam-blue-dark);
-}
-
-.badge-orange {
-  background: var(--cnam-orange-light);
-  color: var(--cnam-orange);
-}
-
-.badge-gray {
-  background: #f1f5f9;
-  color: var(--text-muted);
-}
-
 .card-body {
   display: flex;
   flex-direction: column;
@@ -375,18 +355,6 @@ svg {
   border: 1px solid var(--cnam-orange-border);
   border-radius: 8px;
   padding: 8px 12px;
-}
-
-.empty-state {
-  display: grid;
-  place-items: center;
-  min-height: 105px;
-  padding: 16px;
-  border: 1px dashed var(--border);
-  border-radius: 10px;
-  color: var(--text-light);
-  font-size: 0.8rem;
-  text-align: center;
 }
 
 /* ── Ententes préalables ── */
@@ -617,249 +585,10 @@ svg {
   color: #e2e8f0;
 }
 
-/* ── Pages Rapports & Utilisateurs ── */
-.page-container {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-}
-
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 14px;
-}
-
-.page-title {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: var(--text-main);
-}
-
-.page-subtitle {
-  font-size: 0.78rem;
-  color: var(--text-muted);
-  margin-top: 2px;
-}
-
-.alert-box {
-  padding: 10px 14px;
-  border-radius: 6px;
-  font-size: 0.8rem;
-  font-weight: 500;
-}
-
-.alert-error {
-  background: var(--couleur-erreur-fond);
-  border: 1px solid var(--couleur-erreur-bord);
-  color: var(--couleur-erreur-vif);
-}
-
 .alert-success {
   background: #f0fdf4;
   border: 1px solid #bbf7d0;
   color: var(--cnam-green);
-}
-
-.info-banner {
-  background: #f0f9ff;
-  border: 1px solid #bae6fd;
-  border-radius: 8px;
-  padding: 10px 14px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 0.78rem;
-  color: #0369a1;
-  line-height: 1.4;
-}
-
-.info-banner-badge {
-  background: #0284c7;
-  color: #ffffff;
-  font-size: var(--texte-2xs);
-  font-weight: 700;
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-
-/* Page Rapports */
-.reports-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 18px;
-  box-shadow: var(--shadow-card);
-}
-
-.reports-card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 14px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid var(--border-subtle);
-}
-
-.reports-card-header h2 {
-  font-size: 0.9rem;
-  font-weight: 700;
-  color: var(--text-main);
-}
-
-.btn-icon-refresh {
-  background: none;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 4px 8px;
-  cursor: pointer;
-  display: grid;
-  place-items: center;
-  color: var(--text-muted);
-}
-
-.btn-icon-refresh:hover {
-  background: var(--surface-subtle);
-  color: var(--text-main);
-}
-
-.empty-reports {
-  text-align: center;
-  padding: 40px 20px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  color: var(--text-muted);
-}
-
-.empty-icon-svg {
-  width: 36px;
-  height: 36px;
-  color: var(--text-light);
-  margin-bottom: 4px;
-}
-
-.empty-subtext {
-  font-size: 0.72rem;
-  color: var(--text-light);
-}
-
-.reports-list-clean {
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.report-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: var(--surface-subtle);
-  border: 1px solid var(--border);
-  padding: 10px 14px;
-  border-radius: 8px;
-  transition: all 0.15s ease;
-}
-
-.report-item:hover {
-  background: #ffffff;
-  border-color: #cbd5e1;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-}
-
-.report-item-left {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.report-icon-box {
-  width: 32px;
-  height: 32px;
-  border-radius: 6px;
-  display: grid;
-  place-items: center;
-}
-
-.icon-box-pdf {
-  background: var(--couleur-erreur-fond);
-  color: var(--couleur-erreur-vif);
-  border: 1px solid var(--couleur-erreur-bord);
-}
-
-.icon-box-excel {
-  background: var(--cnam-green-light);
-  color: var(--cnam-green);
-  border: 1px solid var(--cnam-green-border);
-}
-
-.report-file-info {
-  display: flex;
-  flex-direction: column;
-}
-
-.report-file-name {
-  font-size: 0.82rem;
-  color: var(--text-main);
-}
-
-.report-file-meta {
-  font-size: 0.7rem;
-  color: var(--text-muted);
-}
-
-.report-item-right {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.file-type-pill {
-  font-size: var(--texte-2xs);
-  font-weight: 700;
-  padding: 2px 7px;
-  border-radius: 4px;
-}
-
-.badge-pdf {
-  background: var(--couleur-erreur-fond);
-  color: var(--couleur-erreur-vif);
-  border: 1px solid var(--couleur-erreur-bord);
-}
-
-.badge-excel {
-  background: var(--cnam-green-light);
-  color: var(--cnam-green-dark);
-  border: 1px solid var(--cnam-green-border);
-}
-
-.badge-csv {
-  background: #eff6ff;
-  color: #2563eb;
-  border: 1px solid #bfdbfe;
-}
-
-.btn-download {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  color: var(--cnam-blue);
-  font-weight: 600;
-  padding: 5px 10px;
-  border-radius: 6px;
-  font-size: 0.75rem;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  cursor: pointer;
-}
-
-.btn-download:hover {
-  background: var(--cnam-blue-light);
-  border-color: var(--cnam-blue-border);
 }
 
 /* Page Utilisateurs */
@@ -1120,8 +849,7 @@ svg {
   }
 }
 
-.dashboard-content-space,
-.page-container {
+.dashboard-content-space {
   width: min(100%, 1480px);
   margin: 0 auto;
 }
@@ -1135,8 +863,7 @@ svg {
 }
 
 .tech-metric-card,
-.chart-card,
-.reports-card {
+.chart-card {
   border-radius: 16px;
   border-color: #dce7e2;
   box-shadow: var(--shadow-card);
@@ -1178,21 +905,6 @@ svg {
 .chart-card {
   background: #ffffff;
   padding: 22px;
-}
-
-.page-title {
-  color: #10281d;
-  font-size: 1.55rem;
-  letter-spacing: -0.035em;
-}
-
-.page-subtitle {
-  color: #708078;
-}
-
-.info-banner {
-  border-radius: 14px;
-  padding: 14px 16px;
 }
 
 .btn-start {

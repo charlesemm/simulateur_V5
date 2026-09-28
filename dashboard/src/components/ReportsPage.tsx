@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { RequireRole } from "../auth/RequireRole";
+import { useToast } from "../hooks/useToast";
 import { api } from "../services/api";
 import type { RapportExecution, SimulationRun } from "../types";
 import { dateCourte } from "./format-execution";
@@ -21,6 +22,7 @@ function aujourdhui(): string {
 
 export function ReportsPage() {
   const { token } = useAuth();
+  const { toast } = useToast();
   const [fichiers, setFichiers] = useState<string[]>([]);
   // Quel export travaille, plutôt qu'un simple « quelque chose tourne » : le
   // bouton pressé doit pouvoir le dire lui-même, et lui seul.
@@ -40,6 +42,16 @@ export function ReportsPage() {
   // Les exécutions du jour choisi, avec leurs rapports. La date de début de
   // la période pilote cette section : une seule date à régler pour les deux.
   const [rapportsJour, setRapportsJour] = useState<RapportExecution[]>([]);
+  const [jourCharge, setJourCharge] = useState(false);
+
+  /** Télécharge un fichier et dit l'échec : il passait jusqu'ici inaperçu. */
+  async function telecharger(nomFichier: string) {
+    try {
+      await api.downloadReport(nomFichier, token);
+    } catch (raison) {
+      toast("erreur", `Échec du téléchargement de ${nomFichier}`, (raison as Error).message);
+    }
+  }
 
   /** Recharge la liste et la rend, pour pouvoir dire ce qui vient d'apparaître. */
   async function refresh(): Promise<string[]> {
@@ -88,8 +100,14 @@ export function ReportsPage() {
       setSucces(nouveaux.length > 0
         ? `Export terminé — ${nouveaux.length} fichier(s) : ${nouveaux.join(", ")}`
         : "Export terminé, mais aucun fichier nouveau : le périmètre choisi est peut-être vide.");
+      if (nouveaux.length > 0) {
+        toast("succes", "Export terminé", `${nouveaux.length} fichier(s) produit(s)`);
+      } else {
+        toast("alerte", "Export terminé", "Aucun fichier nouveau : le périmètre est peut-être vide.");
+      }
     } catch (reason) {
       setErreur((reason as Error).message);
+      toast("erreur", "Export impossible", (reason as Error).message);
     } finally {
       setTravail(null);
     }
@@ -101,6 +119,8 @@ export function ReportsPage() {
       setRapportsJour(await api.getRapportsExecutions(dateMin, token));
     } catch (reason) {
       setErreur((reason as Error).message);
+    } finally {
+      setJourCharge(true);
     }
   }, [dateMin, token]);
 
@@ -133,9 +153,12 @@ export function ReportsPage() {
       await refresh();
       if (resultat.supprimes === 0) {
         setErreur("Aucun fichier à supprimer.");
+      } else {
+        toast("succes", "Rapports supprimés", `${resultat.supprimes} fichier(s)`);
       }
     } catch (reason) {
       setErreur((reason as Error).message);
+      toast("erreur", "Suppression impossible", (reason as Error).message);
     } finally {
       setPurgeEnCours(false);
     }
@@ -150,10 +173,10 @@ export function ReportsPage() {
   }
 
   return (
-    <main className="page-container">
+    <div className="page-container">
       <div className="page-header">
         <div>
-          <h1 className="page-title">Rapports Quotidiens & Exports</h1>
+          <h2 className="page-title">Rapports Quotidiens & Exports</h2>
           <p className="page-subtitle">
             Génération et téléchargement des synthèses d'activité et des audits techniques
           </p>
@@ -176,7 +199,7 @@ export function ReportsPage() {
 
       {/* Le résultat de l'export se dit ici, sous le titre : la liste des
           fichiers en compte trop pour qu'on y repère le nouveau à l'œil. */}
-      {succes && <div className="bandeau-succes">{succes}</div>}
+      {succes && <div className="bandeau-succes" role="status">{succes}</div>}
 
       {erreur && (
         <div className="alert-box alert-error" role="alert">
@@ -193,28 +216,37 @@ export function ReportsPage() {
         </div>
       </div>
 
-      <section style={{ marginBottom: 22 }}>
+      <section>
         <h2 className="screen-section-title">Export par période</h2>
         <div className="alea-carte">
-          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-            <label className="alea-code">Du</label>
-            <input
-              type="date"
-              className="champ-console"
-              style={{ width: 170 }}
-              value={dateMin}
-              onChange={(evenement) => setDateMin(evenement.target.value)}
-            />
-            <label className="alea-code">au</label>
-            <input
-              type="date"
-              className="champ-console"
-              style={{ width: 170 }}
-              value={dateMax}
-              onChange={(evenement) => setDateMax(evenement.target.value)}
-            />
+          <div className="periode-champs">
+            <label className="champ-groupe" htmlFor="rapport-du">
+              <span className="champ-libelle">Du</span>
+              <input
+                id="rapport-du"
+                type="date"
+                className="champ-console"
+                value={dateMin}
+                onChange={(evenement) => setDateMin(evenement.target.value)}
+              />
+            </label>
+            <label className="champ-groupe" htmlFor="rapport-au">
+              <span className="champ-libelle">Au</span>
+              <input
+                id="rapport-au"
+                type="date"
+                className="champ-console"
+                value={dateMax}
+                onChange={(evenement) => setDateMax(evenement.target.value)}
+              />
+            </label>
           </div>
-          <button className="btn btn-start" onClick={() => void exporterPeriode()} disabled={enCours}>
+          <button
+            className="btn btn-start"
+            onClick={() => void exporterPeriode()}
+            disabled={enCours}
+            aria-busy={travail === "periode"}
+          >
             {travail === "periode" && <span className="rouet" aria-hidden="true" />}
             {travail === "periode" ? "Export en cours…" : "Exporter la période"}
           </button>
@@ -225,7 +257,7 @@ export function ReportsPage() {
           Les fichiers portent un identifiant technique illisible. Ici on les
           présente sous le nom donné à la simulation au départ, groupés par
           journée — c'est le seul repère dont dispose l'opérateur. */}
-      <section style={{ marginBottom: 22 }}>
+      <section>
         <h2 className="screen-section-title">
           Rapports par exécution
           <span className="rule" />
@@ -234,7 +266,15 @@ export function ReportsPage() {
           </span>
         </h2>
 
-        {rapportsJour.length === 0 ? (
+        {!jourCharge ? (
+          <div className="rapports-grille" aria-busy="true" aria-label="Chargement des rapports du jour">
+            {[0, 1].map((ligne) => (
+              <div key={ligne} className="ligne-squelette">
+                <span className="ui-skeleton ui-skeleton--texte" style={{ width: `${70 - ligne * 15}%` }} />
+              </div>
+            ))}
+          </div>
+        ) : rapportsJour.length === 0 ? (
           <div className="screen-empty">
             Aucune exécution lancée ce jour-là. Changez la date ci-dessus.
           </div>
@@ -261,7 +301,8 @@ export function ReportsPage() {
                   {fiche.fichiers.pdf ? (
                     <button
                       className="btn btn-download"
-                      onClick={() => api.downloadReport(fiche.fichiers.pdf as string, token)}
+                      onClick={() => void telecharger(fiche.fichiers.pdf as string)}
+                      aria-label={`Télécharger le rapport PDF de « ${fiche.simulation_libelle || "Sans nom"} »`}
                     >
                       <DownloadIcon size={14} />
                       Télécharger
@@ -275,7 +316,8 @@ export function ReportsPage() {
                   {fiche.fichiers.excel ? (
                     <button
                       className="btn btn-download"
-                      onClick={() => api.downloadReport(fiche.fichiers.excel as string, token)}
+                      onClick={() => void telecharger(fiche.fichiers.excel as string)}
+                      aria-label={`Télécharger les données Excel de « ${fiche.simulation_libelle || "Sans nom"} »`}
                     >
                       <DownloadIcon size={14} />
                       Télécharger
@@ -304,12 +346,13 @@ export function ReportsPage() {
         )}
       </section>
 
-      <section style={{ marginBottom: 22 }}>
+      <section>
         <h2 className="screen-section-title">Export d'une exécution</h2>
         <div className="alea-carte">
+          <label className="champ-groupe">
+          <span className="champ-libelle">Exécution à exporter</span>
           <select
             className="champ-console"
-            style={{ maxWidth: 420 }}
             value={execution}
             onChange={(evenement) => setExecution(evenement.target.value)}
           >
@@ -326,10 +369,12 @@ export function ReportsPage() {
               </option>
             ))}
           </select>
+          </label>
           <button
             className="btn btn-start"
             onClick={() => void exporterExecution()}
             disabled={enCours || !execution}
+            aria-busy={travail === "execution"}
           >
             {travail === "execution" && <span className="rouet" aria-hidden="true" />}
             {travail === "execution" ? "Export en cours…" : "Exporter (PDF + Excel)"}
@@ -340,8 +385,13 @@ export function ReportsPage() {
       <div className="reports-card">
         <div className="reports-card-header">
           <h2>Fichiers disponibles ({fichiers.length})</h2>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <button className="btn-icon-refresh" onClick={refresh} title="Actualiser la liste">
+          <div className="reports-card-actions">
+            <button
+              className="btn-icon-refresh"
+              onClick={refresh}
+              title="Actualiser la liste"
+              aria-label="Actualiser la liste des fichiers"
+            >
               <RefreshIcon size={14} />
             </button>
             <RequireRole minimum="administrateur">
@@ -361,12 +411,12 @@ export function ReportsPage() {
         </div>
 
         {confirmPurge && (
-          <div className="confirm-banner confirm-danger">
+          <div className="confirm-banner confirm-danger" role="alert">
             <span>
               Supprimer les <strong>{fichiers.length}</strong> fichier(s) ?
               Cette action est irréversible.
             </span>
-            <div style={{ display: "flex", gap: 8 }}>
+            <div className="confirm-actions">
               <button
                 className="btn btn-outline"
                 onClick={() => setConfirmPurge(false)}
@@ -389,7 +439,7 @@ export function ReportsPage() {
           <div className="empty-reports">
             <ReportsIcon size={36} className="empty-icon-svg" />
             <p>Aucun rapport généré pour le moment.</p>
-            <span className="empty-subtext">Cliquez sur « Générer les rapports du jour » pour créer un premier export.</span>
+            <span className="empty-subtext">Cliquez sur « Rapport technique + données du jour » pour créer un premier export.</span>
           </div>
         ) : (
           <ul className="reports-list-clean">
@@ -398,7 +448,10 @@ export function ReportsPage() {
               return (
                 <li className="report-item" key={nom}>
                   <div className="report-item-left">
-                    <div className={`report-icon-box ${nom.endsWith(".pdf") ? "icon-box-pdf" : "icon-box-excel"}`}>
+                    <div
+                      className={`report-icon-box ${nom.endsWith(".pdf") ? "icon-box-pdf" : "icon-box-excel"}`}
+                      aria-hidden="true"
+                    >
                       <ReportsIcon size={18} />
                     </div>
                     <div className="report-file-info">
@@ -410,7 +463,8 @@ export function ReportsPage() {
                     <span className={`file-type-pill ${badge.class}`}>{badge.label}</span>
                     <button
                       className="btn btn-download"
-                      onClick={() => api.downloadReport(nom, token)}
+                      onClick={() => void telecharger(nom)}
+                      aria-label={`Télécharger ${nom}`}
                     >
                       <DownloadIcon size={14} />
                       Télécharger
@@ -422,6 +476,6 @@ export function ReportsPage() {
           </ul>
         )}
       </div>
-    </main>
+    </div>
   );
 }

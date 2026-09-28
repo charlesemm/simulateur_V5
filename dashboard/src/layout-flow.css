@@ -13,8 +13,7 @@ textarea {
 }
 
 .tech-metric-card,
-.chart-card,
-.reports-card {
+.chart-card {
   border-radius: var(--rayon-md);
 }
 
