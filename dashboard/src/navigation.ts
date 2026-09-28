@@ -71,3 +71,20 @@ export const TITRES: Record<Onglet, { titre: string; sousTitre: string }> = {
     sousTitre: "Toutes les routes de l'API, leur description et un banc de test",
   },
 };
+
+/** Rubrique de la barre latérale où vit chaque écran : sert de fil d'Ariane. */
+export const RUBRIQUES: Record<Onglet, string> = {
+  accueil: "Piloter",
+  injection: "Piloter",
+  lancement: "Piloter",
+  encours: "Analyser",
+  bilan: "Analyser",
+  simulations: "Analyser",
+  campagnes: "Analyser",
+  "campagne-nouvelle": "Analyser",
+  qualite: "Analyser",
+  rapports: "Analyser",
+  dashboard: "Gérer",
+  administration: "Gérer",
+  "explorateur-api": "Gérer",
+};

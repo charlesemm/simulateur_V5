@@ -3,15 +3,19 @@ import { useEffect, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { RequireRole } from "../auth/RequireRole";
 import { useKpiSocket } from "../hooks/useKpiSocket";
-import { TITRES, type Onglet } from "../navigation";
+import { useToast } from "../hooks/useToast";
+import { RUBRIQUES, TITRES, type Onglet } from "../navigation";
 import { api } from "../services/api";
 import type { SimulationStatus } from "../types";
 import { ConnectionBadge } from "./ConnectionBadge";
+import { MenuIcon } from "./Icons";
 
 interface TopbarProps {
   ongletActif: Onglet;
   /** Pendant une exécution, ouvre le poste de pilotage depuis n'importe quel écran. */
   onRejoindreCockpit?: () => void;
+  /** Ouvre le tiroir de navigation — le bouton n'apparaît qu'en mobile. */
+  onOuvrirMenu?: () => void;
 }
 
 /**
@@ -22,8 +26,9 @@ interface TopbarProps {
  * choisi ne voulait pas dire grand-chose. Seul l'arrêt reste ici, et
  * seulement quand il y a quelque chose à arrêter.
  */
-export function Header({ ongletActif, onRejoindreCockpit }: TopbarProps) {
+export function Header({ ongletActif, onRejoindreCockpit, onOuvrirMenu }: TopbarProps) {
   const { connectionStatus } = useKpiSocket();
+  const { toast } = useToast();
   const { token } = useAuth();
   const [status, setStatus] = useState<SimulationStatus | null>(null);
   const [stopping, setStopping] = useState(false);
@@ -58,8 +63,10 @@ export function Header({ ongletActif, onRejoindreCockpit }: TopbarProps) {
     try {
       await api.stopSimulation(token);
       setStatus(await api.getSimulationStatus(token));
+      toast("succes", "Simulation arrêtée", "Le moteur a terminé les passages en cours.");
     } catch (reason) {
       setError((reason as Error).message);
+      toast("erreur", "Arrêt impossible", (reason as Error).message);
     } finally {
       setStopping(false);
     }
@@ -71,9 +78,19 @@ export function Header({ ongletActif, onRejoindreCockpit }: TopbarProps) {
   return (
     <header className="topbar">
       <div className="topbar-left">
+        {onOuvrirMenu && (
+          <button
+            type="button"
+            className="topbar-menu"
+            onClick={onOuvrirMenu}
+            aria-label="Ouvrir le menu"
+          >
+            <MenuIcon />
+          </button>
+        )}
         <div className="topbar-title-group">
           <span className="topbar-eyebrow">
-            Espace de travail <span aria-hidden="true">/</span> {title}
+            {RUBRIQUES[ongletActif]} <span aria-hidden="true">›</span> {title}
           </span>
           <h1 className="topbar-title">{title}</h1>
           <span className="topbar-subtitle">{subtitle}</span>
@@ -107,9 +124,9 @@ export function Header({ ongletActif, onRejoindreCockpit }: TopbarProps) {
                 title="Arrêter la simulation en cours"
               >
                 {stopping ? (
-                  <span className="btn-engine-spinner" />
+                  <span className="btn-engine-spinner" aria-hidden="true" />
                 ) : (
-                  <svg className="btn-engine-icon" fill="currentColor" viewBox="0 0 20 20">
+                  <svg className="btn-engine-icon" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
                     <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clipRule="evenodd" />
                   </svg>
                 )}

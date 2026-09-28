@@ -3,50 +3,6 @@
  * Le parcours se lit de haut en bas : où j'en suis → ce que je lance → ce qui s'est passé.
  */
 
-.enterprise-layout {
-  min-height: 100vh;
-}
-
-.app-sidebar {
-  width: var(--sidebar-width);
-  min-width: var(--sidebar-width);
-}
-
-.sidebar-nav-item {
-  border-radius: 999px;
-  min-height: 40px;
-  padding: 8px 14px;
-}
-
-.sidebar-user-card {
-  border-radius: 999px;
-  padding: 6px 8px 6px 6px;
-}
-
-.sidebar-user-avatar {
-  border-radius: 50%;
-}
-
-.topbar {
-  height: var(--topbar-height);
-  min-height: var(--topbar-height);
-  padding: 0 28px;
-  align-items: center;
-}
-
-.topbar-subtitle {
-  display: none;
-}
-
-.topbar-title {
-  font-size: 1.12rem;
-  line-height: 1.2;
-}
-
-.content-scrollable {
-  padding: 22px 28px 56px;
-}
-
 .screen {
   gap: 28px;
 }
@@ -334,7 +290,5 @@ textarea {
     grid-template-columns: 1fr;
   }
 
-  .topbar-subtitle {
-    display: none;
-  }
+  
 }

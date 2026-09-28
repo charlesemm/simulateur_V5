@@ -6,6 +6,7 @@ import { LoginPage } from "./auth/LoginPage";
 import { ChangePasswordPage } from "./auth/ChangePasswordPage";
 import { RequireRole } from "./auth/RequireRole";
 import { KpiSocketProvider } from "./hooks/useKpiSocket";
+import { ToastProvider } from "./hooks/useToast";
 import { TechMetricCards } from "./components/TechMetricCards";
 import { ChargeTraitementChart } from "./components/ChargeTraitementChart";
 import { LatencyPerformanceChart } from "./components/LatencyPerformanceChart";
@@ -45,6 +46,9 @@ function DashboardShell() {
     { simulationId: string; frappes: FrappeBilan[] } | null
   >(null);
   const [metrics, setMetrics] = useState<TechnicalMetricsSnapshot | null>(null);
+  // Tiroir de navigation, en mobile seulement : sur grand écran la barre
+  // latérale reste affichée et cet état n'a aucun effet.
+  const [menuOuvert, setMenuOuvert] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -123,18 +127,26 @@ function DashboardShell() {
         />
       ) : (
       <div className="enterprise-layout">
+        <a className="ui-skip-link" href="#contenu">Aller au contenu</a>
+
         {/* Navigation Latérale Gauche */}
         <Sidebar
           ongletActif={ongletActif}
           onNaviguer={(onglet) => onglet === "encours" ? allerAuCockpit() : setOngletActif(onglet)}
           moteurEnCours={moteurEnCours}
+          ouvert={menuOuvert}
+          onFermer={() => setMenuOuvert(false)}
         />
 
         {/* Zone de contenu principale avec Topbar */}
         <div className="enterprise-main">
-          <Header ongletActif={ongletActif} onRejoindreCockpit={allerAuCockpit} />
+          <Header
+            ongletActif={ongletActif}
+            onRejoindreCockpit={allerAuCockpit}
+            onOuvrirMenu={() => setMenuOuvert(true)}
+          />
 
-          <div className="content-scrollable">
+          <main id="contenu" className="content-scrollable" tabIndex={-1}>
             {ongletActif === "accueil" && (
               <AccueilPage
                 onVoirExecution={(simulationId) => {
@@ -256,7 +268,7 @@ function DashboardShell() {
                 <ApiExplorerPage />
               </RequireRole>
             )}
-          </div>
+          </main>
         </div>
       </div>
       )}
@@ -267,7 +279,9 @@ function DashboardShell() {
 export default function App() {
   return (
     <AuthProvider>
-      <DashboardShell />
+      <ToastProvider>
+        <DashboardShell />
+      </ToastProvider>
     </AuthProvider>
   );
 }
