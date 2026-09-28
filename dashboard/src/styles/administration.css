@@ -430,3 +430,242 @@
     position: static;
   }
 }
+
+/* ── Explorateur API ────────────────────────────────────────────────
+   Une route par ligne, dépliable sur son propre formulaire de test. Le
+   verbe porte sa couleur et son nom : GET lit, POST/PUT/PATCH
+   transforment, DELETE supprime — on doit le savoir avant de cliquer. */
+
+.explorateur-recherche {
+  max-width: 640px;
+}
+
+.api-methode {
+  display: inline-block;
+  flex: none;
+  min-width: 64px;
+  padding: 2px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--rayon-xs);
+  font-family: var(--police-mono);
+  font-size: var(--texte-2xs);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--graisse-titre);
+  letter-spacing: 0.04em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.api-methode-get {
+  border-color: var(--couleur-info-bord);
+  background: var(--couleur-info-fond);
+  color: var(--couleur-info);
+}
+
+.api-methode-post {
+  border-color: var(--couleur-succes-bord);
+  background: var(--couleur-succes-fond);
+  color: var(--couleur-succes);
+}
+
+.api-methode-put,
+.api-methode-patch {
+  border-color: var(--couleur-alerte-bord);
+  background: var(--couleur-alerte-fond);
+  color: var(--couleur-alerte);
+}
+
+.api-methode-delete {
+  border-color: var(--couleur-erreur-bord);
+  background: var(--couleur-erreur-fond);
+  color: var(--couleur-erreur);
+}
+
+.endpoint-bloc .famille-bascule {
+  align-items: center;
+  gap: var(--espace-3);
+  color: var(--couleur-texte);
+}
+
+.endpoint-groupe-nom {
+  flex: 1;
+  text-align: left;
+}
+
+.endpoint-liste {
+  margin-top: var(--espace-2);
+  overflow: hidden;
+  border: 1px solid var(--couleur-bord);
+  border-radius: var(--rayon-md);
+  background: var(--couleur-surface);
+  box-shadow: var(--ombre-2);
+}
+
+.endpoint-ligne {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-3);
+  width: 100%;
+  padding: var(--espace-3) var(--espace-4);
+  border: none;
+  border-bottom: 1px solid var(--couleur-bord-doux);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--duree-rapide) var(--courbe);
+}
+
+.endpoint-ligne:hover,
+.endpoint-ligne[aria-expanded="true"] {
+  background: var(--couleur-surface-survol);
+}
+
+.endpoint-liste > div:last-child .endpoint-ligne:not([aria-expanded="true"]) {
+  border-bottom: none;
+}
+
+.endpoint-chemin {
+  flex: none;
+  color: var(--couleur-texte);
+  font-family: var(--police-mono);
+  font-size: var(--texte-sm);
+  word-break: break-all;
+}
+
+.endpoint-resume {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--couleur-texte-doux);
+  font-size: var(--texte-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.endpoint-auth {
+  flex: none;
+  padding: 1px 8px;
+  border: 1px solid var(--couleur-bord);
+  border-radius: var(--rayon-pilule);
+  color: var(--couleur-texte-doux);
+  font-size: var(--texte-2xs);
+  font-weight: var(--graisse-titre);
+  white-space: nowrap;
+}
+
+.endpoint-corps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-4);
+  padding: var(--espace-4) var(--espace-5) var(--espace-5);
+  border-bottom: 1px solid var(--couleur-bord-doux);
+  background: var(--couleur-surface-douce);
+  animation: ui-apparait var(--duree) var(--courbe-sortie);
+}
+
+.endpoint-description {
+  margin: 0;
+  max-width: 80ch;
+  color: var(--couleur-texte-doux);
+  font-size: var(--texte-sm);
+  line-height: var(--interligne);
+  white-space: pre-line;
+}
+
+.endpoint-champs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espace-3);
+}
+
+.endpoint-champs .champ-court {
+  flex: 1 1 200px;
+  max-width: 280px;
+}
+
+.champ-aide {
+  color: var(--couleur-texte-doux);
+  font-size: var(--texte-xs);
+}
+
+.endpoint-corps textarea.champ-console {
+  width: 100%;
+  min-height: 150px;
+  font-family: var(--police-mono);
+  font-size: var(--texte-xs);
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.endpoint-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espace-3);
+}
+
+.endpoint-actions .champ-aide {
+  font-size: var(--texte-sm);
+}
+
+.endpoint-reponse {
+  max-height: 380px;
+  overflow: auto;
+  border: 1px solid var(--couleur-bord);
+  border-radius: var(--rayon-sm);
+  background: var(--couleur-surface);
+  font-family: var(--police-mono);
+  font-size: var(--texte-xs);
+  line-height: 1.55;
+}
+
+.endpoint-reponse-tete {
+  position: sticky;
+  top: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--espace-2);
+  padding: var(--espace-2) var(--espace-3);
+  border-bottom: 1px solid var(--couleur-bord);
+  background: var(--couleur-surface-douce);
+  font-family: var(--police);
+  font-size: var(--texte-sm);
+  font-weight: var(--graisse-titre);
+}
+
+.endpoint-reponse-corps {
+  margin: 0;
+  padding: var(--espace-3);
+  color: var(--couleur-texte);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.endpoint-reponse--ok .endpoint-reponse-tete {
+  border-bottom-color: var(--couleur-succes-bord);
+  background: var(--couleur-succes-fond);
+  color: var(--couleur-succes);
+}
+
+.endpoint-reponse--erreur {
+  border-color: var(--couleur-erreur-bord);
+}
+
+.endpoint-reponse--erreur .endpoint-reponse-tete {
+  border-bottom-color: var(--couleur-erreur-bord);
+  background: var(--couleur-erreur-fond);
+  color: var(--couleur-erreur);
+}
+
+@media (max-width: 760px) {
+  .endpoint-ligne {
+    flex-wrap: wrap;
+  }
+
+  .endpoint-resume {
+    flex-basis: 100%;
+    white-space: normal;
+  }
+}
