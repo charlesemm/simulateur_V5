@@ -744,6 +744,12 @@
   height: 14px;
 }
 
+/* Sur un bouton plein : anneau blanc. */
+.ui-spinner--inverse {
+  border-color: rgba(255, 255, 255, 0.35);
+  border-top-color: var(--gris-0);
+}
+
 .ui-spinner--grand {
   width: 32px;
   height: 32px;

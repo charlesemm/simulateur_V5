@@ -41,6 +41,9 @@ export function ConsoleInjectionPage() {
   const [erreur, setErreur] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [occupe, setOccupe] = useState(false);
+  // Distingue « pas encore reçu » de « rien reçu » : le catalogue vide ne
+  // doit s'annoncer en échec qu'après la première réponse.
+  const [charge, setCharge] = useState(false);
 
   const chargerGlobal = useCallback(async () => {
     const reponse = await fetch(`${API_URL}/anomalies`, {
@@ -62,6 +65,8 @@ export function ConsoleInjectionPage() {
       setErreur(null);
     } catch (raison) {
       setErreur((raison as Error).message);
+    } finally {
+      setCharge(true);
     }
   }, [token, chargerGlobal]);
 
@@ -146,8 +151,8 @@ export function ConsoleInjectionPage() {
 
   return (
     <div className="screen">
-      {erreur && <p className="screen-error">{erreur}</p>}
-      {message && <div className="bandeau-info">{message}</div>}
+      {erreur && <p className="screen-error" role="alert">{erreur}</p>}
+      {message && <div className="bandeau-info" role="status">{message}</div>}
 
       {!enCours && (
         <div className="bandeau-info">
@@ -158,14 +163,26 @@ export function ConsoleInjectionPage() {
       )}
 
       <section>
-        <h2 className="screen-section-title">Interrupteur général</h2>
+        <div className="screen-section-head">
+          <h2 className="screen-section-title">Interrupteur général</h2>
+          {/* Chaque réglage s'enregistre aussitôt : on le dit pendant qu'il part. */}
+          <span className="enregistrement" role="status">
+            {occupe && (
+              <>
+                <span className="ui-spinner ui-spinner--petit" aria-hidden="true" />
+                Enregistrement…
+              </>
+            )}
+          </span>
+        </div>
         <div className="stat-strip">
           <div className="stat-tile">
             <span className="stat-tile-label">Injection</span>
             <span className="stat-tile-value">{global?.enabled ? "Ouverte" : "Coupée"}</span>
-            <label className="toggle-switch-label" style={{ marginTop: 10 }}>
+            <label className="toggle-switch-label console-tuile-reglage">
               <input
                 type="checkbox"
+                role="switch"
                 className="toggle-checkbox"
                 checked={global?.enabled ?? false}
                 disabled={occupe || global === null}
@@ -184,10 +201,11 @@ export function ConsoleInjectionPage() {
             <span className="stat-tile-hint">
               Utilisé par les types qui n'ont pas de taux propre
             </span>
-            <div className="champ-pourcentage" style={{ marginTop: 8 }}>
+            <div className="champ-pourcentage console-tuile-reglage">
               <input
                 type="number"
                 className="champ-console"
+                aria-label="Taux de repli, en pourcentage"
                 min={0}
                 max={100}
                 value={Math.round((global?.rate ?? 0) * 100)}
@@ -223,9 +241,9 @@ export function ConsoleInjectionPage() {
             className="screen-section-title famille-section"
             style={{ ["--famille-couleur" as string]: types[0].anomalie_couleur }}
           >
-            <span className="dot" />
+            <span className="dot" aria-hidden="true" />
             {famille}
-            <span className="rule" />
+            <span className="rule" aria-hidden="true" />
             <span className="famille-section-compte">
               {allumes} / {types.length} actif(s)
             </span>
@@ -239,19 +257,24 @@ export function ConsoleInjectionPage() {
             >
               <div className="anomalie-carte-tete">
                 <span className="anomalie-famille">
-                  <span className="dot" />
+                  <span className="dot" aria-hidden="true" />
                   {type.anomalie_famille}
                 </span>
                 <label className="toggle-switch-label">
                   <input
                     type="checkbox"
+                    role="switch"
                     className="toggle-checkbox"
+                    aria-label={`Activer « ${type.anomalie_libelle} »`}
                     checked={type.anomalie_active}
                     disabled={occupe}
                     onChange={(evenement) =>
                       void modifierType(type.anomalie_code, { active: evenement.target.checked })
                     }
                   />
+                  <span className="toggle-etat" aria-hidden="true">
+                    {type.anomalie_active ? "Actif" : "Coupé"}
+                  </span>
                 </label>
               </div>
 
@@ -266,6 +289,7 @@ export function ConsoleInjectionPage() {
                   <input
                     type="number"
                     className="champ-console"
+                    aria-label={`Taux — ${type.anomalie_libelle}`}
                     min={0}
                     max={100}
                     value={Math.round(type.anomalie_taux * 100)}
@@ -281,11 +305,12 @@ export function ConsoleInjectionPage() {
                 </div>
               </div>
 
-              <div className="anomalie-ligne" style={{ marginTop: 12 }}>
+              <div className="anomalie-ligne anomalie-ligne--espacee">
                 <span>Moment</span>
               </div>
               <select
                 className="champ-console"
+                aria-label={`Moment — ${type.anomalie_libelle}`}
                 value={type.anomalie_declenchement}
                 disabled={occupe || !type.anomalie_active}
                 onChange={(evenement) =>
@@ -303,13 +328,13 @@ export function ConsoleInjectionPage() {
 
               {(type.anomalie_declenchement === "differe" ||
                 type.anomalie_declenchement === "demarrage") && (
-                <div className="anomalie-ligne" style={{ marginTop: 10 }}>
+                <div className="anomalie-ligne anomalie-ligne--espacee">
                   <span>Délai (s)</span>
                   <input
                     type="number"
                     min={0}
-                    className="champ-console"
-                    style={{ width: 90 }}
+                    className="champ-console champ-delai"
+                    aria-label={`Délai en secondes — ${type.anomalie_libelle}`}
                     value={type.anomalie_delai_secondes ?? 60}
                     disabled={occupe}
                     onChange={(evenement) =>
@@ -322,7 +347,7 @@ export function ConsoleInjectionPage() {
               )}
 
               {type.anomalie_declenchement === "manuel" && (
-                <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                <div className="anomalie-actions">
                   <button
                     className="btn btn-start"
                     disabled={occupe || !enCours}
@@ -347,7 +372,18 @@ export function ConsoleInjectionPage() {
         );
       })}
 
-      {catalogue.length === 0 && (
+      {!charge && (
+        <div className="console-grid" aria-busy="true" aria-label="Chargement du catalogue">
+          {[0, 1, 2].map((carte) => (
+            <div key={carte} className="anomalie-carte">
+              <span className="ui-skeleton ui-skeleton--texte" style={{ width: "40%" }} />
+              <span className="ui-skeleton ui-skeleton--titre" style={{ width: "75%", marginTop: 12 }} />
+              <span className="ui-skeleton ui-skeleton--texte" style={{ width: "60%" }} />
+            </div>
+          ))}
+        </div>
+      )}
+      {charge && catalogue.length === 0 && (
         <div className="screen-empty">Le catalogue d'anomalies n'a pas pu être chargé.</div>
       )}
 

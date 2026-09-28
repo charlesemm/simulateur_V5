@@ -28,6 +28,21 @@
   to { opacity: 1; transform: none; }
 }
 
+/* Bandeau d'information : une précision utile, pas une alerte. */
+.bandeau-info {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-3);
+  padding: var(--espace-3) var(--espace-4);
+  border: 1px solid var(--couleur-info-bord);
+  border-left: 4px solid var(--couleur-info);
+  border-radius: var(--rayon-xs);
+  background: var(--couleur-info-fond);
+  color: var(--bleu-700);
+  font-size: var(--texte-sm);
+  line-height: var(--interligne);
+}
+
 /* ── Sections ───────────────────────────────────────────────────── */
 
 .screen-section-head {
