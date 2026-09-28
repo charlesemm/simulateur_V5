@@ -1136,8 +1136,7 @@ svg {
 
 .tech-metric-card,
 .chart-card,
-.reports-card,
-.alea-carte {
+.reports-card {
   border-radius: 16px;
   border-color: #dce7e2;
   box-shadow: var(--shadow-card);

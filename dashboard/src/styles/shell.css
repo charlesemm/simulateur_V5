@@ -674,7 +674,24 @@ body::before {
   }
 
   .topbar-title {
+    overflow: hidden;
     font-size: var(--texte-lg);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .topbar-left {
+    flex: 1;
+  }
+
+  /* Le poste de pilotage reste accessible depuis le menu : ici, le
+     bouton prendrait la place du titre. */
+  .topbar-right .btn-outline {
+    display: none;
+  }
+
+  .btn-engine {
+    padding: 0 var(--espace-3);
   }
 
   /* Le badge se réduit à sa pastille : le libellé reste pour les

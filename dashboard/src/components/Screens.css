@@ -112,31 +112,10 @@
   color: var(--text-muted);
 }
 
-/* ── Aléas (console) ── */
-.alea-carte {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 13px 16px;
-  box-shadow: var(--shadow-card);
-}
-
 .alea-nom {
   font-size: 0.88rem;
   font-weight: 600;
   color: var(--text-main);
-}
-
-.alea-code {
-  display: block;
-  font-size: var(--texte-2xs);
-  color: var(--text-light);
-  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
-  margin-top: 2px;
 }
 
 .btn-outline-danger {
@@ -517,7 +496,7 @@
   height: 52px;
   border-radius: 14px;
   background: var(--cnam-green-light);
-  color: var(--cnam-green-dark);
+  color: var(--couleur-succes);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -563,7 +542,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-.bilan-cle-valeur--vert { color: var(--cnam-green-dark); }
+.bilan-cle-valeur--vert { color: var(--couleur-succes); }
 .bilan-cle-valeur--rouge { color: var(--couleur-erreur); }
 
 .bilan-cle-nom {
@@ -676,7 +655,7 @@
   width: 46px;
   padding-top: 1px;
   font-size: 0.78rem;
-  color: var(--text-light);
+  color: var(--couleur-texte-doux);
   font-variant-numeric: tabular-nums;
 }
 
@@ -697,11 +676,11 @@
 }
 
 .bilan-frappe-nature {
-  font-size: 0.7rem;
+  font-size: var(--texte-2xs);
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--alea, var(--text-light));
+  color: color-mix(in srgb, var(--alea, var(--couleur-texte-doux)) 62%, #000);
 }
 
 /* ── Les deux suites ── */
@@ -734,8 +713,8 @@
 }
 
 .bilan-suite--export {
-  background: var(--cnam-green);
-  color: #ffffff;
+  background: var(--couleur-action);
+  color: var(--couleur-action-texte);
   box-shadow: var(--shadow-action);
 }
 
@@ -771,53 +750,13 @@
 .bilan-retour { align-self: flex-start; }
 
 @media (max-width: 720px) {
-  .bilan-chiffres-cles { text-align: left; gap: 22px; }
-}
-
-/* ── Écart entre injecté et détecté ──
-   La colonne qu'on lisait de tête. Le rouge est réservé à l'écart
-   majoritaire : un taux de détection sous 100 % n'est pas en soi un
-   défaut, et tout colorer en rouge ne dirait plus rien. */
-.ecart {
-  display: inline-block;
-  min-width: 62px;
-  text-align: center;
-  padding: 2px 9px;
-  border-radius: 100px;
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.ecart--aucun {
-  background: var(--cnam-green-light);
-  color: var(--cnam-green-dark);
-  border: 1px solid var(--cnam-green-border);
-}
-
-.ecart--leger {
-  background: var(--surface-subtle);
-  color: var(--text-muted);
-  border: 1px solid var(--border);
-}
-
-.ecart--notable {
-  background: var(--cnam-orange-light);
-  color: #a75600;
-  border: 1px solid var(--cnam-orange-border);
-}
-
-.ecart--fort {
-  background: var(--couleur-erreur-fond);
-  color: var(--couleur-erreur);
-  border: 1px solid var(--couleur-erreur-bord);
-}
-
-.ecart--inconnu {
-  color: var(--text-light);
-  border: 1px solid transparent;
+  .bilan-chiffres-cles {
+    flex: 1 1 100%;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    text-align: left;
+    gap: 16px 22px;
+  }
 }
 
 /* ── Retour d'un export ──

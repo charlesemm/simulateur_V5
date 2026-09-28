@@ -65,6 +65,25 @@
   line-height: var(--interligne-serre);
 }
 
+/* Titre prolongé d'un filet, avec un compte à droite. */
+.screen-section-title:has(.rule) {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-3);
+}
+
+.screen-section-title .rule {
+  flex: 1;
+  height: 1px;
+  background: var(--couleur-bord-doux);
+}
+
+.screen-section-title .bilan-total {
+  color: var(--couleur-texte-doux);
+  font-size: var(--texte-sm);
+  font-weight: var(--graisse-forte);
+}
+
 h3.screen-section-title {
   font-size: var(--texte-md);
 }
@@ -852,6 +871,94 @@ h3.screen-section-title {
   font-variant-numeric: tabular-nums;
 }
 
+/* ── Barre d'outils d'un écran (périmètre, filtre, action) ────────── */
+
+.alea-carte {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--espace-3) var(--espace-4);
+  padding: var(--espace-4) var(--espace-5);
+  border: 1px solid var(--couleur-bord);
+  border-radius: var(--rayon-md);
+  background: var(--couleur-surface);
+  box-shadow: var(--ombre-2);
+}
+
+.alea-carte .champ-groupe {
+  flex: 1 1 280px;
+  max-width: 460px;
+}
+
+/* Étiquette discrète accolée à un libellé (« référentiel »…). */
+.alea-code {
+  display: inline-block;
+  margin-left: var(--espace-2);
+  padding: 1px 8px;
+  border: 1px solid var(--couleur-bord);
+  border-radius: var(--rayon-pilule);
+  background: var(--couleur-surface-douce);
+  color: var(--couleur-texte-doux);
+  font-family: var(--police-mono);
+  font-size: var(--texte-2xs);
+  vertical-align: 1px;
+}
+
+/* ── Écart injecté / détecté ────────────────────────────────────── */
+
+.ecart {
+  display: inline-block;
+  min-width: 64px;
+  padding: 2px 10px;
+  border: 1px solid var(--couleur-bord);
+  border-radius: var(--rayon-pilule);
+  background: var(--couleur-surface-douce);
+  color: var(--couleur-texte-doux);
+  font-size: var(--texte-xs);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--graisse-titre);
+  text-align: center;
+  white-space: nowrap;
+}
+
+.ecart--aucun {
+  border-color: var(--couleur-succes-bord);
+  background: var(--couleur-succes-fond);
+  color: var(--couleur-succes);
+}
+
+.ecart--notable {
+  border-color: var(--couleur-alerte-bord);
+  background: var(--couleur-alerte-fond);
+  color: var(--couleur-alerte);
+}
+
+.ecart--fort {
+  border-color: var(--couleur-erreur-bord);
+  background: var(--couleur-erreur-fond);
+  color: var(--couleur-erreur);
+}
+
+.ecart--inconnu {
+  border-color: transparent;
+  background: transparent;
+}
+
+/* Résultat en cours de recalcul : on garde l'ancien sous les yeux,
+   visiblement suspendu, plutôt que de faire clignoter l'écran. */
+.resultat-qualite {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-8);
+}
+
+.en-recalcul {
+  opacity: 0.55;
+  transition: opacity var(--duree) var(--courbe);
+  pointer-events: none;
+}
+
 /* ── Pastilles de statut ────────────────────────────────────────── */
 
 .pastille {
@@ -1034,6 +1141,21 @@ h3.screen-section-title {
   .stat-tile,
   .type-card {
     border-radius: var(--rayon-sm);
+  }
+
+  /* Deux tuiles par ligne plutôt qu'une colonne de grands blocs. */
+  .stat-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--espace-3);
+  }
+
+  .stat-tile {
+    min-height: 0;
+    padding: var(--espace-4);
+  }
+
+  .stat-tile-value {
+    font-size: var(--texte-xl);
   }
 
   .home-status {
