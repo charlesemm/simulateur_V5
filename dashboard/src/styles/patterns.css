@@ -181,6 +181,9 @@ h3.screen-section-title {
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
   line-height: 1.1;
+  /* Une valeur en toutes lettres (un palier, un statut) peut dépasser la
+     tuile sur un écran étroit : elle se coupe plutôt que de déborder. */
+  overflow-wrap: anywhere;
 }
 
 .stat-tile--accent.vivante .stat-tile-value {
@@ -671,6 +674,182 @@ h3.screen-section-title {
   color: var(--couleur-texte-doux);
   font-family: var(--police-mono);
   font-size: var(--texte-sm);
+}
+
+/* ── Fiche de campagne ──────────────────────────────────────────── */
+
+/* Les encarts de la fiche : même cadre pour la progression,
+   l'empreinte, l'export et le canal. */
+.progression-bloc,
+.empreinte-bloc,
+.export-bloc,
+.canal-bloc {
+  margin-top: var(--espace-5);
+  padding: var(--espace-4) var(--espace-5);
+  border: 1px solid var(--couleur-bord);
+  border-radius: var(--rayon-md);
+  background: var(--couleur-surface-douce);
+}
+
+.progression-bloc {
+  border-color: var(--couleur-succes-bord);
+  background: var(--couleur-succes-fond);
+}
+
+.progression-tete {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-3);
+  margin-bottom: var(--espace-3);
+  color: var(--couleur-succes);
+  font-size: var(--texte-md);
+  font-variant-numeric: tabular-nums;
+}
+
+.progression-tete b {
+  margin-left: auto;
+}
+
+.progression-piste {
+  height: 8px;
+  overflow: hidden;
+  border-radius: var(--rayon-pilule);
+  background: var(--gris-0);
+}
+
+.progression-avance {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--brand-degrade);
+  transition: width var(--duree-lente) var(--courbe);
+}
+
+.empreinte-bloc {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-2);
+}
+
+.empreinte-libelle {
+  color: var(--couleur-texte-doux);
+  font-size: var(--texte-xs);
+  font-weight: var(--graisse-titre);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* L'empreinte est faite pour être comparée à l'œil : grande, en
+   chasse fixe, sur fond blanc. */
+.empreinte-valeur {
+  padding: var(--espace-2) var(--espace-3);
+  border: 1px solid var(--couleur-bord);
+  border-radius: var(--rayon-xs);
+  background: var(--couleur-surface);
+  color: var(--couleur-texte);
+  font-family: var(--police-mono);
+  font-size: var(--texte-md);
+  word-break: break-all;
+}
+
+.empreinte-aide,
+.export-aide {
+  color: var(--couleur-texte-doux);
+  font-size: var(--texte-sm);
+  line-height: var(--interligne);
+}
+
+.export-aide {
+  margin: var(--espace-2) 0 0;
+}
+
+.export-bloc .screen-section-title,
+.canal-bloc .screen-section-title {
+  margin-bottom: 0;
+}
+
+.export-boutons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espace-3);
+  margin: var(--espace-3) 0;
+}
+
+.export-bouton {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 120px;
+  padding: var(--espace-3) var(--espace-4);
+  border: 1px solid var(--couleur-bord);
+  border-radius: var(--rayon-sm);
+  background: var(--couleur-surface);
+  color: var(--couleur-texte);
+  font: inherit;
+  cursor: pointer;
+  transition:
+    border-color var(--duree-rapide) var(--courbe),
+    box-shadow var(--duree-rapide) var(--courbe),
+    transform var(--duree-rapide) var(--courbe);
+}
+
+.export-bouton:hover:not(:disabled) {
+  border-color: var(--couleur-action);
+  box-shadow: var(--ombre-2);
+  transform: translateY(-1px);
+}
+
+.export-bouton:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.export-bouton[aria-busy="true"] {
+  opacity: 1;
+  border-color: var(--couleur-action);
+}
+
+.export-bouton-libelle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espace-2);
+  font-size: var(--texte-md);
+  font-weight: var(--graisse-forte);
+}
+
+.export-bouton-extension {
+  color: var(--couleur-texte-doux);
+  font-family: var(--police-mono);
+  font-size: var(--texte-xs);
+}
+
+.canal-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--espace-3);
+  margin: var(--espace-3) 0 var(--espace-1);
+}
+
+.canal-form .champ-groupe {
+  min-width: min(100%, 280px);
+}
+
+/* Liste ou tableau posé sous un formulaire, dans un encart. */
+.bloc-suite {
+  margin-top: var(--espace-3);
+}
+
+.pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--espace-4);
+  margin-top: var(--espace-4);
+  color: var(--couleur-texte-doux);
+  font-size: var(--texte-sm);
+  font-variant-numeric: tabular-nums;
 }
 
 /* ── Pastilles de statut ────────────────────────────────────────── */

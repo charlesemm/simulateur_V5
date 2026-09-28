@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { RequireRole } from "../auth/RequireRole";
+import { useToast } from "../hooks/useToast";
 import { api } from "../services/api";
 import type {
   Campagne, Corrige, EchangeCampagne, FormatExport, ProgressionCampagne,
@@ -16,6 +17,8 @@ interface FicheCampagneProps {
   statuts: Record<string, string>;
   /** Prévient la liste qu'il faut relire la campagne en base. */
   onChangement: () => void;
+  /** Referme la fiche. Sans lui, pas de bouton « Fermer ». */
+  onFermer?: () => void;
 }
 
 /** Lignes de corrigé montrées d'un coup. Au-delà, on pagine. */
@@ -37,9 +40,10 @@ function entier(valeur: number): string {
  * fichiers ni à lancer quoi que ce soit dans un terminal.
  */
 export function FicheCampagne({
-  campagne, types, statuts, onChangement,
+  campagne, types, statuts, onChangement, onFermer,
 }: FicheCampagneProps) {
   const { token } = useAuth();
+  const { toast } = useToast();
   const [suivi, setSuivi] = useState<ProgressionCampagne | null>(null);
   const [corrige, setCorrige] = useState<Corrige | null>(null);
   const [page, setPage] = useState(0);
@@ -98,6 +102,11 @@ export function FicheCampagne({
         setSuivi(etat);
         if (etat.terminee && !finSignalee.current) {
           finSignalee.current = true;
+          if (etat.erreur) {
+            toast("erreur", "Génération interrompue", etat.erreur);
+          } else {
+            toast("succes", "Jeu de données généré", `${entier(etat.lignes_generees)} lignes produites`);
+          }
           // La campagne en base porte maintenant l'empreinte et les comptes :
           // c'est elle qu'il faut relire, pas la progression en mémoire.
           onChangement();
@@ -113,7 +122,7 @@ export function FicheCampagne({
       annule = true;
       clearInterval(minuterie);
     };
-  }, [enGeneration, campagne.campagne_id, token, onChangement]);
+  }, [enGeneration, campagne.campagne_id, token, onChangement, toast]);
 
   // ── Corrigé ───────────────────────────────────────────────────────────
   const chargerCorrige = useCallback(
@@ -149,13 +158,15 @@ export function FicheCampagne({
     try {
       setSuivi(await api.genererCampagne(campagne.campagne_id, token));
       setErreur(null);
+      toast("info", "Génération lancée", "La progression s'affiche dans la fiche.");
       onChangement();
     } catch (raison) {
       setErreur((raison as Error).message);
+      toast("erreur", "Génération impossible", (raison as Error).message);
     } finally {
       setDemarrage(false);
     }
-  }, [campagne.campagne_id, token, onChangement]);
+  }, [campagne.campagne_id, token, onChangement, toast]);
 
   // Les formats ne changent pas d'une campagne à l'autre : une seule lecture
   // au montage suffit, et elle n'est faite que si un jeu est téléchargeable.
@@ -182,13 +193,15 @@ export function FicheCampagne({
       try {
         await api.telechargerJeu(campagne.campagne_id, format, token);
         setErreur(null);
+        toast("succes", "Téléchargement prêt", `Format ${format}`);
       } catch (raison) {
         setErreur((raison as Error).message);
+        toast("erreur", "Téléchargement impossible", (raison as Error).message);
       } finally {
         setEnCours(null);
       }
     },
-    [campagne.campagne_id, token]
+    [campagne.campagne_id, token, toast]
   );
 
   // ── M6 : le canal API ────────────────────────────────────────────────
@@ -232,12 +245,14 @@ export function FicheCampagne({
       );
       setErreur(null);
       await chargerEchanges();
+      toast("succes", "Jeu transmis", "Le résultat s'ajoute à l'historique des transmissions.");
     } catch (raison) {
       setErreur((raison as Error).message);
+      toast("erreur", "Transmission impossible", (raison as Error).message);
     } finally {
       setTransmission(false);
     }
-  }, [campagne.campagne_id, token, adresseSaisie, chargerEchanges]);
+  }, [campagne.campagne_id, token, adresseSaisie, chargerEchanges, toast]);
 
   const pages = corrige ? Math.ceil(corrige.total / PAR_PAGE) : 0;
 
@@ -257,12 +272,16 @@ export function FicheCampagne({
               className="btn btn-start"
               onClick={() => void generer()}
               disabled={demarrage || enGeneration}
+              aria-busy={demarrage || enGeneration}
               title={
                 genere
                   ? "Reproduit le même jeu : la graine n'a pas changé"
                   : "Produit le jeu piégé et son corrigé"
               }
             >
+              {(demarrage || enGeneration) && (
+                <span className="ui-spinner ui-spinner--petit ui-spinner--inverse" aria-hidden="true" />
+              )}
               {enGeneration
                 ? "Génération…"
                 : genere
@@ -270,12 +289,17 @@ export function FicheCampagne({
                   : "Générer le jeu de données"}
             </button>
           </RequireRole>
+          {onFermer && (
+            <button type="button" className="btn btn-outline" onClick={onFermer}>
+              Fermer
+            </button>
+          )}
         </div>
       </div>
 
-      {erreur && <p className="screen-error">{erreur}</p>}
+      {erreur && <p className="screen-error" role="alert">{erreur}</p>}
       {suivi?.erreur && (
-        <p className="screen-error">
+        <p className="screen-error" role="alert">
           Génération interrompue : {suivi.erreur}. La campagne est repassée à
           « créée » — un jeu à moitié produit n'a aucune valeur.
         </p>
@@ -322,7 +346,14 @@ export function FicheCampagne({
             {entier(suivi.lignes_generees)} / {entier(suivi.volume_cible)} lignes
             <b>{suivi.pourcentage} %</b>
           </div>
-          <div className="progression-piste">
+          <div
+            className="progression-piste"
+            role="progressbar"
+            aria-label="Génération du jeu de données"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.min(100, suivi.pourcentage)}
+          >
             <div
               className="progression-avance"
               style={{ width: `${Math.min(100, suivi.pourcentage)}%` }}
@@ -367,9 +398,13 @@ export function FicheCampagne({
                 className="export-bouton"
                 onClick={() => void telecharger(format.code)}
                 disabled={enCours !== null}
+                aria-busy={enCours === format.code}
                 title={format.description}
               >
                 <span className="export-bouton-libelle">
+                  {enCours === format.code && (
+                    <span className="ui-spinner ui-spinner--petit" aria-hidden="true" />
+                  )}
                   {enCours === format.code ? "Préparation…" : format.libelle}
                 </span>
                 <span className="export-bouton-extension">
@@ -388,7 +423,7 @@ export function FicheCampagne({
       {/* ── M6 : le canal vers l'outil testé ── */}
       {genere && (
         <div className="canal-bloc">
-          <h3 className="screen-section-title" style={{ marginTop: 0 }}>
+          <h3 className="screen-section-title">
             Transmettre à l'outil testé
           </h3>
           <p className="export-aide">
@@ -416,18 +451,22 @@ export function FicheCampagne({
                 className="btn btn-start"
                 onClick={() => void transmettre()}
                 disabled={transmission}
+                aria-busy={transmission}
               >
+                {transmission && (
+                  <span className="ui-spinner ui-spinner--petit ui-spinner--inverse" aria-hidden="true" />
+                )}
                 {transmission ? "Transmission…" : "Transmettre"}
               </button>
             </div>
           </RequireRole>
 
           {echanges.length === 0 ? (
-            <div className="screen-empty" style={{ marginTop: 12 }}>
+            <div className="screen-empty bloc-suite">
               Aucune transmission pour l'instant.
             </div>
           ) : (
-            <div className="screen-table-wrap" style={{ marginTop: 12 }}>
+            <div className="screen-table-wrap bloc-suite">
               <table className="screen-table">
                 <thead>
                   <tr>
@@ -435,7 +474,7 @@ export function FicheCampagne({
                     <th>Reçu le</th>
                     <th>Adresse</th>
                     <th>Résultat</th>
-                    <th>Constats</th>
+                    <th className="num">Constats</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -463,7 +502,7 @@ export function FicheCampagne({
                           </span>
                         )}
                       </td>
-                      <td>
+                      <td className="num">
                         {echange.echange_resultat === "succes"
                           ? entier(echange.echange_nombre_constats)
                           : "—"}
@@ -478,7 +517,7 @@ export function FicheCampagne({
       )}
 
       {/* ── Ce qui a été demandé ── */}
-      <h3 className="screen-section-title" style={{ marginTop: 20 }}>
+      <h3 className="screen-section-title fiche-partie">
         Anomalies demandées
       </h3>
       {anomalies.length === 0 ? (
@@ -493,8 +532,8 @@ export function FicheCampagne({
               <tr>
                 <th>Dimension</th>
                 <th>Type d'anomalie</th>
-                <th>Taux demandé</th>
-                <th>Posées</th>
+                <th className="num">Taux demandé</th>
+                <th className="num">Posées</th>
               </tr>
             </thead>
             <tbody>
@@ -507,8 +546,8 @@ export function FicheCampagne({
                       {type.table_cible}.{type.colonne_cible}
                     </div>
                   </td>
-                  <td>{pourcentage} %</td>
-                  <td>
+                  <td className="num">{pourcentage} %</td>
+                  <td className="num">
                     {corrige
                       ? entier(corrige.par_anomalie[type.code] ?? 0)
                       : "—"}
@@ -523,7 +562,7 @@ export function FicheCampagne({
       {/* ── Le corrigé ── */}
       {genere && corrige && (
         <>
-          <h3 className="screen-section-title" style={{ marginTop: 20 }}>
+          <h3 className="screen-section-title fiche-partie">
             Corrigé — {entier(corrige.total)} anomalie
             {corrige.total > 1 ? "s" : ""} posée{corrige.total > 1 ? "s" : ""}
           </h3>
@@ -543,7 +582,7 @@ export function FicheCampagne({
                 <table className="screen-table">
                   <thead>
                     <tr>
-                      <th>Ligne</th>
+                      <th className="num">Ligne</th>
                       <th>Champ</th>
                       <th>Anomalie</th>
                       <th>Valeur d'origine</th>
@@ -553,7 +592,7 @@ export function FicheCampagne({
                   <tbody>
                     {corrige.lignes.map((ligne) => (
                       <tr key={`${ligne.corrige_ligne}-${ligne.anomalie_code}`}>
-                        <td>{entier(ligne.corrige_ligne)}</td>
+                        <td className="num">{entier(ligne.corrige_ligne)}</td>
                         <td className="cellule-pied">{ligne.corrige_champ}</td>
                         <td>{libelleType(ligne.anomalie_code)}</td>
                         <td>{ligne.corrige_valeur_origine}</td>
@@ -567,7 +606,7 @@ export function FicheCampagne({
               </div>
 
               {pages > 1 && (
-                <div className="pagination">
+                <nav className="pagination" aria-label="Pages du corrigé">
                   <button
                     className="btn btn-outline"
                     onClick={() => setPage((actuelle) => Math.max(0, actuelle - 1))}
@@ -575,7 +614,7 @@ export function FicheCampagne({
                   >
                     ← Précédentes
                   </button>
-                  <span>
+                  <span aria-live="polite">
                     Page {page + 1} sur {pages}
                   </span>
                   <button
@@ -587,7 +626,7 @@ export function FicheCampagne({
                   >
                     Suivantes →
                   </button>
-                </div>
+                </nav>
               )}
             </>
           )}
@@ -595,7 +634,7 @@ export function FicheCampagne({
       )}
 
       {!genere && !enGeneration && (
-        <p className="screen-section-lead" style={{ marginTop: 16 }}>
+        <p className="screen-section-lead fiche-partie">
           Le jeu de données n'est pas encore produit. La campagne existe, elle
           est numérotée, et sa graine est fixée : elle produira toujours le même
           jeu.

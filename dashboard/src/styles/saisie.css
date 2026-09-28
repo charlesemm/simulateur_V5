@@ -518,6 +518,17 @@
   backdrop-filter: blur(12px);
 }
 
+.barre-lancement-etape {
+  margin-right: auto;
+  color: var(--couleur-texte-doux);
+  font-size: var(--texte-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.barre-lancement-erreur + .barre-lancement-etape {
+  margin-right: 0;
+}
+
 .barre-lancement-erreur {
   flex: 1;
   min-width: 0;
@@ -536,6 +547,96 @@
   font-size: var(--texte-sm);
 }
 
+/* ── Fil d'étapes d'un assistant ────────────────────────────────── */
+
+.fil-etapes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espace-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: none;
+}
+
+.fil-etape {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: var(--espace-3);
+  min-width: 180px;
+  padding: var(--espace-3) var(--espace-4);
+  border: 1px solid var(--couleur-bord);
+  border-radius: var(--rayon-md);
+  background: var(--couleur-surface);
+  color: var(--couleur-texte-doux);
+  transition:
+    border-color var(--duree) var(--courbe),
+    box-shadow var(--duree) var(--courbe),
+    color var(--duree) var(--courbe);
+}
+
+.fil-etape-rang {
+  display: inline-flex;
+  flex: 0 0 28px;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--couleur-bord);
+  border-radius: 50%;
+  background: var(--couleur-surface-douce);
+  font-size: var(--texte-sm);
+  font-weight: var(--graisse-titre);
+  transition: background-color var(--duree) var(--courbe), color var(--duree) var(--courbe);
+}
+
+.fil-etape-libelle {
+  font-size: var(--texte-md);
+  font-weight: var(--graisse-forte);
+}
+
+.fil-etape--active {
+  border-color: var(--couleur-action);
+  box-shadow: 0 0 0 3px var(--couleur-action-douce);
+  color: var(--couleur-texte);
+}
+
+.fil-etape--active .fil-etape-rang {
+  border-color: var(--couleur-action);
+  background: var(--couleur-action);
+  color: var(--couleur-action-texte);
+}
+
+.fil-etape--faite {
+  border-color: var(--couleur-succes-bord);
+  color: var(--couleur-succes);
+}
+
+.fil-etape--faite .fil-etape-rang {
+  border-color: var(--couleur-succes-bord);
+  background: var(--couleur-succes-fond);
+  color: var(--couleur-succes);
+}
+
+/* Case d'activation d'un type : assez grande pour se cliquer sans viser. */
+.case-anomalie {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--couleur-action);
+  cursor: pointer;
+}
+
+.reference-previsionnelle {
+  color: var(--couleur-texte-doux);
+  font-size: var(--texte-sm);
+}
+
+.reference-previsionnelle b {
+  color: var(--couleur-texte);
+  font-family: var(--police-mono);
+}
+
 @media (max-width: 1100px) {
   .launch-grid,
   .formulaire-lancement {
@@ -548,6 +649,25 @@
 }
 
 @media (max-width: 600px) {
+  /* Trois étapes côte à côte ne tiennent pas : on garde les numéros,
+     et le libellé de l'étape en cours seulement. */
+  .fil-etape {
+    flex: 0 0 auto;
+    min-width: 0;
+  }
+
+  .fil-etape:not(.fil-etape--active) .fil-etape-libelle {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+  }
+
+  .fil-etape--active {
+    flex: 1;
+  }
+
   .barre-lancement {
     border-radius: var(--rayon-md);
     flex-wrap: wrap;
