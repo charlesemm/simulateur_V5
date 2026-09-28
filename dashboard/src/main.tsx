@@ -6,9 +6,7 @@ import ReactDOM from "react-dom/client";
 import App from "./App";
 // Ordre voulu : les jetons d'abord, les composants « ui- » en dernier.
 import "./styles/tokens.css";
-import "./index.css";
-import "./brand-refresh.css";
-import "./layout-flow.css";
+import "./styles/base.css";
 import "./styles/shell.css";
 import "./styles/patterns.css";
 import "./styles/saisie.css";

@@ -467,3 +467,14 @@
     border-top: 1px solid #d4e5ef;
   }
 }
+
+/* Repris de l'ancienne layout-flow.css : colonne du formulaire centrée,
+   carte aux angles plus ronds que le reste de l'interface. */
+.lp-form-col {
+  display: flex;
+  align-items: center;
+}
+
+.lp-card {
+  border-radius: 28px;
+}

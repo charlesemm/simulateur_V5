@@ -120,7 +120,7 @@
   --police: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
   --police-mono: ui-monospace, "Cascadia Code", "SFMono-Regular", Consolas, monospace;
 
-  /* La racine vaut 18 px (voir index.css) : les rem ci-dessous s'y
+  /* La racine vaut 18 px (voir styles/base.css) : les rem ci-dessous s'y
      rapportent. Rien sous 12 px — en dessous, on ne lit plus à
      distance de bureau. */
   --texte-2xs: 0.667rem; /* 12 px — mentions, sur-titres */
