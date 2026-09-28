@@ -27,7 +27,7 @@
   --vert-500: #4caf2a; /* logo */
   --vert-600: #3b9220;
   --vert-700: #3a8620; /* encre : 4,55:1 sur blanc */
-  --vert-800: #2f7a18;
+  --vert-800: #2f7a18; /* encre sur fond vert pâle : 4,9:1 */
 
   /* Bleu CNAM */
   --bleu-50: #e6f5fb;
@@ -45,6 +45,7 @@
   --orange-400: #f08a1c;
   --orange-500: #f07800; /* logo */
   --orange-700: #ba5d00; /* encre : 4,5:1 sur blanc */
+  --orange-800: #a35200; /* encre sur fond orangé : 5,1:1 */
 
   /* Rouge — réservé aux erreurs. Hors charte, mais une erreur doit se
      distinguer d'une alerte au premier coup d'œil. */
@@ -92,11 +93,13 @@
   --couleur-nav: var(--bleu-500);
   --couleur-lien: var(--bleu-600);
 
-  --couleur-succes: var(--vert-700);
+  /* Texte posé sur le fond teinté correspondant : une nuance plus
+     sombre que l'encre sur blanc, pour tenir 4,5:1 sur la teinte. */
+  --couleur-succes: var(--vert-800);
   --couleur-succes-fond: var(--vert-50);
   --couleur-succes-bord: var(--vert-200);
 
-  --couleur-alerte: var(--orange-700);
+  --couleur-alerte: var(--orange-800);
   --couleur-alerte-fond: var(--orange-50);
   --couleur-alerte-bord: var(--orange-200);
 

@@ -23,94 +23,24 @@
   border-color: var(--couleur-action-survol);
 }
 
-.screen,
 .page-container,
 .dashboard-content-space {
   width: min(100%, 1440px);
   margin-inline: auto;
 }
 
-.screen,
-.screen {
-  display: flex;
-  flex-direction: column;
-  gap: 32px;
-}
-
-.screen-section-title,
-.screen-section-title {
-  margin-bottom: 14px;
-  color: var(--cnam-blue-dark);
-  font-size: var(--texte-2xs);
-  font-weight: 800;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-}
-
-.stat-strip,
-.stat-strip,
-.type-grid,
-.type-grid,
 .tech-metric-grid {
   gap: 16px;
 }
 
-.stat-tile,
-.stat-tile,
-.type-card,
-.type-card,
 .tech-metric-card,
 .chart-card,
 .reports-card,
-.screen-table-wrap,
-.screen-table-wrap,
 .alea-card {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--rayon-lg);
   box-shadow: var(--shadow-card);
-}
-
-.stat-tile,
-.stat-tile {
-  min-height: 128px;
-  padding: 20px;
-  border-top: 4px solid var(--tile-color, var(--tile-color, var(--cnam-blue)));
-}
-
-.stat-tile--accent,
-.stat-tile--accent {
-  border-top-color: var(--tile-color, var(--tile-color, var(--cnam-green)));
-}
-
-.stat-tile--accent.alive .stat-tile-value,
-.stat-tile--accent.alive .stat-tile-value,
-.stat-tile--accent.alive .stat-tile-value {
-  color: var(--cnam-green-dark);
-}
-
-.type-card,
-.type-card {
-  min-height: 214px;
-  padding: 22px;
-  position: relative;
-  overflow: hidden;
-}
-
-.type-card::before,
-.type-card::before {
-  content: "";
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 5px;
-  background: var(--type-color, var(--type-color, var(--cnam-blue)));
-}
-
-.type-card--action:hover:not(:disabled),
-.type-card--action:hover:not(:disabled) {
-  transform: translateY(-3px);
-  border-color: color-mix(in srgb, var(--type-color, var(--type-color, var(--cnam-blue))) 40%, white);
-  box-shadow: var(--shadow-hover);
 }
 
 .tech-metric-card:hover {
@@ -128,28 +58,5 @@
   border-color: var(--cnam-blue-border);
   background: var(--cnam-blue-light);
   border-radius: 14px;
-}
-
-.stat-tile-label,
-.stat-tile-label {
-  color: var(--text-muted);
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.stat-tile-value,
-.stat-tile-value {
-  color: var(--text-main);
-  font-size: 1.45rem;
-  font-weight: 800;
-  letter-spacing: -0.03em;
-}
-
-.type-card-code,
-.type-card-code {
-  color: var(--type-color, var(--type-color, var(--cnam-blue)));
-  background: color-mix(in srgb, var(--type-color, var(--type-color, var(--cnam-blue))) 12%, white);
 }
 

@@ -1158,7 +1158,6 @@ svg {
 }
 
 .dashboard-content-space,
-.screen,
 .page-container {
   width: min(100%, 1480px);
   margin: 0 auto;
@@ -1175,10 +1174,7 @@ svg {
 .tech-metric-card,
 .chart-card,
 .reports-card,
-.screen-table-wrap,
-.alea-carte,
-.type-card,
-.stat-tile {
+.alea-carte {
   border-radius: 16px;
   border-color: #dce7e2;
   box-shadow: var(--shadow-card);
@@ -1190,15 +1186,13 @@ svg {
   background: #ffffff;
 }
 
-.tech-metric-card:hover,
-.type-card--action:hover {
+.tech-metric-card:hover {
   border-color: rgba(76, 168, 46, 0.45);
   box-shadow: var(--shadow-hover);
   transform: translateY(-2px);
 }
 
-.card-label,
-.screen-section-title {
+.card-label {
   color: #64766d;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -1222,57 +1216,6 @@ svg {
 .chart-card {
   background: #ffffff;
   padding: 22px;
-}
-
-.screen {
-  display: flex;
-  flex-direction: column;
-  gap: 32px;
-}
-
-.screen-section-title {
-  margin-bottom: 14px;
-  font-size: 0.7rem;
-  font-weight: 800;
-}
-
-.stat-strip {
-  gap: 16px;
-}
-
-.stat-tile {
-  min-height: 132px;
-  padding: 20px;
-  background: #ffffff;
-}
-
-.stat-tile:hover {
-  box-shadow: var(--shadow-hover);
-  transform: translateY(-2px);
-}
-
-.type-grid {
-  gap: 16px;
-}
-
-.type-card {
-  min-height: 218px;
-  padding: 22px;
-  background: #ffffff;
-}
-
-.type-card--action {
-  cursor: pointer;
-  text-align: left;
-  transition: border-color var(--transition), box-shadow var(--transition), transform var(--transition);
-}
-
-.type-card-title {
-  color: #10281d;
-}
-
-.type-card-desc {
-  color: #687970;
 }
 
 .page-title {
@@ -1310,9 +1253,7 @@ svg {
   
 
   .tech-metric-card,
-  .chart-card,
-  .type-card,
-  .stat-tile {
+.chart-card {
     border-radius: 13px;
   }
 }

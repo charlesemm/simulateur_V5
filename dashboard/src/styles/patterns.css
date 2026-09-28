@@ -1,0 +1,684 @@
+/* ═══════════════════════════════════════════════════════════════
+   ÉCHO — motifs communs aux écrans
+
+   Ce que plusieurs écrans partagent : la page, ses sections, les
+   tuiles de chiffres, les cartes de type, les tableaux, les états
+   vide et erreur, les pastilles de statut.
+
+   Chargé après toutes les autres feuilles : ces règles étaient
+   jusqu'ici réparties entre quatre fichiers qui se recouvraient, et
+   les écrans ne montraient pas toujours ce que Screens.css décrivait.
+═══════════════════════════════════════════════════════════════ */
+
+/* ── Page ───────────────────────────────────────────────────────── */
+
+.screen {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-8);
+  width: min(100%, var(--largeur-contenu));
+  margin-inline: auto;
+  /* Le contenu apparaît d'un souffle plutôt que d'un coup : c'est ce qui
+     fait qu'un écran se regarde au lieu de se subir. */
+  animation: ecran-entree var(--duree-lente) var(--courbe-sortie) both;
+}
+
+@keyframes ecran-entree {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ── Sections ───────────────────────────────────────────────────── */
+
+.screen-section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--espace-2) var(--espace-4);
+  margin-bottom: var(--espace-4);
+}
+
+/* Un vrai titre, et non plus un sur-titre gris en capitales : c'est
+   lui qui découpe l'écran, il doit se lire en premier. */
+.screen-section-title {
+  margin-bottom: var(--espace-4);
+  color: var(--couleur-texte);
+  font-size: var(--texte-lg);
+  font-weight: var(--graisse-titre);
+  letter-spacing: -0.01em;
+  line-height: var(--interligne-serre);
+}
+
+h3.screen-section-title {
+  font-size: var(--texte-md);
+}
+
+.screen-section-head .screen-section-title {
+  margin-bottom: 0;
+}
+
+.screen-section-lead {
+  max-width: 68ch;
+  margin: calc(-1 * var(--espace-2)) 0 var(--espace-4);
+  color: var(--couleur-texte-doux);
+  font-size: var(--texte-md);
+  line-height: var(--interligne);
+}
+
+.screen-section-compte {
+  color: var(--couleur-texte-doux);
+  font-size: var(--texte-sm);
+  white-space: nowrap;
+}
+
+/* Lien d'action discret, à droite d'un titre de section. */
+.btn-text {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--couleur-lien);
+  font: inherit;
+  font-size: var(--texte-sm);
+  font-weight: var(--graisse-titre);
+  text-underline-offset: 3px;
+  cursor: pointer;
+  transition: color var(--duree-rapide) var(--courbe);
+}
+
+.btn-text:hover {
+  color: var(--bleu-700);
+  text-decoration: underline;
+}
+
+/* ── États vide et erreur ───────────────────────────────────────── */
+
+.screen-empty {
+  padding: var(--espace-10) var(--espace-6);
+  border: 1px dashed var(--couleur-bord);
+  border-radius: var(--rayon-md);
+  background: var(--couleur-surface);
+  color: var(--couleur-texte-doux);
+  font-size: var(--texte-md);
+  text-align: center;
+}
+
+.screen-error {
+  padding: var(--espace-3) var(--espace-4);
+  border: 1px solid var(--couleur-erreur-bord);
+  border-left: 4px solid var(--couleur-erreur-vif);
+  border-radius: var(--rayon-xs);
+  background: var(--couleur-erreur-fond);
+  color: var(--couleur-erreur);
+  font-size: var(--texte-sm);
+  font-weight: var(--graisse-moyenne);
+}
+
+/* ── Tuiles de chiffres ─────────────────────────────────────────── */
+
+.stat-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--espace-4);
+}
+
+/* Une tuile se lit, elle ne se clique pas : pas d'effet de survol
+   qui laisserait croire le contraire. */
+.stat-tile {
+  position: relative;
+  min-height: 128px;
+  padding: var(--espace-5);
+  overflow: hidden;
+  border: 1px solid var(--couleur-bord);
+  border-radius: var(--rayon-md);
+  background: var(--couleur-surface);
+  box-shadow: var(--ombre-2);
+}
+
+/* Le filet de couleur porte l'accent ; le libellé reste lisible. */
+.stat-tile--accent::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 4px;
+  background: var(--tuile-couleur, var(--couleur-bord-fort));
+}
+
+.stat-tile--accent.vivante {
+  --tuile-couleur: var(--cnam-green);
+}
+
+.stat-tile-label {
+  display: block;
+  margin-bottom: var(--espace-2);
+  color: var(--couleur-texte-doux);
+  font-size: var(--texte-xs);
+  font-weight: var(--graisse-titre);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.stat-tile-value {
+  display: block;
+  color: var(--couleur-texte);
+  font-size: var(--texte-2xl);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.stat-tile--accent.vivante .stat-tile-value {
+  color: var(--couleur-succes);
+}
+
+.stat-tile-hint {
+  display: block;
+  margin-top: var(--espace-1);
+  color: var(--couleur-texte-doux);
+  font-size: var(--texte-sm);
+}
+
+/* Bandeau récapitulatif : fond vert encre, texte blanc lisible. */
+.stat-strip--recap {
+  padding: var(--espace-4);
+  border-radius: var(--rayon-md);
+  background: var(--couleur-action);
+}
+
+.stat-strip--recap .stat-tile {
+  border-color: rgba(255, 255, 255, 0.35);
+  background: transparent;
+  box-shadow: none;
+}
+
+.stat-strip--recap .stat-tile-label,
+.stat-strip--recap .stat-tile-value,
+.stat-strip--recap .stat-tile-hint {
+  color: var(--gris-0);
+}
+
+/* ── Cartes de type de simulation ───────────────────────────────── */
+
+.type-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--espace-4);
+}
+
+.type-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 200px;
+  padding: var(--espace-6) var(--espace-6) var(--espace-5);
+  overflow: hidden;
+  border: 1px solid var(--couleur-bord);
+  border-radius: var(--rayon-lg);
+  background: var(--couleur-surface);
+  box-shadow: var(--ombre-2);
+  transition:
+    box-shadow var(--duree) var(--courbe),
+    border-color var(--duree) var(--courbe),
+    transform var(--duree) var(--courbe);
+}
+
+/* Filet supérieur à la couleur du type. */
+.type-card::after {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 4px;
+  background: var(--type-couleur, var(--cnam-green));
+}
+
+.type-card--action {
+  width: 100%;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.type-card--action:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--type-couleur, var(--cnam-green)) 45%, white);
+  box-shadow: var(--ombre-3);
+  transform: translateY(-2px);
+}
+
+.type-card--action:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.type-card--action:disabled {
+  cursor: not-allowed;
+}
+
+.type-card--lecture {
+  cursor: default;
+}
+
+.type-card--choisi {
+  border-color: var(--type-couleur, var(--cnam-green));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--type-couleur, var(--cnam-green)) 22%, transparent), var(--ombre-2);
+}
+
+/* Type encore fermé : visible, mais clairement hors d'usage. */
+.type-card--desactive {
+  opacity: 0.6;
+  filter: grayscale(0.8);
+  box-shadow: none;
+}
+
+.type-card--desactive::after {
+  background: var(--couleur-bord-fort);
+}
+
+.type-card-code {
+  align-self: flex-start;
+  justify-self: start;
+  margin-bottom: var(--espace-3);
+  padding: 3px 10px;
+  border: 1px solid color-mix(in srgb, var(--type-couleur, var(--cnam-green)) 30%, transparent);
+  border-radius: var(--rayon-pilule);
+  background: color-mix(in srgb, var(--type-couleur, var(--cnam-green)) 10%, white);
+  /* La couleur du type, assombrie : elle reste reconnaissable et le
+     code reste lisible quelle que soit la teinte choisie côté serveur. */
+  color: color-mix(in srgb, var(--type-couleur, var(--cnam-green)) 60%, #000);
+  font-size: var(--texte-2xs);
+  font-weight: var(--graisse-titre);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.type-card-title {
+  display: block;
+  margin-bottom: var(--espace-1);
+  color: var(--couleur-texte);
+  font-size: var(--texte-lg);
+  font-weight: var(--graisse-titre);
+  line-height: var(--interligne-serre);
+}
+
+.type-card-desc {
+  display: block;
+  flex: 1;
+  margin-bottom: var(--espace-4);
+  color: var(--couleur-texte-doux);
+  font-size: var(--texte-md);
+  line-height: var(--interligne);
+}
+
+.type-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espace-2) var(--espace-4);
+  color: var(--couleur-texte-doux);
+  font-size: var(--texte-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.type-card-attente {
+  align-self: flex-start;
+  margin-bottom: var(--espace-3);
+  padding: 3px 10px;
+  border-radius: var(--rayon-pilule);
+  background: var(--couleur-surface-douce);
+  color: var(--couleur-texte-doux);
+  font-size: var(--texte-xs);
+  font-style: italic;
+}
+
+.type-card-appel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espace-3);
+  margin-top: auto;
+  padding-top: var(--espace-4);
+  border-top: 1px solid var(--couleur-bord-doux);
+  color: color-mix(in srgb, var(--type-couleur, var(--cnam-green)) 60%, #000);
+  font-size: var(--texte-sm);
+  font-weight: var(--graisse-titre);
+}
+
+.type-card-fleche {
+  font-size: var(--texte-base);
+  transition: transform var(--duree) var(--courbe-sortie);
+}
+
+.type-card--action:hover:not(:disabled) .type-card-fleche {
+  transform: translateX(4px);
+}
+
+/* Carte mise en avant : pleine largeur, le code et les repères
+   chiffrés sur une même ligne. */
+.type-card--featured {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "code meta"
+    "title title"
+    "desc desc"
+    "appel appel";
+  column-gap: var(--espace-6);
+  min-height: 168px;
+  padding: var(--espace-6) var(--espace-7);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--type-couleur, var(--cnam-green)) 7%, white),
+    white 46%
+  );
+}
+
+.type-card--featured .type-card-code { grid-area: code; margin-bottom: var(--espace-2); }
+.type-card--featured .type-card-title { grid-area: title; font-size: var(--texte-xl); }
+.type-card--featured .type-card-desc { grid-area: desc; max-width: 62ch; margin-bottom: var(--espace-2); }
+.type-card--featured .type-card-meta { grid-area: meta; justify-self: end; align-self: start; }
+
+.type-card--featured .type-card-appel {
+  grid-area: appel;
+  margin-top: var(--espace-3);
+  padding: var(--espace-3) var(--espace-4);
+  border: 0;
+  border-radius: var(--rayon-pilule);
+  background: color-mix(in srgb, var(--type-couleur, var(--cnam-green)) 11%, white);
+  transition: background-color var(--duree) var(--courbe);
+}
+
+.type-card--featured.type-card--action:hover:not(:disabled) .type-card-appel {
+  background: color-mix(in srgb, var(--type-couleur, var(--cnam-green)) 18%, white);
+}
+
+/* ── Tableaux ───────────────────────────────────────────────────── */
+
+/* Le tableau défile seul, jamais la page : sur téléphone, les
+   colonnes de droite étaient jusqu'ici coupées. */
+.screen-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--couleur-bord);
+  border-radius: var(--rayon-md);
+  background: var(--couleur-surface);
+  box-shadow: var(--ombre-2);
+  -webkit-overflow-scrolling: touch;
+}
+
+.screen-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--texte-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.screen-table th {
+  padding: var(--espace-3) var(--espace-4);
+  border-bottom: 1px solid var(--couleur-bord);
+  background: var(--couleur-surface-douce);
+  color: var(--couleur-texte-doux);
+  font-size: var(--texte-2xs);
+  font-weight: var(--graisse-titre);
+  letter-spacing: 0.08em;
+  text-align: left;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.screen-table td {
+  padding: var(--espace-3) var(--espace-4);
+  border-bottom: 1px solid var(--couleur-bord-doux);
+  color: var(--couleur-texte);
+  vertical-align: middle;
+}
+
+/* Les nombres s'alignent à droite : on les compare d'un coup d'œil. */
+.screen-table .num {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.screen-table tr:last-child td {
+  border-bottom: none;
+}
+
+.screen-table tbody tr.cliquable {
+  cursor: pointer;
+  transition: background-color var(--duree-rapide) var(--courbe);
+}
+
+.screen-table tbody tr.cliquable td {
+  padding-block: 14px;
+}
+
+.screen-table tbody tr.cliquable td:first-child {
+  box-shadow: inset 0 0 0 0 var(--cnam-blue);
+  transition: box-shadow var(--duree-rapide) var(--courbe);
+}
+
+.screen-table tbody tr.cliquable:hover {
+  background: var(--couleur-surface-survol);
+}
+
+.screen-table tbody tr.cliquable:hover td:first-child,
+.screen-table tbody tr.cliquable:focus-visible td:first-child {
+  box-shadow: inset 3px 0 0 0 var(--cnam-blue);
+}
+
+.screen-table tbody tr.cliquable:focus-visible {
+  outline: 2px solid var(--couleur-focus);
+  outline-offset: -2px;
+  background: var(--couleur-surface-survol);
+}
+
+.screen-table tbody tr.selectionnee {
+  background: var(--cnam-blue-light);
+}
+
+.screen-table tbody tr.selectionnee td:first-child {
+  box-shadow: inset 3px 0 0 0 var(--cnam-blue);
+}
+
+/* ── Pastilles de statut ────────────────────────────────────────── */
+
+.pastille {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 10px;
+  border: 1px solid var(--couleur-bord);
+  border-radius: var(--rayon-pilule);
+  background: var(--couleur-surface-douce);
+  color: var(--couleur-texte-doux);
+  font-size: var(--texte-2xs);
+  font-weight: var(--graisse-titre);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* En cours, en génération, notée : vert. */
+.pastille-en_cours,
+.pastille-generation,
+.pastille-notee {
+  border-color: var(--couleur-succes-bord);
+  background: var(--couleur-succes-fond);
+  color: var(--couleur-succes);
+}
+
+/* Terminée, générée, transmise, rapport reçu : bleu. */
+.pastille-terminee,
+.pastille-generee,
+.pastille-transmise,
+.pastille-rapport_recu {
+  border-color: var(--couleur-info-bord);
+  background: var(--couleur-info-fond);
+  color: var(--couleur-info);
+}
+
+/* Arrêtée, créée : neutre (valeurs par défaut de .pastille). */
+
+.pastille-echouee {
+  border-color: var(--couleur-erreur-bord);
+  background: var(--couleur-erreur-fond);
+  color: var(--couleur-erreur);
+}
+
+.pastille-echec_echange {
+  border-color: var(--couleur-alerte-bord);
+  background: var(--couleur-alerte-fond);
+  color: var(--couleur-alerte);
+}
+
+.pastilles-droits {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* ── Vue d'ensemble ─────────────────────────────────────────────── */
+
+.home-hero {
+  display: grid;
+  grid-template-columns: minmax(280px, 1.35fr) minmax(0, 1fr);
+  gap: var(--espace-4);
+  align-items: stretch;
+}
+
+/* Le bandeau d'état : bleu quand le moteur attend, vert quand il
+   tourne. Dégradés assez soutenus pour que le blanc y tienne 4,5:1. */
+.home-status {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--espace-5);
+  min-height: 188px;
+  padding: var(--espace-7);
+  border-radius: var(--rayon-lg);
+  background:
+    radial-gradient(circle at 100% 0%, rgba(255, 255, 255, 0.14), transparent 42%),
+    linear-gradient(145deg, #0070ad 0%, var(--bleu-700) 100%);
+  color: var(--gris-0);
+  box-shadow: 0 18px 40px rgba(0, 80, 124, 0.22);
+}
+
+.home-status--live {
+  background:
+    radial-gradient(circle at 100% 0%, rgba(255, 255, 255, 0.12), transparent 42%),
+    linear-gradient(145deg, var(--vert-700) 0%, #245e12 100%);
+  box-shadow: 0 18px 40px rgba(47, 122, 28, 0.22);
+}
+
+.home-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espace-2);
+  margin-bottom: var(--espace-2);
+  color: rgba(255, 255, 255, 0.92);
+  font-size: var(--texte-2xs);
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.home-status h2 {
+  margin: 0 0 var(--espace-2);
+  font-size: var(--texte-2xl);
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.home-status p {
+  max-width: 46ch;
+  margin: 0;
+  color: rgba(255, 255, 255, 0.94);
+  font-size: var(--texte-md);
+  line-height: var(--interligne);
+}
+
+.home-status .btn,
+.home-status .btn-start {
+  align-self: flex-start;
+  border: 0;
+  background: var(--gris-0);
+  box-shadow: none;
+  color: var(--vert-800);
+}
+
+.home-status .btn:hover:not(:disabled),
+.home-status .btn-start:hover:not(:disabled) {
+  background: var(--vert-50);
+}
+
+.home-kpis {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--espace-3);
+}
+
+.home-kpis .stat-tile {
+  min-height: 0;
+  margin: 0;
+}
+
+.home-kpis .stat-tile-value {
+  font-size: var(--texte-xl);
+}
+
+/* ── Adaptations ────────────────────────────────────────────────── */
+
+@media (max-width: 1100px) {
+  .home-hero,
+  .type-card--featured {
+    grid-template-columns: 1fr;
+  }
+
+  .type-card--featured {
+    grid-template-areas:
+      "code"
+      "title"
+      "desc"
+      "meta"
+      "appel";
+  }
+
+  .type-card--featured .type-card-meta {
+    justify-self: start;
+  }
+}
+
+@media (max-width: 960px) {
+  .type-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .screen {
+    gap: var(--espace-6);
+  }
+}
+
+@media (max-width: 600px) {
+  .stat-tile,
+  .type-card {
+    border-radius: var(--rayon-sm);
+  }
+
+  .home-status {
+    min-height: 0;
+    padding: var(--espace-5);
+  }
+
+  .home-status h2 {
+    font-size: var(--texte-xl);
+  }
+
+  .type-card,
+  .type-card--featured {
+    padding: var(--espace-5);
+  }
+}
+
+@media (max-width: 360px) {
+  .home-kpis {
+    grid-template-columns: 1fr;
+  }
+}
