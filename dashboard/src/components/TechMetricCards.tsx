@@ -18,7 +18,7 @@ function formatUptime(seconds: number): string {
 export function TechMetricCards({ metrics, loading }: TechMetricCardsProps) {
   if (loading && !metrics) {
     return (
-      <section className="tech-metric-grid" aria-label="Chargement des métriques">
+      <section className="tech-metric-grid" aria-busy="true" aria-label="Chargement des métriques">
         <div className="skeleton tech-metric-card" />
         <div className="skeleton tech-metric-card" />
         <div className="skeleton tech-metric-card" />

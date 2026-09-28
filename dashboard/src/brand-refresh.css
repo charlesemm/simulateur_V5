@@ -23,27 +23,10 @@
   border-color: var(--couleur-action-survol);
 }
 
-.dashboard-content-space {
-  width: min(100%, 1440px);
-  margin-inline: auto;
-}
-
-.tech-metric-grid {
-  gap: 16px;
-}
-
-.tech-metric-card,
-.chart-card,
 .alea-card {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--rayon-lg);
   box-shadow: var(--shadow-card);
-}
-
-.tech-metric-card:hover {
-  transform: translateY(-2px);
-  border-color: var(--cnam-blue-border);
-  box-shadow: var(--shadow-hover);
 }
 

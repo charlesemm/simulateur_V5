@@ -44,16 +44,20 @@ export function LiveLogTerminal() {
   const { evenements, evenementsEcartes, connectionStatus } = useKpiSocket();
   const [autoScroll, setAutoScroll] = useState(true);
   const [filtre, setFiltre] = useState<string>("ALL");
-  const finRef = useRef<HTMLDivElement | null>(null);
+  const contenuRef = useRef<HTMLDivElement | null>(null);
 
   const affiches = useMemo(
     () => evenements.filter((evenement) => filtre === "ALL" || niveau(evenement) === filtre),
     [evenements, filtre]
   );
 
+  // On fait défiler le terminal, et lui seul. scrollIntoView faisait
+  // défiler toute la page jusqu'à lui à chaque événement : impossible de
+  // lire un graphique pendant qu'une simulation tournait.
   useEffect(() => {
-    if (autoScroll && finRef.current) {
-      finRef.current.scrollIntoView({ behavior: "smooth" });
+    const contenu = contenuRef.current;
+    if (autoScroll && contenu) {
+      contenu.scrollTop = contenu.scrollHeight;
     }
   }, [affiches, autoScroll]);
 
@@ -68,6 +72,7 @@ export function LiveLogTerminal() {
         <div className="terminal-actions">
           <select
             className="terminal-select"
+            aria-label="Filtrer les événements par niveau"
             value={filtre}
             onChange={(evenement) => setFiltre(evenement.target.value)}
           >
@@ -88,7 +93,16 @@ export function LiveLogTerminal() {
         </div>
       </div>
 
-      <div className="terminal-content">
+      {/* Un journal : les lecteurs d'écran le trouvent et le parcourent, sans
+          qu'il leur lise chaque ligne à mesure — à plusieurs événements par
+          seconde, ce serait inaudible. */}
+      <div
+        ref={contenuRef}
+        className="terminal-content"
+        role="log"
+        aria-live="off"
+        aria-label="Événements des parcours"
+      >
         {affiches.length === 0 && (
           <div className="terminal-row">
             <span className="row-message">
@@ -113,7 +127,6 @@ export function LiveLogTerminal() {
             </span>
           </div>
         ))}
-        <div ref={finRef} />
       </div>
 
       {evenementsEcartes > 0 && (

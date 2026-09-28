@@ -8,20 +8,6 @@ textarea {
   border-radius: 12px;
 }
 
-.tech-metric-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.tech-metric-card,
-.chart-card {
-  border-radius: var(--rayon-md);
-}
-
-.dashboard-row-2,
-.dashboard-row-3 {
-  gap: 16px;
-}
-
 .lp-form-col {
   display: flex;
   align-items: center;
@@ -31,10 +17,3 @@ textarea {
   border-radius: 28px;
 }
 
-@media (max-width: 960px) {
-  .tech-metric-grid {
-    grid-template-columns: 1fr;
-  }
-
-  
-}

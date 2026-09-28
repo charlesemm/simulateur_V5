@@ -1,6 +1,6 @@
 import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import type { TechnicalMetricsSnapshot } from "../types";
-import { ETAT, LEGENDE_STYLE, TOOLTIP_STYLE } from "./chartTheme";
+import { ETAT, LEGENDE_STYLE, TOOLTIP_STYLE, legendeEnEncre } from "./chartTheme";
 
 interface SystemHealthDonutProps {
   metrics: TechnicalMetricsSnapshot | null;
@@ -71,7 +71,7 @@ export function SystemHealthDonut({ metrics }: SystemHealthDonutProps) {
                 height={32}
                 iconType="circle"
                 iconSize={10}
-                wrapperStyle={LEGENDE_STYLE}
+                wrapperStyle={LEGENDE_STYLE} formatter={legendeEnEncre}
               />
             </PieChart>
           </ResponsiveContainer>

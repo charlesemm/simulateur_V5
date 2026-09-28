@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { TechnicalMetricsSnapshot } from "../types";
 import {
-  GRADUATION, HABILLAGE, LEGENDE_STYLE, SERIE, TOOLTIP_LIBELLE, TOOLTIP_STYLE,
+  GRADUATION, HABILLAGE, LEGENDE_STYLE, SERIE, TOOLTIP_LIBELLE, TOOLTIP_STYLE, legendeEnEncre,
 } from "./chartTheme";
 
 interface PointLatence {
@@ -73,7 +73,7 @@ export function LatencyPerformanceChart({ metrics }: LatencyPerformanceChartProp
                 labelStyle={TOOLTIP_LIBELLE}
                 cursor={{ stroke: HABILLAGE.axe, strokeWidth: 1 }}
               />
-              <Legend verticalAlign="bottom" iconType="plainline" iconSize={16} wrapperStyle={LEGENDE_STYLE} />
+              <Legend verticalAlign="bottom" iconType="plainline" iconSize={16} wrapperStyle={LEGENDE_STYLE} formatter={legendeEnEncre} />
               <Line
                 type="monotone"
                 dataKey="latenceApiMs"

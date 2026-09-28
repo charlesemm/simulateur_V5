@@ -11,7 +11,7 @@ interface ActiviteMetierCardsProps {
 export function ActiviteMetierCards({ snapshot, loading }: ActiviteMetierCardsProps) {
   if (loading && !snapshot) {
     return (
-      <section className="tech-metric-grid" aria-label="Chargement de l'activité métier">
+      <section className="tech-metric-grid" aria-busy="true" aria-label="Chargement de l'activité métier">
         {Array.from({ length: 6 }, (_, index) => (
           <div className="skeleton tech-metric-card" key={index} />
         ))}

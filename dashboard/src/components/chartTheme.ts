@@ -4,7 +4,7 @@
 // Recharts écrit ses couleurs en attributs SVG, où une variable CSS ne se
 // résout pas partout : les valeurs sont donc recopiées ici, en miroir exact
 // des jetons de styles/tokens.css. Toute retouche de la charte se reporte ici.
-import type { CSSProperties } from "react";
+import { createElement, type CSSProperties } from "react";
 
 /**
  * Couleurs de série.
@@ -74,3 +74,12 @@ export const LEGENDE_STYLE: CSSProperties = {
   color: "#506874",
   paddingTop: 8,
 };
+
+/**
+ * Libellé de légende en encre. Recharts l'écrit sinon à la couleur de la
+ * série : « Capacité max », en gris clair, devenait presque illisible. La
+ * pastille ou le trait à côté porte l'identité ; le texte, lui, doit se lire.
+ */
+export function legendeEnEncre(valeur: string) {
+  return createElement("span", { style: { color: "#506874" } }, valeur);
+}

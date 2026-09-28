@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Area, AreaChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { TechnicalMetricsSnapshot } from "../types";
 import {
-  GRADUATION, HABILLAGE, LEGENDE_STYLE, SERIE, TOOLTIP_LIBELLE, TOOLTIP_STYLE,
+  GRADUATION, HABILLAGE, LEGENDE_STYLE, SERIE, TOOLTIP_LIBELLE, TOOLTIP_STYLE, legendeEnEncre,
 } from "./chartTheme";
 
 interface PointCharge {
@@ -88,7 +88,7 @@ export function ChargeTraitementChart({ metrics }: ChargeTraitementChartProps) {
               />
               {/* Deux séries : une légende, pour que la ligne pointillée ne
                   se lise pas comme une seconde mesure. */}
-              <Legend verticalAlign="bottom" iconType="plainline" iconSize={16} wrapperStyle={LEGENDE_STYLE} />
+              <Legend verticalAlign="bottom" iconType="plainline" iconSize={16} wrapperStyle={LEGENDE_STYLE} formatter={legendeEnEncre} />
               <Area
                 type="monotone"
                 dataKey="passagesActifs"
