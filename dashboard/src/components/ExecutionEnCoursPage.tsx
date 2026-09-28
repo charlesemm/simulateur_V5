@@ -94,6 +94,11 @@ export function ExecutionEnCoursPage({ onQuitter, onArret }: ExecutionEnCoursPag
   const [referentielsCharges, setReferentielsCharges] = useState(false);
   // L'aléa qu'on vient de frapper, le temps que sa carte s'allume.
   const [vientDeFrapper, setVientDeFrapper] = useState<string | null>(null);
+  // Anomalies réglées en « Manuel » au lancement : armées d'ici, à la main.
+  // Le moteur ne renvoie pas leur état ; celui-ci vaut donc pour la session,
+  // comme le fil des aléas frappés. Clé : code, valeur : heure de l'armement.
+  const [armees, setArmees] = useState<Record<string, Date>>({});
+  const [ordreEnCours, setOrdreEnCours] = useState<string | null>(null);
 
   useEffect(() => {
     void (async () => {
@@ -156,6 +161,25 @@ export function ExecutionEnCoursPage({ onQuitter, onArret }: ExecutionEnCoursPag
     }
   }
 
+  async function basculerArmement(code: string) {
+    const armer = !armees[code];
+    setOrdreEnCours(code);
+    try {
+      await api.commander(armer ? "armer_anomalie" : "desarmer_anomalie", code, token);
+      setArmees((courantes) => {
+        const suite = { ...courantes };
+        if (armer) suite[code] = new Date();
+        else delete suite[code];
+        return suite;
+      });
+      setErreur(null);
+    } catch (raison) {
+      setErreur((raison as Error).message);
+    } finally {
+      setOrdreEnCours(null);
+    }
+  }
+
   async function arreter() {
     setArretEnCours(true);
     try {
@@ -189,6 +213,28 @@ export function ExecutionEnCoursPage({ onQuitter, onArret }: ExecutionEnCoursPag
       })
       .sort((premier, second) => second.nombre - premier.nombre);
   }, [detail, catalogue]);
+
+  /**
+   * Les anomalies qui attendent un ordre : celles que l'opérateur a réglées
+   * en « Manuel » au lancement. Elles ne se posent jamais d'elles-mêmes.
+   * L'écran « Scénarios & anomalies » qui les armait a été retiré ; c'est
+   * désormais ici, à côté des aléas, que ce geste se fait.
+   */
+  const manuelles = useMemo(() => {
+    const parametres = execution?.simulation_parametres as
+      { anomalies?: Record<string, { active?: boolean; declenchement?: string }> }
+      | undefined;
+    return Object.entries(parametres?.anomalies ?? {})
+      .filter(([, reglage]) => reglage.active && reglage.declenchement === "manuel")
+      .map(([code]) => {
+        const type = catalogue.find((entree) => entree.anomalie_code === code);
+        return {
+          code,
+          libelle: type?.anomalie_libelle ?? code,
+          couleur: type?.anomalie_couleur ?? "#7fd1a3",
+        };
+      });
+  }, [execution?.simulation_parametres, catalogue]);
 
   const derniers = evenements.slice(-16).reverse();
   void battement; // recalcule le chronomètre à chaque tour
@@ -379,6 +425,40 @@ export function ExecutionEnCoursPage({ onQuitter, onArret }: ExecutionEnCoursPag
             ))}
           </div>
         </section>
+
+        {manuelles.length > 0 && (
+          <section>
+            <h2 className="cockpit-titre">Armer une anomalie</h2>
+            <p className="cockpit-aide">
+              Réglées en « Manuel » au lancement : elles ne se posent qu'une
+              fois armées, et cessent dès qu'on les désarme.
+            </p>
+            <div className="cockpit-aleas">
+              {manuelles.map((anomalie) => {
+                const armeeA = armees[anomalie.code];
+                return (
+                  <button
+                    key={anomalie.code}
+                    type="button"
+                    className={`cockpit-alea${armeeA ? " cockpit-alea--armee" : ""}`}
+                    style={{ ["--alea" as string]: anomalie.couleur }}
+                    disabled={ordreEnCours === anomalie.code}
+                    aria-pressed={Boolean(armeeA)}
+                    onClick={() => void basculerArmement(anomalie.code)}
+                  >
+                    <span className="cockpit-alea-nature">Anomalie manuelle</span>
+                    <span className="cockpit-alea-nom">{anomalie.libelle}</span>
+                    <span className="cockpit-alea-compte">
+                      {armeeA
+                        ? `armée à ${heure(armeeA)} · cliquer pour désarmer`
+                        : "désarmée · cliquer pour armer"}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        )}
 
         {frappes.length > 0 && (
           <section>

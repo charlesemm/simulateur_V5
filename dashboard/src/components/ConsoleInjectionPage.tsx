@@ -4,6 +4,7 @@ import { useAuth } from "../auth/AuthContext";
 import { API_URL, api } from "../services/api";
 import type { SimulationStatus, TypeAnomalie } from "../types";
 import "./Screens.css";
+import { EtatBloc } from "./EtatBloc";
 
 const DECLENCHEMENTS: Array<{ valeur: string; libelle: string }> = [
   { valeur: "continu", libelle: "Continu — toute l'exécution" },
@@ -151,8 +152,8 @@ export function ConsoleInjectionPage() {
 
   return (
     <div className="screen">
-      {erreur && <p className="screen-error" role="alert">{erreur}</p>}
-      {message && <div className="bandeau-info" role="status">{message}</div>}
+      {erreur && <EtatBloc ton="erreur">{erreur}</EtatBloc>}
+      {message && <EtatBloc ton="succes">{message}</EtatBloc>}
 
       {!enCours && (
         <div className="bandeau-info">
@@ -384,7 +385,7 @@ export function ConsoleInjectionPage() {
         </div>
       )}
       {charge && catalogue.length === 0 && (
-        <div className="screen-empty">Le catalogue d'anomalies n'a pas pu être chargé.</div>
+        <EtatBloc ton="vide">Le catalogue d'anomalies n'a pas pu être chargé.</EtatBloc>
       )}
 
       {/* Les aléas ne sont plus ici : ils se déclenchent depuis l'écran de

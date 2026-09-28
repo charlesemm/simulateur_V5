@@ -8,6 +8,7 @@ import { activableAuClavier } from "./clavier";
 import { FicheCampagne } from "./FicheCampagne";
 import { dateCourte } from "./format-execution";
 import "./Screens.css";
+import { EtatBloc } from "./EtatBloc";
 
 interface CampagnesPageProps {
   /** Campagne à ouvrir d'emblée, quand on arrive de sa création. */
@@ -82,7 +83,7 @@ export function CampagnesPage({ campagneInitiale = null, onNouvelle }: Campagnes
 
   return (
     <div className="screen">
-      {erreur && <p className="screen-error" role="alert">{erreur}</p>}
+      {erreur && <EtatBloc ton="erreur">{erreur}</EtatBloc>}
 
       <section>
         <div className="screen-section-head">
@@ -108,10 +109,10 @@ export function CampagnesPage({ campagneInitiale = null, onNouvelle }: Campagnes
             ))}
           </div>
         ) : campagnes.length === 0 ? (
-          <div className="screen-empty">
+          <EtatBloc ton="vide">
             Aucune campagne pour l'instant. Créez-en une pour éprouver un outil
             de qualité des données.
-          </div>
+          </EtatBloc>
         ) : (
           <div className="screen-table-wrap">
             <table className="screen-table">

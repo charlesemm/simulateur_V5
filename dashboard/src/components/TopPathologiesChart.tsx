@@ -2,6 +2,7 @@
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { KpiSnapshot } from "../types";
 import { GRADUATION, GRADUATION_LIBELLE, HABILLAGE, TOOLTIP_LIBELLE, TOOLTIP_STYLE, usePaletteGraphique } from "./chartTheme";
+import { EtatBloc } from "./EtatBloc";
 
 interface TopPathologiesChartProps {
   snapshot: KpiSnapshot | null;
@@ -33,7 +34,7 @@ export function TopPathologiesChart({ snapshot }: TopPathologiesChartProps) {
       </div>
 
       {donnees.length === 0 ? (
-        <p className="chart-empty">Aucune pathologie enregistrée sur la fenêtre.</p>
+        <EtatBloc ton="vide" discret>Aucune pathologie enregistrée sur la fenêtre.</EtatBloc>
       ) : (
         <div className="chart-container">
           <ResponsiveContainer width="100%" height={240}>

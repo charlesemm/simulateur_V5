@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Area, AreaChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { TechnicalMetricsSnapshot } from "../types";
 import { GRADUATION, HABILLAGE, LEGENDE_STYLE, TOOLTIP_LIBELLE, TOOLTIP_STYLE, legendeEnEncre, usePaletteGraphique } from "./chartTheme";
+import { EtatBloc } from "./EtatBloc";
 
 interface PointCharge {
   heure: string;
@@ -66,7 +67,7 @@ export function ChargeTraitementChart({ metrics }: ChargeTraitementChartProps) {
       </div>
 
       {points.length === 0 ? (
-        <p className="chart-empty">En attente des premières mesures du moteur...</p>
+        <EtatBloc ton="vide" discret>En attente des premières mesures du moteur…</EtatBloc>
       ) : (
         <div className="chart-container">
           <ResponsiveContainer width="100%" height={240}>

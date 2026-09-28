@@ -7,6 +7,7 @@ import type { FicheGouvernance, SimulationRun } from "../types";
 import { UsersPage } from "./UsersPage";
 import { StatutPastille, dateCourte } from "./format-execution";
 import "./Screens.css";
+import { EtatBloc } from "./EtatBloc";
 
 type Volet = "comptes" | "volumetrie" | "purge";
 
@@ -115,8 +116,8 @@ export function AdministrationPage() {
 
   return (
     <div className="screen">
-      {erreur && <p className="screen-error" role="alert">{erreur}</p>}
-      {message && <div className="bandeau-info" role="status">{message}</div>}
+      {erreur && <EtatBloc ton="erreur">{erreur}</EtatBloc>}
+      {message && <EtatBloc ton="succes">{message}</EtatBloc>}
 
       <div className="onglets" role="tablist" aria-label="Volets de l'administration">
         {VOLETS.map(([code, libelle], rang) => (
@@ -146,7 +147,7 @@ export function AdministrationPage() {
 
       {volet === "volumetrie" && (
         <section role="tabpanel" id="panneau-volumetrie" aria-labelledby="onglet-volumetrie" className="onglet-panneau">
-          <div className="stat-strip">
+          <div className="stat-strip ecart-bas-m">
             <div className="stat-tile">
               <span className="stat-tile-label">Tables au catalogue</span>
               <span className="stat-tile-value">{tables.length}</span>
@@ -202,7 +203,7 @@ export function AdministrationPage() {
             choisie.
           </div>
 
-          <div className="screen-table-wrap">
+          <div className="screen-table-wrap ecart-haut-m">
             <table className="screen-table">
               <thead>
                 <tr>
@@ -240,7 +241,7 @@ export function AdministrationPage() {
           </div>
 
           {apercu && cible && (
-            <article className="fiche fiche--ouverte" ref={apercuRef}>
+            <article className="fiche fiche--ouverte ecart-haut-l" ref={apercuRef}>
               <div className="fiche-tete">
                 <div>
                   <div className="fiche-titre">Ce que la purge supprimerait</div>

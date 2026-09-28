@@ -7,6 +7,7 @@ import type { RapportExecution, SimulationRun } from "../types";
 import { dateCourte } from "./format-execution";
 import { DownloadIcon, RefreshIcon, ReportsIcon, TrashIcon } from "./Icons";
 import "./Screens.css";
+import { EtatBloc } from "./EtatBloc";
 
 /** L'heure seule : la journee est deja donnee par le titre de la section. */
 function heureCourte(valeur: string): string {
@@ -199,13 +200,9 @@ export function ReportsPage() {
 
       {/* Le résultat de l'export se dit ici, sous le titre : la liste des
           fichiers en compte trop pour qu'on y repère le nouveau à l'œil. */}
-      {succes && <div className="bandeau-succes" role="status">{succes}</div>}
+      {succes && <EtatBloc ton="succes">{succes}</EtatBloc>}
 
-      {erreur && (
-        <div className="alert-box alert-error" role="alert">
-          {erreur}
-        </div>
-      )}
+      {erreur && <EtatBloc ton="erreur">{erreur}</EtatBloc>}
 
       <div className="info-banner">
         <div className="info-banner-badge">NOTE</div>
@@ -216,7 +213,7 @@ export function ReportsPage() {
         </div>
       </div>
 
-      <section>
+      <section className="ecart-bas-l">
         <h2 className="screen-section-title">Export par période</h2>
         <div className="alea-carte">
           <div className="periode-champs">
@@ -257,7 +254,7 @@ export function ReportsPage() {
           Les fichiers portent un identifiant technique illisible. Ici on les
           présente sous le nom donné à la simulation au départ, groupés par
           journée — c'est le seul repère dont dispose l'opérateur. */}
-      <section>
+      <section className="ecart-bas-l">
         <h2 className="screen-section-title">
           Rapports par exécution
           <span className="rule" />
@@ -275,9 +272,9 @@ export function ReportsPage() {
             ))}
           </div>
         ) : rapportsJour.length === 0 ? (
-          <div className="screen-empty">
+          <EtatBloc ton="vide">
             Aucune exécution lancée ce jour-là. Changez la date ci-dessus.
-          </div>
+          </EtatBloc>
         ) : (
           <div className="rapports-grille">
             <div className="rapports-entete">
@@ -346,7 +343,7 @@ export function ReportsPage() {
         )}
       </section>
 
-      <section>
+      <section className="ecart-bas-l">
         <h2 className="screen-section-title">Export d'une exécution</h2>
         <div className="alea-carte">
           <label className="champ-groupe">

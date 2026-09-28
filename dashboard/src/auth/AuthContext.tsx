@@ -7,6 +7,7 @@ interface AuthState {
   token: string | null;
   role: Role | null;
   nomComplet: string | null;
+  email: string | null;
   nomUtilisateur: string | null;
   doitChangerMotDePasse: boolean;
 }
@@ -22,6 +23,7 @@ const ETAT_VIDE: AuthState = {
   token: null,
   role: null,
   nomComplet: null,
+  email: null,
   nomUtilisateur: null,
   doitChangerMotDePasse: false,
 };
@@ -107,6 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       token: data.access_token,
       role: data.role,
       nomComplet: data.nom_complet,
+      email: data.email,
       nomUtilisateur: data.nom_utilisateur ?? null,
       doitChangerMotDePasse: data.doit_changer_mot_de_passe === true,
     });

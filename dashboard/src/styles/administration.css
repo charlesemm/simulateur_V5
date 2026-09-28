@@ -419,6 +419,14 @@
   font-weight: var(--graisse-normale);
 }
 
+/* Le mot de passe remis une seule fois : c'est un succès, mais long,
+   donc il s'empile au lieu de se ranger sur une ligne. */
+.bloc-mot-de-passe {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--espace-2);
+}
+
 @media (max-width: 960px) {
   /* minmax(0, …) : sans lui, la colonne prend la largeur du tableau et
      toute la page déborde sur le côté en mobile. */

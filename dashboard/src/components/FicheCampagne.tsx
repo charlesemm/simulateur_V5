@@ -10,6 +10,7 @@ import type {
 } from "../types";
 import { dateCourte } from "./format-execution";
 import "./Screens.css";
+import { EtatBloc } from "./EtatBloc";
 
 interface FicheCampagneProps {
   campagne: Campagne;
@@ -297,12 +298,12 @@ export function FicheCampagne({
         </div>
       </div>
 
-      {erreur && <p className="screen-error" role="alert">{erreur}</p>}
+      {erreur && <EtatBloc ton="erreur">{erreur}</EtatBloc>}
       {suivi?.erreur && (
-        <p className="screen-error" role="alert">
+        <EtatBloc ton="erreur">
           Génération interrompue : {suivi.erreur}. La campagne est repassée à
           « créée » — un jeu à moitié produit n'a aucune valeur.
-        </p>
+        </EtatBloc>
       )}
 
       <div className="stat-strip">
@@ -462,9 +463,7 @@ export function FicheCampagne({
           </RequireRole>
 
           {echanges.length === 0 ? (
-            <div className="screen-empty bloc-suite">
-              Aucune transmission pour l'instant.
-            </div>
+            <EtatBloc ton="vide" className="bloc-suite">Aucune transmission pour l'instant.</EtatBloc>
           ) : (
             <div className="screen-table-wrap bloc-suite">
               <table className="screen-table">
@@ -521,10 +520,10 @@ export function FicheCampagne({
         Anomalies demandées
       </h3>
       {anomalies.length === 0 ? (
-        <div className="screen-empty">
+        <EtatBloc ton="vide">
           Aucune anomalie : le jeu produit est sain. Cette campagne ne mesurera
           que les fausses alertes de l'outil testé.
-        </div>
+        </EtatBloc>
       ) : (
         <div className="screen-table-wrap">
           <table className="screen-table">
@@ -573,9 +572,9 @@ export function FicheCampagne({
           </p>
 
           {corrige.total === 0 ? (
-            <div className="screen-empty">
+            <EtatBloc ton="vide">
               Aucune anomalie posée : le jeu est sain, comme demandé.
-            </div>
+            </EtatBloc>
           ) : (
             <>
               <div className="screen-table-wrap">

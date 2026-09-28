@@ -27,6 +27,7 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
     role: str
     nom_complet: str
+    email: str
     nom_utilisateur: str | None = None
     # Le client doit rediriger vers le changement de mot de passe tant que ce
     # drapeau est vrai : les autres routes lui répondront 403.

@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { useToast } from "../hooks/useToast";
 import { API_URL } from "../services/api";
+import { EtatBloc } from "./EtatBloc";
 
 interface UserRow {
   utilisateur_uuid: string;
@@ -40,7 +41,7 @@ function messageErreur(corps: unknown, defaut: string): string {
 }
 
 export function UsersPage() {
-  const { token } = useAuth();
+  const { token, email: emailConnecte } = useAuth();
   const { toast } = useToast();
   // Une liste vide avant la première réponse veut dire « pas encore ».
   const [chargee, setChargee] = useState(false);
@@ -62,6 +63,9 @@ export function UsersPage() {
   // Même garde-fou pour la réinitialisation : en un clic, l'ancien mot de
   // passe cessait de fonctionner, et la personne se retrouvait à la porte.
   const [confirmReinit, setConfirmReinit] = useState<string | null>(null);
+  // Et pour la suppression : irréversible, contrairement à la désactivation.
+  const [confirmSuppression, setConfirmSuppression] = useState<string | null>(null);
+  const [suppression, setSuppression] = useState<string | null>(null);
 
   async function refresh() {
     try {
@@ -190,6 +194,29 @@ export function UsersPage() {
     await refresh();
   }
 
+  async function supprimer(user: UserRow) {
+    setConfirmSuppression(null);
+    setErreur(null);
+    setSucces(null);
+    setSuppression(user.utilisateur_uuid);
+    try {
+      const response = await fetch(`${API_URL}/users/${user.utilisateur_uuid}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) {
+        const corps = await response.json().catch(() => null);
+        setErreur(messageErreur(corps, `${user.nom_complet} n'a pas pu être supprimé.`));
+        return;
+      }
+      setSucces(`${user.nom_complet} a été supprimé définitivement.`);
+      toast("succes", "Compte supprimé", user.nom_complet);
+      await refresh();
+    } finally {
+      setSuppression(null);
+    }
+  }
+
   function getRoleBadge(roleName: string) {
     switch (roleName) {
       case "administrateur":
@@ -219,8 +246,8 @@ export function UsersPage() {
             <h2>Comptes enregistrés ({users.length})</h2>
           </div>
 
-          <div className="table-wrapper">
-            <table className="clean-table">
+          <div className="screen-table-wrap">
+            <table className="screen-table">
               <thead>
                 <tr>
                   <th>Utilisateur</th>
@@ -263,7 +290,25 @@ export function UsersPage() {
                     </td>
                     <td>
                       <div className="user-actions">
-                        {confirmReinit === u.utilisateur_uuid ? (
+                        {confirmSuppression === u.utilisateur_uuid ? (
+                          <>
+                            <button
+                              type="button"
+                              className="btn-action-toggle btn-disable"
+                              onClick={() => void supprimer(u)}
+                              aria-label={`Confirmer la suppression définitive de ${u.nom_complet}`}
+                            >
+                              Confirmer la suppression
+                            </button>
+                            <button
+                              type="button"
+                              className="btn-action-toggle btn-neutre"
+                              onClick={() => setConfirmSuppression(null)}
+                            >
+                              Annuler
+                            </button>
+                          </>
+                        ) : confirmReinit === u.utilisateur_uuid ? (
                           <>
                             <button
                               type="button"
@@ -326,6 +371,25 @@ export function UsersPage() {
                             >
                               Réinitialiser
                             </button>
+                            {/* Son propre compte ne peut pas se supprimer lui-même :
+                                l'API le refuserait, autant ne pas montrer le bouton.
+                                Comparaison sur l'e-mail (toujours renseigné et unique),
+                                pas le nom d'utilisateur (facultatif). */}
+                            {u.email !== emailConnecte && (
+                              <button
+                                type="button"
+                                className="btn-action-toggle btn-disable"
+                                onClick={() => {
+                                  setConfirmExtinction(null);
+                                  setConfirmReinit(null);
+                                  setConfirmSuppression(u.utilisateur_uuid);
+                                }}
+                                disabled={suppression === u.utilisateur_uuid}
+                                aria-label={`Supprimer définitivement ${u.nom_complet}`}
+                              >
+                                Supprimer
+                              </button>
+                            )}
                           </>
                         )}
                       </div>
@@ -342,8 +406,8 @@ export function UsersPage() {
                 )}
                 {chargee && users.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="table-empty">
-                      Aucun utilisateur trouvé.
+                    <td colSpan={4}>
+                      <EtatBloc ton="vide" discret>Aucun utilisateur trouvé.</EtatBloc>
                     </td>
                   </tr>
                 )}
@@ -361,10 +425,10 @@ export function UsersPage() {
             </p>
           </div>
 
-          {erreur && <div className="alert-box alert-error" role="alert">{erreur}</div>}
-          {succes && <div className="alert-box alert-success" role="status">{succes}</div>}
+          {erreur && <EtatBloc ton="erreur">{erreur}</EtatBloc>}
+          {succes && <EtatBloc ton="succes">{succes}</EtatBloc>}
           {motDePasseTemporaire && (
-            <div className="alert-box alert-success">
+            <div className="etat-bloc etat-bloc--succes bloc-mot-de-passe">
               <div className="temp-password-ligne">
                 <code className="temp-password">{motDePasseTemporaire}</code>
                 <button
@@ -389,7 +453,7 @@ export function UsersPage() {
                 id="compte-nom-complet"
                 className="form-input"
                 autoComplete="name"
-                placeholder="Ex: Jean Kouassi"
+                placeholder="Ex. : Jean Kouassi"
                 value={nomComplet}
                 onChange={(e) => setNomComplet(e.target.value)}
                 required
@@ -397,7 +461,7 @@ export function UsersPage() {
             </div>
 
             <div className="form-group">
-              <label className="form-label" htmlFor="compte-email">Adresse email</label>
+              <label className="form-label" htmlFor="compte-email">Adresse e-mail</label>
               <input
                 id="compte-email"
                 type="email"
@@ -416,7 +480,7 @@ export function UsersPage() {
                 id="compte-identifiant"
                 className="form-input"
                 autoComplete="username"
-                placeholder="Ex: j.kouassi"
+                placeholder="Ex. : j.kouassi"
                 value={nomUtilisateur}
                 onChange={(e) => setNomUtilisateur(e.target.value)}
                 required
@@ -450,7 +514,7 @@ export function UsersPage() {
               {creating && (
                 <span className="ui-spinner ui-spinner--petit ui-spinner--inverse" aria-hidden="true" />
               )}
-              {creating ? "Création en cours..." : "Enregistrer le compte"}
+              {creating ? "Création en cours…" : "Enregistrer le compte"}
             </button>
           </form>
         </section>

@@ -148,6 +148,106 @@ h3.screen-section-title {
   font-weight: var(--graisse-moyenne);
 }
 
+/* ── Bloc d'état — vide, chargement, erreur, succès ───────────────
+   Un seul bloc, quatre tons : la version compacte de .screen-empty et
+   .screen-error, pour l'intérieur d'un graphique, d'une carte ou d'une
+   cellule, là où le grand encadré serait disproportionné. */
+.etat-bloc {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--espace-2);
+  padding: var(--espace-4);
+  border: 1px solid transparent;
+  border-radius: var(--rayon-md);
+  font-size: var(--texte-base);
+  font-weight: var(--graisse-moyenne);
+  line-height: var(--interligne);
+  text-align: center;
+}
+
+/* Rien à montrer, ou pas encore : même encadré en pointillés. Ce qui
+   les sépare est le pouls du chargement, pas un autre habillage. */
+.etat-bloc--vide,
+.etat-bloc--chargement {
+  min-height: 96px;
+  background: var(--couleur-surface);
+  border-color: var(--couleur-bord);
+  border-style: dashed;
+  color: var(--couleur-texte-faible);
+}
+
+/* Un message adressé à quelqu'un se lit à gauche, pas centré. */
+.etat-bloc--erreur,
+.etat-bloc--succes {
+  justify-content: flex-start;
+  min-height: 0;
+  text-align: left;
+}
+
+.etat-bloc--erreur {
+  background: var(--couleur-erreur-fond);
+  border-color: var(--couleur-erreur-bord);
+  color: var(--couleur-erreur);
+}
+
+.etat-bloc--succes {
+  background: var(--couleur-succes-fond);
+  border-color: var(--couleur-succes-bord);
+  color: var(--couleur-succes);
+}
+
+/* Forme longue : icône, message, puis la phrase qui dit quoi faire. */
+.etat-bloc--riche {
+  flex-direction: column;
+  gap: var(--espace-1);
+  min-height: 0;
+  padding: var(--espace-6) var(--espace-5);
+}
+
+.etat-bloc-icone {
+  display: grid;
+  place-items: center;
+  margin-bottom: var(--espace-1);
+  color: var(--couleur-texte-faible);
+}
+
+.etat-bloc-aide {
+  font-size: var(--texte-xs);
+  font-weight: var(--graisse-normale);
+  color: var(--couleur-texte-faible);
+}
+
+/* Dans un graphique ou une cellule : le ton reste, l'encadré tombe. */
+.etat-bloc--discret {
+  min-height: 140px;
+  background: none;
+  border-color: transparent;
+  border-style: solid;
+}
+
+.etat-bloc--erreur.etat-bloc--discret,
+.etat-bloc--succes.etat-bloc--discret {
+  min-height: 0;
+  padding: 0;
+}
+
+/* Le pouls du chargement : deux battements, pas une roue qui tourne.
+   Même durée que le reste de l'interface. */
+.etat-pouls {
+  width: 9px;
+  height: 9px;
+  flex-shrink: 0;
+  border-radius: var(--rayon-pilule);
+  background: var(--bleu-500);
+  animation: etat-pouls 1.1s ease-in-out infinite;
+}
+
+@keyframes etat-pouls {
+  0%, 100% { opacity: 0.25; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1); }
+}
+
 /* ── Tuiles de chiffres ─────────────────────────────────────────── */
 
 .stat-strip {
@@ -1059,6 +1159,11 @@ h3.screen-section-title {
   font-size: var(--texte-2xs);
   font-weight: var(--graisse-titre);
   letter-spacing: 0.06em;
+}
+
+.info-banner-text {
+  flex: 1;
+  min-width: 0;
 }
 
 /* ── Badges hérités (badge-*) ───────────────────────────────────── */

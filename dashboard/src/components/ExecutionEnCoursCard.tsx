@@ -76,7 +76,7 @@ export function ExecutionEnCoursCard() {
       </div>
 
       {enCours && statut?.simulation_id && (
-        <p className="fiche-identifiant">
+        <p className="fiche-identifiant ecart-haut-m">
           {statut.simulation_id}
         </p>
       )}

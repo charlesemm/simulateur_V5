@@ -8,7 +8,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_database_session
-from auth.dependencies import require_role
+from auth.dependencies import get_current_user, require_role
 from auth.models import User
 from auth.schemas import (
     VALID_ROLES, PasswordResetResponse, UserCreatedResponse, UserCreateRequest,
@@ -180,6 +180,39 @@ async def update_user(
     await session.commit()
     await session.refresh(user)
     return UserOut.model_validate(user)
+
+
+@router.delete("/{utilisateur_uuid}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_user(
+    utilisateur_uuid: uuid.UUID,
+    session: AsyncSession = Depends(get_database_session),
+    current_user: User = Depends(get_current_user),
+) -> None:
+    """Supprime définitivement un compte.
+
+    Contrairement à la désactivation, la ligne disparaît de la table : pas de
+    retour en arrière possible. Un administrateur ne peut pas se supprimer
+    lui-même (il se couperait l'accès en plein milieu de l'action), et le
+    dernier administrateur actif reste protégé par le même garde-fou que
+    pour la désactivation.
+    """
+
+    user = await session.get(User, utilisateur_uuid)
+    if user is None:
+        raise HTTPException(status_code=404, detail="Utilisateur introuvable.")
+
+    if user.utilisateur_uuid == current_user.utilisateur_uuid:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Vous ne pouvez pas supprimer votre propre compte.",
+        )
+
+    await _refuser_de_perdre_le_dernier_admin(
+        session, user, desactive=True, nouveau_role=None,
+    )
+
+    await session.delete(user)
+    await session.commit()
 
 
 @router.post("/{utilisateur_uuid}/reinitialiser-mot-de-passe",

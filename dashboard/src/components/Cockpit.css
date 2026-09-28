@@ -310,6 +310,24 @@
   background: var(--panneau);
 }
 
+/* Une anomalie armée reste allumée : contrairement à l'aléa, qui frappe
+   une fois, elle agit tant qu'on ne la désarme pas. */
+.cockpit-alea--armee {
+  background: color-mix(in srgb, var(--alea) 22%, var(--panneau));
+  border-color: color-mix(in srgb, var(--alea) 60%, var(--bord));
+}
+
+.cockpit-alea--armee .cockpit-alea-compte {
+  color: var(--alea);
+  font-weight: 600;
+}
+
+.cockpit-alea:disabled {
+  opacity: .6;
+  cursor: progress;
+  transform: none;
+}
+
 .cockpit-alea-nature {
   font-size: var(--texte-2xs);
   font-weight: 700;
