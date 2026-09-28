@@ -13,6 +13,7 @@ import "./styles/shell.css";
 import "./styles/patterns.css";
 import "./styles/saisie.css";
 import "./styles/supervision.css";
+import "./styles/administration.css";
 import "./styles/components.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
