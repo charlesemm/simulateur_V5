@@ -99,7 +99,7 @@
   margin: 0;
   border: 1px solid var(--couleur-bord-fort);
   border-radius: var(--rayon-pilule);
-  background: var(--gris-300);
+  background: var(--couleur-bord);
   cursor: pointer;
   appearance: none;
   transition: background-color var(--duree) var(--courbe), border-color var(--duree) var(--courbe);
@@ -157,7 +157,7 @@
 .famille-titre,
 .famille-section,
 .anomalie-famille {
-  --famille-encre: color-mix(in srgb, var(--famille-couleur, var(--couleur-texte-doux)) 62%, #000);
+  --famille-encre: color-mix(in srgb, var(--famille-couleur, var(--couleur-texte-doux)) var(--encre-part), var(--encre-cible));
 }
 
 .famille-bloc {
@@ -497,7 +497,7 @@
 }
 
 .recap-type {
-  color: color-mix(in srgb, var(--type-couleur, var(--cnam-green)) 62%, #000);
+  color: color-mix(in srgb, var(--type-couleur, var(--cnam-green)) var(--encre-part), var(--encre-cible));
 }
 
 /* Collée en bas de l'écran : l'action reste à portée, quelle que soit
@@ -513,8 +513,8 @@
   padding: var(--espace-3) var(--espace-4);
   border: 1px solid var(--couleur-bord);
   border-radius: var(--rayon-pilule);
-  background: rgba(255, 255, 255, 0.94);
-  box-shadow: 0 10px 30px rgba(0, 80, 124, 0.12);
+  background: var(--couleur-verre);
+  box-shadow: var(--ombre-3);
   backdrop-filter: blur(12px);
 }
 

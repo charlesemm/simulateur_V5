@@ -1,9 +1,7 @@
 // Les cinq pathologies les plus fréquentes sur la fenêtre du snapshot KPI.
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { KpiSnapshot } from "../types";
-import {
-  GRADUATION, GRADUATION_LIBELLE, HABILLAGE, SERIE, TOOLTIP_LIBELLE, TOOLTIP_STYLE,
-} from "./chartTheme";
+import { GRADUATION, GRADUATION_LIBELLE, HABILLAGE, TOOLTIP_LIBELLE, TOOLTIP_STYLE, usePaletteGraphique } from "./chartTheme";
 
 interface TopPathologiesChartProps {
   snapshot: KpiSnapshot | null;
@@ -15,6 +13,7 @@ function tronquer(libelle: string): string {
 }
 
 export function TopPathologiesChart({ snapshot }: TopPathologiesChartProps) {
+  const { serie } = usePaletteGraphique();
   const donnees = (snapshot?.top_pathologies ?? []).map((pathologie) => ({
     code: pathologie.code,
     libelle: tronquer(pathologie.libelle),
@@ -64,7 +63,7 @@ export function TopPathologiesChart({ snapshot }: TopPathologiesChartProps) {
                   `${element.payload.code} — ${element.payload.libelleComplet}`,
                 ]}
               />
-              <Bar dataKey="nombre" name="Passages" fill={SERIE.bleu} radius={[0, 4, 4, 0]} maxBarSize={26} />
+              <Bar dataKey="nombre" name="Passages" fill={serie.bleu} radius={[0, 4, 4, 0]} maxBarSize={26} />
             </BarChart>
           </ResponsiveContainer>
         </div>

@@ -1,9 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Area, AreaChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { TechnicalMetricsSnapshot } from "../types";
-import {
-  GRADUATION, HABILLAGE, LEGENDE_STYLE, SERIE, TOOLTIP_LIBELLE, TOOLTIP_STYLE, legendeEnEncre,
-} from "./chartTheme";
+import { GRADUATION, HABILLAGE, LEGENDE_STYLE, TOOLTIP_LIBELLE, TOOLTIP_STYLE, legendeEnEncre, usePaletteGraphique } from "./chartTheme";
 
 interface PointCharge {
   heure: string;
@@ -18,6 +16,7 @@ interface ChargeTraitementChartProps {
 }
 
 export function ChargeTraitementChart({ metrics }: ChargeTraitementChartProps) {
+  const { serie, fond } = usePaletteGraphique();
   const [points, setPoints] = useState<PointCharge[]>([]);
   const lastTimeRef = useRef<string>("");
 
@@ -74,8 +73,8 @@ export function ChargeTraitementChart({ metrics }: ChargeTraitementChartProps) {
             <AreaChart data={points} margin={{ top: 10, right: 15, left: -20, bottom: 0 }}>
               <defs>
                 <linearGradient id="gradientCnamGreen" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor={SERIE.vert} stopOpacity={0.22} />
-                  <stop offset="95%" stopColor={SERIE.vert} stopOpacity={0.0} />
+                  <stop offset="5%" stopColor={serie.vert} stopOpacity={0.22} />
+                  <stop offset="95%" stopColor={serie.vert} stopOpacity={0.0} />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke={HABILLAGE.grille} vertical={false} />
@@ -93,11 +92,11 @@ export function ChargeTraitementChart({ metrics }: ChargeTraitementChartProps) {
                 type="monotone"
                 dataKey="passagesActifs"
                 name="Passages actifs"
-                stroke={SERIE.vert}
+                stroke={serie.vert}
                 strokeWidth={2}
                 fillOpacity={1}
                 fill="url(#gradientCnamGreen)"
-                activeDot={{ r: 4, strokeWidth: 2, stroke: "#ffffff" }}
+                activeDot={{ r: 4, strokeWidth: 2, stroke: fond }}
               />
               <Area
                 type="step"

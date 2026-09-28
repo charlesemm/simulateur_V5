@@ -216,7 +216,7 @@
   border: 1px solid var(--cnam-blue-border);
   border-radius: 50%;
   background: var(--cnam-blue-light);
-  color: var(--bleu-700);
+  color: var(--cnam-blue-dark);
   font-size: var(--texte-sm);
   font-weight: var(--graisse-titre);
 }

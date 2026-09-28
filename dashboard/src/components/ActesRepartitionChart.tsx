@@ -1,9 +1,7 @@
 // Répartition des actes produits sur la fenêtre glissante du snapshot KPI.
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { KpiSnapshot } from "../types";
-import {
-  GRADUATION, GRADUATION_LIBELLE, HABILLAGE, SERIE, TOOLTIP_LIBELLE, TOOLTIP_STYLE,
-} from "./chartTheme";
+import { GRADUATION, GRADUATION_LIBELLE, HABILLAGE, TOOLTIP_LIBELLE, TOOLTIP_STYLE, usePaletteGraphique } from "./chartTheme";
 
 interface ActesRepartitionChartProps {
   snapshot: KpiSnapshot | null;
@@ -15,6 +13,7 @@ interface ActesRepartitionChartProps {
 // distinguait pas l'un de l'autre.
 
 export function ActesRepartitionChart({ snapshot }: ActesRepartitionChartProps) {
+  const { serie } = usePaletteGraphique();
   const donnees = (snapshot?.actes_repartition ?? [])
     .filter((acte) => acte.nombre > 0)
     .map((acte) => ({
@@ -72,7 +71,7 @@ export function ActesRepartitionChart({ snapshot }: ActesRepartitionChartProps) 
                   "Volume",
                 ]}
               />
-              <Bar dataKey="nombre" name="Volume" fill={SERIE.bleu} radius={[0, 4, 4, 0]} maxBarSize={26} />
+              <Bar dataKey="nombre" name="Volume" fill={serie.bleu} radius={[0, 4, 4, 0]} maxBarSize={26} />
             </BarChart>
           </ResponsiveContainer>
         </div>

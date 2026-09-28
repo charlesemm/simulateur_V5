@@ -38,7 +38,7 @@
   border-left: 4px solid var(--couleur-info);
   border-radius: var(--rayon-xs);
   background: var(--couleur-info-fond);
-  color: var(--bleu-700);
+  color: var(--cnam-blue-dark);
   font-size: var(--texte-sm);
   line-height: var(--interligne);
 }
@@ -121,7 +121,7 @@ h3.screen-section-title {
 }
 
 .btn-text:hover {
-  color: var(--bleu-700);
+  color: var(--couleur-lien);
   text-decoration: underline;
 }
 
@@ -278,7 +278,7 @@ h3.screen-section-title {
 }
 
 .type-card--action:hover:not(:disabled) {
-  border-color: color-mix(in srgb, var(--type-couleur, var(--cnam-green)) 45%, white);
+  border-color: color-mix(in srgb, var(--type-couleur, var(--cnam-green)) 45%, var(--couleur-surface));
   box-shadow: var(--ombre-3);
   transform: translateY(-2px);
 }
@@ -318,10 +318,10 @@ h3.screen-section-title {
   padding: 3px 10px;
   border: 1px solid color-mix(in srgb, var(--type-couleur, var(--cnam-green)) 30%, transparent);
   border-radius: var(--rayon-pilule);
-  background: color-mix(in srgb, var(--type-couleur, var(--cnam-green)) 10%, white);
+  background: color-mix(in srgb, var(--type-couleur, var(--cnam-green)) 10%, var(--couleur-surface));
   /* La couleur du type, assombrie : elle reste reconnaissable et le
      code reste lisible quelle que soit la teinte choisie côté serveur. */
-  color: color-mix(in srgb, var(--type-couleur, var(--cnam-green)) 60%, #000);
+  color: color-mix(in srgb, var(--type-couleur, var(--cnam-green)) var(--encre-part), var(--encre-cible));
   font-size: var(--texte-2xs);
   font-weight: var(--graisse-titre);
   letter-spacing: 0.12em;
@@ -374,7 +374,7 @@ h3.screen-section-title {
   margin-top: auto;
   padding-top: var(--espace-4);
   border-top: 1px solid var(--couleur-bord-doux);
-  color: color-mix(in srgb, var(--type-couleur, var(--cnam-green)) 60%, #000);
+  color: color-mix(in srgb, var(--type-couleur, var(--cnam-green)) var(--encre-part), var(--encre-cible));
   font-size: var(--texte-sm);
   font-weight: var(--graisse-titre);
 }
@@ -404,8 +404,8 @@ h3.screen-section-title {
   padding: var(--espace-6) var(--espace-7);
   background: linear-gradient(
     180deg,
-    color-mix(in srgb, var(--type-couleur, var(--cnam-green)) 7%, white),
-    white 46%
+    color-mix(in srgb, var(--type-couleur, var(--cnam-green)) 7%, var(--couleur-surface)),
+    var(--couleur-surface) 46%
   );
 }
 
@@ -420,12 +420,12 @@ h3.screen-section-title {
   padding: var(--espace-3) var(--espace-4);
   border: 0;
   border-radius: var(--rayon-pilule);
-  background: color-mix(in srgb, var(--type-couleur, var(--cnam-green)) 11%, white);
+  background: color-mix(in srgb, var(--type-couleur, var(--cnam-green)) 11%, var(--couleur-surface));
   transition: background-color var(--duree) var(--courbe);
 }
 
 .type-card--featured.type-card--action:hover:not(:disabled) .type-card-appel {
-  background: color-mix(in srgb, var(--type-couleur, var(--cnam-green)) 18%, white);
+  background: color-mix(in srgb, var(--type-couleur, var(--cnam-green)) 18%, var(--couleur-surface));
 }
 
 /* ── Tableaux ───────────────────────────────────────────────────── */
@@ -638,7 +638,7 @@ h3.screen-section-title {
 }
 
 .cellule {
-  --cellule-encre: color-mix(in srgb, var(--cellule-couleur, var(--couleur-texte)) 62%, #000);
+  --cellule-encre: color-mix(in srgb, var(--cellule-couleur, var(--couleur-texte)) var(--encre-part), var(--encre-cible));
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -733,7 +733,7 @@ h3.screen-section-title {
   height: 8px;
   overflow: hidden;
   border-radius: var(--rayon-pilule);
-  background: var(--gris-0);
+  background: var(--couleur-surface);
 }
 
 .progression-avance {
@@ -1045,7 +1045,7 @@ h3.screen-section-title {
   border: 1px solid var(--couleur-info-bord);
   border-radius: var(--rayon-sm);
   background: var(--couleur-info-fond);
-  color: var(--bleu-700);
+  color: var(--cnam-blue-dark);
   font-size: var(--texte-sm);
   line-height: var(--interligne);
 }

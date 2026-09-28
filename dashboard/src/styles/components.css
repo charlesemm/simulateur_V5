@@ -150,7 +150,7 @@
   --btn-fond: var(--couleur-alerte-fond);
   --btn-texte: var(--couleur-alerte);
   --btn-bord: var(--couleur-alerte-bord);
-  --btn-fond-survol: #ffe9d1;
+  --btn-fond-survol: color-mix(in srgb, var(--cnam-orange) 20%, var(--couleur-surface));
   --btn-bord-survol: var(--cnam-orange);
 }
 

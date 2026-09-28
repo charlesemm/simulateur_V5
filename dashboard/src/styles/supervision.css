@@ -270,6 +270,43 @@
   color: var(--couleur-alerte);
 }
 
+/* ── Habillage des graphiques ───────────────────────────────────
+   Recharts écrit grille, axes et graduations en attributs SVG, où les
+   variables CSS ne se résolvent pas. Une règle CSS l'emporte sur un
+   attribut : c'est ici que l'habillage suit le thème. En clair, les
+   valeurs sont celles de chartTheme.ts. */
+
+.recharts-cartesian-grid line {
+  stroke: var(--couleur-bord-doux);
+}
+
+.recharts-cartesian-axis-line {
+  stroke: var(--couleur-bord);
+}
+
+.recharts-cartesian-axis-tick-value {
+  fill: var(--couleur-texte-faible);
+}
+
+.recharts-yAxis .recharts-cartesian-axis-tick-value tspan {
+  fill: inherit;
+}
+
+.recharts-rectangle.recharts-tooltip-cursor {
+  fill: var(--couleur-surface-douce);
+}
+
+.recharts-curve.recharts-tooltip-cursor {
+  stroke: var(--couleur-bord);
+}
+
+/* Liserés qui séparent les parts du donut et cernent le point survolé :
+   à la couleur de la carte, quel que soit le thème. */
+.recharts-pie-sector path,
+.recharts-active-dot circle {
+  stroke: var(--couleur-surface);
+}
+
 /* ── Ententes préalables ────────────────────────────────────────── */
 
 .ententes-repartition {

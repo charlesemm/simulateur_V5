@@ -5,6 +5,7 @@
 // résout pas partout : les valeurs sont donc recopiées ici, en miroir exact
 // des jetons de styles/tokens.css. Toute retouche de la charte se reporte ici.
 import { createElement, type CSSProperties } from "react";
+import { useTheme } from "../hooks/useTheme";
 
 /**
  * Couleurs de série.
@@ -36,7 +37,43 @@ export const ETAT = {
   echec: "#d9731a",
 } as const;
 
-/** Habillage du graphique : grille, axes, curseur — tout en retrait. */
+/**
+ * Thème sombre : mêmes rôles, nuances choisies sur le fond de carte sombre
+ * (#0a2c40) et validées à part — pas une inversion automatique.
+ *
+ * Réussite / échec : aucun couple vert-orange ne tient à la fois la bande
+ * de clarté du sombre et l'écart deutéranope. On garde donc la paire
+ * bleu-orange, validée sans réserve (ΔE 23 en protanopie). La légende
+ * « Passages réussis / échoués » nomme toujours chaque part : la couleur
+ * n'est jamais seule à porter le sens.
+ */
+export const SERIE_SOMBRE = {
+  bleu: "#3a9ad9",
+  vert: "#4caf2a",
+  orange: "#c97a2a",
+} as const;
+
+export const ETAT_SOMBRE = {
+  reussite: "#3a9ad9",
+  echec: "#c97a2a",
+} as const;
+
+/** Couleurs de série et d'état du thème appliqué, plus la teinte du fond
+ *  de carte, pour l'anneau qui détache un point ou un secteur. */
+export function usePaletteGraphique() {
+  const { theme } = useTheme();
+  return theme === "dark"
+    ? { serie: SERIE_SOMBRE, etat: ETAT_SOMBRE, fond: "#0a2c40" }
+    : { serie: SERIE, etat: ETAT, fond: "#ffffff" };
+}
+
+/**
+ * Habillage du graphique : grille, axes, curseur — tout en retrait.
+ *
+ * Valeurs du thème clair. Recharts les pose en attributs SVG ; en thème
+ * sombre, styles/supervision.css les reprend par des règles CSS, qui
+ * l'emportent sur les attributs.
+ */
 export const HABILLAGE = {
   grille: "#e4eef4",
   axe: "#cfe3ee",
@@ -52,18 +89,20 @@ export const HABILLAGE = {
 export const GRADUATION = { fontSize: 12, fill: HABILLAGE.graduation };
 export const GRADUATION_LIBELLE = { fontSize: 12, fill: HABILLAGE.libelle };
 
+// Infobulle, libellé, légende : du HTML, pas du SVG — les variables CSS
+// s'y résolvent, et suivent donc le thème clair ou sombre.
 export const TOOLTIP_STYLE: CSSProperties = {
-  background: "#ffffff",
-  border: "1px solid #cfe3ee",
+  background: "var(--couleur-surface)",
+  border: "1px solid var(--couleur-bord)",
   borderRadius: "10px",
-  boxShadow: "0 14px 36px rgba(0, 80, 124, 0.12), 0 4px 10px rgba(0, 136, 206, 0.08)",
+  boxShadow: "var(--ombre-3)",
   fontSize: "13px",
-  color: "#123041",
+  color: "var(--couleur-texte)",
 };
 
 /** Libellé de l'infobulle (l'heure, la catégorie) : lisible, pas criard. */
 export const TOOLTIP_LIBELLE: CSSProperties = {
-  color: "#506874",
+  color: "var(--couleur-texte-doux)",
   fontWeight: 600,
   marginBottom: 4,
 };
@@ -71,7 +110,7 @@ export const TOOLTIP_LIBELLE: CSSProperties = {
 /** Légende : texte en encre, jamais à la couleur de la série. */
 export const LEGENDE_STYLE: CSSProperties = {
   fontSize: "13px",
-  color: "#506874",
+  color: "var(--couleur-texte-doux)",
   paddingTop: 8,
 };
 
@@ -81,5 +120,5 @@ export const LEGENDE_STYLE: CSSProperties = {
  * pastille ou le trait à côté porte l'identité ; le texte, lui, doit se lire.
  */
 export function legendeEnEncre(valeur: string) {
-  return createElement("span", { style: { color: "#506874" } }, valeur);
+  return createElement("span", { style: { color: "var(--couleur-texte-doux)" } }, valeur);
 }

@@ -1,9 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { TechnicalMetricsSnapshot } from "../types";
-import {
-  GRADUATION, HABILLAGE, LEGENDE_STYLE, SERIE, TOOLTIP_LIBELLE, TOOLTIP_STYLE, legendeEnEncre,
-} from "./chartTheme";
+import { GRADUATION, HABILLAGE, LEGENDE_STYLE, TOOLTIP_LIBELLE, TOOLTIP_STYLE, legendeEnEncre, usePaletteGraphique } from "./chartTheme";
 
 interface PointLatence {
   heure: string;
@@ -18,6 +16,7 @@ interface LatencyPerformanceChartProps {
 }
 
 export function LatencyPerformanceChart({ metrics }: LatencyPerformanceChartProps) {
+  const { serie, fond } = usePaletteGraphique();
   const [points, setPoints] = useState<PointLatence[]>([]);
   const lastTimeRef = useRef<string>("");
 
@@ -78,19 +77,19 @@ export function LatencyPerformanceChart({ metrics }: LatencyPerformanceChartProp
                 type="monotone"
                 dataKey="latenceApiMs"
                 name="Latence API (ms)"
-                stroke={SERIE.bleu}
+                stroke={serie.bleu}
                 strokeWidth={2}
                 dot={false}
-                activeDot={{ r: 4, strokeWidth: 2, stroke: "#ffffff" }}
+                activeDot={{ r: 4, strokeWidth: 2, stroke: fond }}
               />
               <Line
                 type="monotone"
                 dataKey="latenceKpiMs"
                 name="Pipeline KPI (ms)"
-                stroke={SERIE.orange}
+                stroke={serie.orange}
                 strokeWidth={2}
                 dot={false}
-                activeDot={{ r: 4, strokeWidth: 2, stroke: "#ffffff" }}
+                activeDot={{ r: 4, strokeWidth: 2, stroke: fond }}
               />
             </LineChart>
           </ResponsiveContainer>

@@ -17,9 +17,6 @@
   60% { box-shadow: 0 0 0 7px rgba(22, 163, 74, 0); }
 }
 
-/* Un liseré coloré qui se déploie au survol : la carte se déclare
-   cliquable avant même qu'on lise le bouton. */
-
 .pouls-clair {
   background: #ffffff;
   animation-name: pouls-clair-battement;
@@ -251,7 +248,7 @@
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: color-mix(in srgb, var(--alea, var(--couleur-texte-doux)) 62%, #000);
+  color: color-mix(in srgb, var(--alea, var(--couleur-texte-doux)) var(--encre-part), var(--encre-cible));
 }
 
 /* ── Les deux suites ── */

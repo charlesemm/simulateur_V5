@@ -1,6 +1,7 @@
 // dashboard/src/components/Sidebar.tsx
 import { useEffect, useRef } from "react";
 import { useAuth } from "../auth/AuthContext";
+import { useTheme, type PreferenceTheme } from "../hooks/useTheme";
 import { RequireRole } from "../auth/RequireRole";
 import logoCnam from "../assets/logo.png";
 import type { Onglet } from "../navigation";
@@ -9,6 +10,12 @@ import {
   ApiIcon, CampagneIcon, CloseIcon, DashboardIcon, HomeIcon, InjectionIcon,
   LogoutIcon, QualiteIcon, ReportsIcon, SimulationsIcon, UsersIcon,
 } from "./Icons";
+
+const THEMES: { valeur: PreferenceTheme; libelle: string }[] = [
+  { valeur: "systeme", libelle: "Système" },
+  { valeur: "clair", libelle: "Clair" },
+  { valeur: "sombre", libelle: "Sombre" },
+];
 
 interface SidebarProps {
   ongletActif: Onglet;
@@ -25,6 +32,7 @@ export function Sidebar({
 }: SidebarProps) {
   const { nomComplet, role, logout } = useAuth();
   const fermer = useRef<HTMLButtonElement>(null);
+  const { preference, choisirTheme } = useTheme();
 
   // Choisir un écran referme le tiroir : on veut voir ce qu'on a demandé.
   function onNaviguer(onglet: Onglet) {
@@ -214,6 +222,19 @@ export function Sidebar({
         <div className="sidebar-environment">
           <span className="sidebar-environment-dot" aria-hidden="true" />
           Environnement de simulation
+        </div>
+        <div className="sidebar-theme" role="group" aria-label="Thème de l'interface">
+          {THEMES.map(({ valeur, libelle }) => (
+            <button
+              key={valeur}
+              type="button"
+              className="sidebar-theme-choix"
+              aria-pressed={preference === valeur}
+              onClick={() => choisirTheme(valeur)}
+            >
+              {libelle}
+            </button>
+          ))}
         </div>
         <div className="sidebar-user-card">
           <div className="sidebar-user-avatar" aria-hidden="true">

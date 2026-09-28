@@ -1,13 +1,14 @@
 // Courbe des passages ouverts, historique REST prolongé par le flux Socket.IO.
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { HistoryPoint } from "../types";
-import { GRADUATION, HABILLAGE, SERIE, TOOLTIP_LIBELLE, TOOLTIP_STYLE } from "./chartTheme";
+import { GRADUATION, HABILLAGE, TOOLTIP_LIBELLE, TOOLTIP_STYLE, usePaletteGraphique } from "./chartTheme";
 
 interface PassagesHistoryChartProps {
   history: HistoryPoint[];
 }
 
 export function PassagesHistoryChart({ history }: PassagesHistoryChartProps) {
+  const { serie, fond } = usePaletteGraphique();
   // L'historique arrive dans l'ordre du serveur, mais le point courant poussé
   // par Socket.IO est concaténé en fin de liste : on retrie sur l'horodatage.
   const points = [...history]
@@ -49,8 +50,8 @@ export function PassagesHistoryChart({ history }: PassagesHistoryChartProps) {
             <AreaChart data={points} margin={{ top: 10, right: 15, left: -20, bottom: 0 }}>
               <defs>
                 <linearGradient id="gradientPassages" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor={SERIE.bleu} stopOpacity={0.24} />
-                  <stop offset="95%" stopColor={SERIE.bleu} stopOpacity={0.0} />
+                  <stop offset="5%" stopColor={serie.bleu} stopOpacity={0.24} />
+                  <stop offset="95%" stopColor={serie.bleu} stopOpacity={0.0} />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke={HABILLAGE.grille} vertical={false} />
@@ -72,7 +73,7 @@ export function PassagesHistoryChart({ history }: PassagesHistoryChartProps) {
               <Tooltip
                 contentStyle={TOOLTIP_STYLE}
                 labelStyle={TOOLTIP_LIBELLE}
-                itemStyle={{ color: "#123041", fontWeight: 600 }}
+                itemStyle={{ color: "var(--couleur-texte)", fontWeight: 600 }}
                 cursor={{ stroke: HABILLAGE.axe, strokeWidth: 1 }}
                 formatter={(valeur: number) => [`${valeur.toLocaleString("fr-FR")} passages`, "Ouverts"]}
               />
@@ -80,10 +81,10 @@ export function PassagesHistoryChart({ history }: PassagesHistoryChartProps) {
                 type="monotone"
                 dataKey="passages"
                 name="Passages ouverts"
-                stroke={SERIE.bleu}
+                stroke={serie.bleu}
                 strokeWidth={2}
                 fill="url(#gradientPassages)"
-                activeDot={{ r: 4, strokeWidth: 2, stroke: "#ffffff" }}
+                activeDot={{ r: 4, strokeWidth: 2, stroke: fond }}
               />
             </AreaChart>
           </ResponsiveContainer>

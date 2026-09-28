@@ -1,12 +1,13 @@
 import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import type { TechnicalMetricsSnapshot } from "../types";
-import { ETAT, LEGENDE_STYLE, TOOLTIP_STYLE, legendeEnEncre } from "./chartTheme";
+import { LEGENDE_STYLE, TOOLTIP_STYLE, legendeEnEncre, usePaletteGraphique } from "./chartTheme";
 
 interface SystemHealthDonutProps {
   metrics: TechnicalMetricsSnapshot | null;
 }
 
 export function SystemHealthDonut({ metrics }: SystemHealthDonutProps) {
+  const { etat, fond } = usePaletteGraphique();
   if (!metrics) {
     return (
       <article className="chart-card">
@@ -25,8 +26,8 @@ export function SystemHealthDonut({ metrics }: SystemHealthDonutProps) {
     // Réussite et échec sont des états, pas des séries quelconques : une paire
     // choisie pour rester distincte aux daltoniens, et toujours accompagnée
     // de son libellé dans la légende.
-    { name: "Passages réussis", value: success, color: ETAT.reussite },
-    { name: "Passages échoués", value: errors, color: ETAT.echec },
+    { name: "Passages réussis", value: success, color: etat.reussite },
+    { name: "Passages échoués", value: errors, color: etat.echec },
   ];
 
   return (
@@ -55,7 +56,7 @@ export function SystemHealthDonut({ metrics }: SystemHealthDonutProps) {
                 innerRadius={52}
                 outerRadius={78}
                 paddingAngle={2}
-                stroke="#ffffff"
+                stroke={fond}
                 strokeWidth={2}
               >
                 {data.map((entry) => (
