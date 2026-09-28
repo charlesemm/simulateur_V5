@@ -276,7 +276,7 @@ export function AccueilPage({
         {!executionsChargees ? (
           <div className="screen-table-wrap" aria-busy="true" aria-label="Chargement des exécutions">
             {[0, 1, 2].map((ligne) => (
-              <div key={ligne} style={{ padding: "16px 16px" }}>
+              <div key={ligne} className="ligne-squelette">
                 <span className="ui-skeleton ui-skeleton--texte" style={{ width: `${88 - ligne * 12}%` }} />
               </div>
             ))}

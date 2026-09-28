@@ -1,10 +1,5 @@
 
 
-.fiche--type {
-  border-radius: var(--rayon-lg);
-  padding: 22px;
-}
-
 .form-input,
 .form-select,
 input,

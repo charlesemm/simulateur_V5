@@ -384,119 +384,6 @@
   color: var(--text-light);
 }
 
-/* ── Cellules : ce qui a été demandé, et ce qu'on a obtenu ──────────────
-   Un tableau de deux colonnes se lit ligne par ligne ; ces cellules se
-   parcourent d'un regard, et celles restées à zéro se repèrent aussitôt. */
-.cellules {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
-  gap: 12px;
-}
-
-.cellule {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 14px 16px;
-  background: var(--surface-subtle);
-  border: 1px solid var(--border);
-  border-radius: var(--rayon-md);
-  border-top: 3px solid var(--cellule-couleur, var(--border));
-  transition: background var(--transition), box-shadow var(--transition);
-}
-
-/* Une cellule qui a réellement produit quelque chose s'éclaire ; celle restée
-   à zéro garde le fond gris, et c'est l'information. */
-.cellule.remplie {
-  background: var(--surface);
-  box-shadow: var(--shadow-card);
-}
-
-.cellule-titre {
-  font-size: 0.76rem;
-  font-weight: 600;
-  color: var(--text-muted);
-  line-height: 1.35;
-}
-
-.cellule-nombre {
-  font-size: 1.6rem;
-  font-weight: 700;
-  color: var(--text-light);
-  font-variant-numeric: tabular-nums;
-  line-height: 1.1;
-}
-
-.cellule.remplie .cellule-nombre {
-  color: var(--cellule-couleur, var(--text-main));
-}
-
-.cellule-pied {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-  font-size: 0.7rem;
-  color: var(--text-light);
-}
-
-.cellule-pied strong {
-  font-weight: 600;
-  color: var(--text-muted);
-  font-variant-numeric: tabular-nums;
-}
-
-/* ── Fiche d'exécution ── */
-.fiche {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--rayon-md);
-  padding: 20px;
-  box-shadow: var(--shadow-card);
-}
-
-/* La fiche de lancement porte la couleur du type en tête : on sait ce qu'on
-   s'apprête à lancer sans relire l'intitulé. */
-.fiche--type {
-  border-top: 4px solid var(--type-couleur, var(--cnam-green));
-}
-
-.fiche-tete {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 14px;
-  flex-wrap: wrap;
-  margin-bottom: 18px;
-  padding-bottom: 14px;
-  border-bottom: 1px solid var(--border-subtle);
-}
-
-.fiche-titre {
-  font-size: 1.05rem;
-  font-weight: 700;
-  color: var(--text-main);
-}
-
-.fiche-identifiant {
-  font-size: 0.72rem;
-  color: var(--text-light);
-  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
-}
-
-.fiche-parametres {
-  margin-top: 18px;
-  padding: 14px;
-  background: var(--surface-subtle);
-  border-radius: 8px;
-  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
-  font-size: 0.76rem;
-  color: var(--text-muted);
-  white-space: pre-wrap;
-  word-break: break-word;
-  overflow-x: auto;
-}
-
 /* ── Onglets internes à un écran ── */
 .onglets {
   display: flex;
@@ -1280,19 +1167,6 @@
   align-items: flex-end;
   gap: 12px;
   margin: 10px 0 4px;
-}
-
-.cellule-empreinte {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: .84rem;
-  color: var(--text-muted);
-}
-
-/* En-tête de fiche : le statut et l'action de génération côte à côte. */
-.fiche-actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
 }
 
 /* ── Explorateur API ────────────────────────────────────────────────────
