@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { useKpiSocket } from "../hooks/useKpiSocket";
+import { useToast } from "../hooks/useToast";
 import { api } from "../services/api";
 import type {
   ExecutionDetail, ProfilSimulation, ScenarioAlea, SimulationStatus, TypeAnomalie,
@@ -76,6 +77,7 @@ const NOMS_VOLUMETRIE: Record<string, string> = {
 export function ExecutionEnCoursPage({ onQuitter, onArret }: ExecutionEnCoursPageProps) {
   const { token } = useAuth();
   const { evenements } = useKpiSocket();
+  const { toast } = useToast();
   const [statut, setStatut] = useState<SimulationStatus | null>(null);
   const [detail, setDetail] = useState<ExecutionDetail | null>(null);
   const [profils, setProfils] = useState<ProfilSimulation[]>([]);
@@ -88,6 +90,10 @@ export function ExecutionEnCoursPage({ onQuitter, onArret }: ExecutionEnCoursPag
   const [erreur, setErreur] = useState<string | null>(null);
   const [arretEnCours, setArretEnCours] = useState(false);
   const [battement, setBattement] = useState(0);
+  // Référentiels reçus : sans eux, pas encore d'aléa à proposer.
+  const [referentielsCharges, setReferentielsCharges] = useState(false);
+  // L'aléa qu'on vient de frapper, le temps que sa carte s'allume.
+  const [vientDeFrapper, setVientDeFrapper] = useState<string | null>(null);
 
   useEffect(() => {
     void (async () => {
@@ -100,6 +106,8 @@ export function ExecutionEnCoursPage({ onQuitter, onArret }: ExecutionEnCoursPag
         setCatalogue(types);
       } catch (raison) {
         setErreur((raison as Error).message);
+      } finally {
+        setReferentielsCharges(true);
       }
     })();
   }, [token]);
@@ -137,8 +145,14 @@ export function ExecutionEnCoursPage({ onQuitter, onArret }: ExecutionEnCoursPag
         ...courants,
       ]);
       setErreur(null);
+      // Le moteur ne l'appliquera qu'au passage suivant : on confirme que
+      // l'ordre est parti, sans prétendre qu'il a déjà frappé.
+      toast("info", `Aléa envoyé : ${alea.libelle}`, "Effet au prochain passage.");
+      setVientDeFrapper(alea.code);
+      setTimeout(() => setVientDeFrapper((courant) => (courant === alea.code ? null : courant)), 700);
     } catch (raison) {
       setErreur((raison as Error).message);
+      toast("erreur", "Aléa non déclenché", (raison as Error).message);
     }
   }
 
@@ -148,9 +162,11 @@ export function ExecutionEnCoursPage({ onQuitter, onArret }: ExecutionEnCoursPag
       await api.stopSimulation(token);
       // L'identifiant est lu avant l'arrêt : une fois le moteur clos, le
       // statut ne le porte plus, et le bilan n'aurait plus rien à ouvrir.
+      toast("succes", "Simulation arrêtée", "Voici son bilan.");
       onArret(execution?.simulation_id ?? statut?.simulation_id ?? null, frappes);
     } catch (raison) {
       setErreur((raison as Error).message);
+      toast("erreur", "Arrêt impossible", (raison as Error).message);
       setArretEnCours(false);
     }
   }
@@ -245,13 +261,17 @@ export function ExecutionEnCoursPage({ onQuitter, onArret }: ExecutionEnCoursPag
               className="cockpit-bouton cockpit-arret"
               onClick={() => void arreter()}
               disabled={arretEnCours}
+              aria-busy={arretEnCours}
             >
+              {arretEnCours && (
+                <span className="ui-spinner ui-spinner--petit ui-spinner--inverse" aria-hidden="true" />
+              )}
               {arretEnCours ? "Arrêt…" : "Arrêter"}
             </button>
           </div>
         </header>
 
-        {erreur && <p className="cockpit-erreur">{erreur}</p>}
+        {erreur && <p className="cockpit-erreur" role="alert">{erreur}</p>}
 
         {progression && (
           <section className="cockpit-progression">
@@ -271,10 +291,7 @@ export function ExecutionEnCoursPage({ onQuitter, onArret }: ExecutionEnCoursPag
                   <b>Durée visée atteinte — le moteur tourne toujours</b>
                 )}
               </span>
-              <span
-                className="cockpit-progression-part"
-                style={{ ["--teinte" as string]: teinte }}
-              >
+              <span className="cockpit-progression-part">
                 {Math.round(progression.part * 100)} %
               </span>
             </div>
@@ -289,10 +306,7 @@ export function ExecutionEnCoursPage({ onQuitter, onArret }: ExecutionEnCoursPag
             >
               <div
                 className="cockpit-jauge-remplie"
-                style={{
-                  width: `${progression.part * 100}%`,
-                  ["--teinte" as string]: teinte,
-                }}
+                style={{ width: `${progression.part * 100}%` }}
               />
             </div>
 
@@ -306,27 +320,27 @@ export function ExecutionEnCoursPage({ onQuitter, onArret }: ExecutionEnCoursPag
         <section>
           <h2 className="cockpit-titre">Ce qui se produit</h2>
           <div className="cockpit-compteurs">
-            <div className="cockpit-compteur" style={{ ["--accent" as string]: teinte }}>
+            <div className="cockpit-compteur cockpit-compteur--type">
               <span className="cockpit-compteur-valeur">{statut?.passages_actifs ?? 0}</span>
               <span className="cockpit-compteur-nom">Passages en cours</span>
             </div>
-            <div className="cockpit-compteur" style={{ ["--accent" as string]: "#7fd1a3" }}>
+            <div className="cockpit-compteur cockpit-compteur--clotures">
               <span className="cockpit-compteur-valeur">{execution?.passages_reussis ?? 0}</span>
               <span className="cockpit-compteur-nom">Passages clôturés</span>
             </div>
-            <div className="cockpit-compteur" style={{ ["--accent" as string]: "#ff8a5c" }}>
+            <div className="cockpit-compteur cockpit-compteur--coupes">
               <span className="cockpit-compteur-valeur">
                 {statut?.passages_interrompus ?? 0}
               </span>
               <span className="cockpit-compteur-nom">Coupés par un aléa</span>
             </div>
-            <div className="cockpit-compteur" style={{ ["--accent" as string]: "#e5a44d" }}>
+            <div className="cockpit-compteur cockpit-compteur--echecs">
               <span className="cockpit-compteur-valeur">{execution?.passages_echoues ?? 0}</span>
               <span className="cockpit-compteur-nom">Échecs du moteur</span>
             </div>
 
             {Object.entries(detail?.volumetrie ?? {}).map(([cle, nombre]) => (
-              <div key={cle} className="cockpit-compteur" style={{ ["--accent" as string]: "#79c0e8" }}>
+              <div key={cle} className="cockpit-compteur cockpit-compteur--volume">
                 <span className="cockpit-compteur-valeur">{nombre}</span>
                 <span className="cockpit-compteur-nom">{NOMS_VOLUMETRIE[cle] ?? cle}</span>
               </div>
@@ -341,11 +355,16 @@ export function ExecutionEnCoursPage({ onQuitter, onArret }: ExecutionEnCoursPag
             passages : l'effet arrive au suivant, pas à l'instant du clic.
           </p>
           <div className="cockpit-aleas">
+            {!referentielsCharges && [0, 1, 2].map((carte) => (
+              <div key={carte} className="cockpit-alea cockpit-alea--attente" aria-hidden="true" />
+            ))}
             {aleas.map((alea) => (
               <button
                 key={alea.code}
                 type="button"
-                className={`cockpit-alea${comptes[alea.code] ? " frappe" : ""}`}
+                className={`cockpit-alea${comptes[alea.code] ? " frappe" : ""}${
+                  vientDeFrapper === alea.code ? " vient-de-frapper" : ""
+                }`}
                 style={{ ["--alea" as string]: alea.couleur }}
                 onClick={() => void frapper(alea)}
               >
@@ -409,7 +428,8 @@ export function ExecutionEnCoursPage({ onQuitter, onArret }: ExecutionEnCoursPag
 
         <section>
           <h2 className="cockpit-titre">Flux des passages</h2>
-          <div className="cockpit-flux">
+          {/* Un journal : parcourable, sans être lu à voix haute à chaque ligne. */}
+          <div className="cockpit-flux" role="log" aria-live="off" aria-label="Derniers événements des passages">
             {derniers.length === 0 && (
               <p className="cockpit-vide">En attente du premier événement…</p>
             )}

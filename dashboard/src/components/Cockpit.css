@@ -18,7 +18,11 @@
   --bord: #1d5f82;
   --texte: #eef7fb;
   --texte-doux: #a9c5d4;
-  --texte-faible: #7a9aab;
+  --texte-faible: #93b3c3; /* 4,9:1 sur les panneaux (#7a9aab n'en tenait que 3,9) */
+  /* Les couleurs qui viennent des données (type, aléa, famille) sont
+     calibrées pour un fond clair ; sur ce fond sombre, on les éclaircit
+     pour écrire avec : 45 % de la teinte, 55 % de blanc — 5:1 et plus. */
+  --teinte-encre: color-mix(in srgb, var(--teinte) 45%, #fff);
 
   position: fixed;
   inset: 0;
@@ -27,7 +31,9 @@
   flex-direction: column;
   background: var(--sol);
   color: var(--texte);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  /* La police de l'application : le cockpit changeait de voix en plus de
+     changer de fond, et semblait sortir d'un autre logiciel. */
+  font-family: var(--police);
   overflow-y: auto;
 }
 
@@ -91,11 +97,11 @@
   border-radius: 100px;
   background: color-mix(in srgb, var(--teinte) 18%, transparent);
   border: 1px solid color-mix(in srgb, var(--teinte) 45%, transparent);
-  font-size: .66rem;
+  font-size: var(--texte-2xs);
   font-weight: 700;
   letter-spacing: .14em;
   text-transform: uppercase;
-  color: var(--teinte);
+  color: var(--teinte-encre);
 }
 
 .cockpit-battement {
@@ -143,21 +149,33 @@
 }
 
 .cockpit-chrono-libelle {
-  font-size: .66rem;
+  font-size: var(--texte-2xs);
   letter-spacing: .12em;
   text-transform: uppercase;
   color: var(--texte-faible);
 }
 
 .cockpit-bouton {
-  padding: 11px 20px;
-  border-radius: 9px;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espace-2);
+  min-height: 42px;
+  padding: 0 var(--espace-5);
+  border-radius: var(--rayon-pilule);
   border: 1px solid transparent;
   font: inherit;
-  font-size: .86rem;
+  font-size: var(--texte-sm);
   font-weight: 600;
   cursor: pointer;
-  transition: background 160ms ease, border-color 160ms ease, transform 160ms ease;
+  transition:
+    background-color var(--duree-rapide) var(--courbe),
+    border-color var(--duree-rapide) var(--courbe),
+    transform var(--duree-rapide) var(--courbe);
+}
+
+/* Sur fond sombre, l'anneau de focus passe au blanc. */
+.cockpit :focus-visible {
+  outline-color: var(--gris-0);
 }
 
 .cockpit-bouton:active { transform: translateY(1px); }
@@ -173,15 +191,16 @@
   color: var(--texte);
 }
 
+/* Orange de la charte en nuance encre : le blanc n'y tenait que 2,8:1. */
 .cockpit-arret {
-  background: #f07800;
+  background: var(--orange-700);
   color: #ffffff;
   font-weight: 700;
-  box-shadow: 0 4px 18px rgba(240, 120, 0, .32);
+  box-shadow: 0 4px 18px rgba(186, 93, 0, .35);
 }
 
 .cockpit-arret:hover:not(:disabled) {
-  background: #d46600;
+  background: #9e4f00;
 }
 
 .cockpit-arret:disabled { opacity: .6; cursor: not-allowed; }
@@ -191,11 +210,11 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  font-size: .7rem;
+  font-size: var(--texte-xs);
   font-weight: 700;
-  letter-spacing: .16em;
+  letter-spacing: .14em;
   text-transform: uppercase;
-  color: var(--texte-faible);
+  color: var(--texte-doux);
   margin: 0 0 16px;
 }
 
@@ -228,11 +247,18 @@
   font-weight: 700;
   line-height: 1;
   font-variant-numeric: tabular-nums;
-  color: var(--accent, var(--texte));
+  color: color-mix(in srgb, var(--accent, #fff) 55%, #fff);
 }
 
+/* Couleurs d'accent des compteurs : autrefois écrites dans le composant. */
+.cockpit-compteur--type { --accent: var(--teinte); }
+.cockpit-compteur--clotures { --accent: #7fd1a3; }
+.cockpit-compteur--coupes { --accent: #ff8a5c; }
+.cockpit-compteur--echecs { --accent: #e5a44d; }
+.cockpit-compteur--volume { --accent: #79c0e8; }
+
 .cockpit-compteur-nom {
-  font-size: .76rem;
+  font-size: var(--texte-sm);
   color: var(--texte-doux);
   line-height: 1.35;
 }
@@ -268,12 +294,28 @@
 
 .cockpit-alea:active { transform: translateY(0); }
 
+/* Carte d'attente, le temps que les aléas arrivent. */
+.cockpit-alea--attente {
+  min-height: 104px;
+  cursor: default;
+  border-left-color: var(--bord);
+  background: linear-gradient(90deg, var(--panneau) 0%, var(--panneau-clair) 50%, var(--panneau) 100%);
+  background-size: 200% 100%;
+  animation: ui-miroite 1.4s ease-in-out infinite;
+}
+
+.cockpit-alea--attente:hover {
+  transform: none;
+  box-shadow: none;
+  background: var(--panneau);
+}
+
 .cockpit-alea-nature {
-  font-size: .62rem;
+  font-size: var(--texte-2xs);
   font-weight: 700;
   letter-spacing: .14em;
   text-transform: uppercase;
-  color: var(--alea);
+  color: color-mix(in srgb, var(--alea) 45%, #fff);
 }
 
 .cockpit-alea-nom {
@@ -283,13 +325,23 @@
 }
 
 .cockpit-alea-compte {
-  font-size: .74rem;
+  font-size: var(--texte-xs);
   color: var(--texte-faible);
 }
 
 .cockpit-alea.frappe .cockpit-alea-compte {
-  color: var(--alea);
+  color: color-mix(in srgb, var(--alea) 45%, #fff);
   font-weight: 600;
+}
+
+/* L'instant du clic : la carte s'allume brièvement, le geste est vu. */
+.cockpit-alea.vient-de-frapper {
+  animation: cockpit-frappe 700ms var(--courbe-sortie);
+}
+
+@keyframes cockpit-frappe {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--alea) 70%, transparent); }
+  100% { box-shadow: 0 0 0 14px transparent; }
 }
 
 /* ── Anomalies injectées ── */
@@ -311,7 +363,7 @@
 }
 
 .cockpit-injection-nom {
-  font-size: .82rem;
+  font-size: var(--texte-sm);
   color: var(--texte-doux);
   line-height: 1.3;
 }
@@ -320,7 +372,7 @@
   font-size: 1.5rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  color: var(--famille);
+  color: color-mix(in srgb, var(--famille) 45%, #fff);
   flex-shrink: 0;
 }
 
@@ -330,7 +382,7 @@
   border: 1px solid var(--bord);
   border-radius: 12px;
   overflow: hidden;
-  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-family: var(--police-mono);
 }
 
 .cockpit-flux-ligne {
@@ -339,7 +391,7 @@
   gap: 16px;
   padding: 8px 18px;
   border-bottom: 1px solid var(--panneau-clair);
-  font-size: .78rem;
+  font-size: var(--texte-xs);
   animation: cockpit-arrivee 220ms ease-out both;
 }
 
@@ -377,7 +429,7 @@
 }
 
 .cockpit-aide {
-  font-size: .8rem;
+  font-size: var(--texte-sm);
   color: var(--texte-faible);
   margin: -8px 0 14px;
   max-width: 74ch;
@@ -402,7 +454,7 @@
 }
 
 .cockpit-progression-libelle {
-  font-size: .7rem;
+  font-size: var(--texte-xs);
   font-weight: 700;
   letter-spacing: .16em;
   text-transform: uppercase;
@@ -423,7 +475,7 @@
   font-weight: 700;
   line-height: 1;
   font-variant-numeric: tabular-nums;
-  color: var(--teinte, var(--texte));
+  color: var(--teinte-encre, var(--texte));
 }
 
 .cockpit-jauge {
@@ -445,7 +497,7 @@
   display: flex;
   justify-content: space-between;
   margin-top: 7px;
-  font-size: .72rem;
+  font-size: var(--texte-xs);
   color: var(--texte-faible);
   font-variant-numeric: tabular-nums;
 }
@@ -473,7 +525,7 @@
 
 .cockpit-fil-heure {
   flex: none;
-  font-size: .78rem;
+  font-size: var(--texte-xs);
   color: var(--texte-faible);
   font-variant-numeric: tabular-nums;
 }
@@ -495,11 +547,11 @@
 
 .cockpit-fil-nature {
   flex: none;
-  font-size: .62rem;
+  font-size: var(--texte-2xs);
   font-weight: 700;
   letter-spacing: .14em;
   text-transform: uppercase;
-  color: var(--alea, var(--texte-faible));
+  color: color-mix(in srgb, var(--alea, #fff) 45%, #fff);
 }
 
 @media (prefers-reduced-motion: reduce) {
