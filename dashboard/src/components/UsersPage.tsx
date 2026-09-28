@@ -59,6 +59,9 @@ export function UsersPage() {
   // « Réinitialiser », deux boutons minuscules et sans garde-fou : on éteignait
   // un compte en croyant lui refaire un mot de passe, et rien ne le disait.
   const [confirmExtinction, setConfirmExtinction] = useState<string | null>(null);
+  // Même garde-fou pour la réinitialisation : en un clic, l'ancien mot de
+  // passe cessait de fonctionner, et la personne se retrouvait à la porte.
+  const [confirmReinit, setConfirmReinit] = useState<string | null>(null);
 
   async function refresh() {
     try {
@@ -167,6 +170,7 @@ export function UsersPage() {
   }
 
   async function reinitialiser(user: UserRow) {
+    setConfirmReinit(null);
     setErreur(null);
     setSucces(null);
     setMotDePasseTemporaire(null);
@@ -259,7 +263,25 @@ export function UsersPage() {
                     </td>
                     <td>
                       <div className="user-actions">
-                        {confirmExtinction === u.utilisateur_uuid ? (
+                        {confirmReinit === u.utilisateur_uuid ? (
+                          <>
+                            <button
+                              type="button"
+                              className="btn-action-toggle btn-disable"
+                              onClick={() => void reinitialiser(u)}
+                              aria-label={`Confirmer la réinitialisation du mot de passe de ${u.nom_complet}`}
+                            >
+                              Confirmer la réinitialisation
+                            </button>
+                            <button
+                              type="button"
+                              className="btn-action-toggle btn-neutre"
+                              onClick={() => setConfirmReinit(null)}
+                            >
+                              Annuler
+                            </button>
+                          </>
+                        ) : confirmExtinction === u.utilisateur_uuid ? (
                           <>
                             <button
                               type="button"
@@ -285,18 +307,21 @@ export function UsersPage() {
                               type="button"
                               aria-label={`${u.statut_actif ? "Désactiver" : "Réactiver"} ${u.nom_complet}`}
                               className={`btn-action-toggle ${u.statut_actif ? "btn-disable" : "btn-enable"}`}
-                              onClick={() =>
-                                u.statut_actif
-                                  ? setConfirmExtinction(u.utilisateur_uuid)
-                                  : void toggleActif(u)
-                              }
+                              onClick={() => {
+                                setConfirmReinit(null);
+                                if (u.statut_actif) setConfirmExtinction(u.utilisateur_uuid);
+                                else void toggleActif(u);
+                              }}
                             >
                               {u.statut_actif ? "Désactiver" : "Réactiver"}
                             </button>
                             <button
                               type="button"
                               className="btn-action-toggle btn-neutre"
-                              onClick={() => reinitialiser(u)}
+                              onClick={() => {
+                                setConfirmExtinction(null);
+                                setConfirmReinit(u.utilisateur_uuid);
+                              }}
                               aria-label={`Réinitialiser le mot de passe de ${u.nom_complet}`}
                             >
                               Réinitialiser
