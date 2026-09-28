@@ -6,43 +6,6 @@
  * Orange de la petite silhouette : alerte, injection, arrêt.
  */
 
-:root {
-  --cnam-blue: #0088ce;
-  --cnam-blue-dark: #0069a3;
-  --cnam-blue-deep: #00507c;
-  --cnam-blue-vif: #1a9cdc;
-  --cnam-blue-light: #e6f5fb;
-  --cnam-blue-border: #b3dff0;
-  --cnam-green: #4caf2a;
-  --cnam-green-dark: #3b9220;
-  --cnam-green-vif: #5cbc38;
-  --cnam-green-light: #eef8e8;
-  --cnam-green-border: #c6e6b4;
-  --cnam-orange: #f07800;
-  --cnam-orange-vif: #f08a1c;
-  --cnam-orange-light: #fff4e8;
-  --cnam-orange-border: #ffd2a8;
-
-  --surface: #ffffff;
-  --surface-subtle: #f2f8fb;
-  --surface-hover: #e8f3f9;
-  --border: #cfe3ee;
-  --border-subtle: #e4eef4;
-  --text-main: #123041;
-  --text-muted: #5a7380;
-  --text-light: #8aa0ab;
-
-  --sidebar-width: 272px;
-  --topbar-height: 80px;
-  --rayon-sm: 10px;
-  --rayon-md: 14px;
-  --rayon-lg: 18px;
-  --shadow-card: 0 1px 2px rgba(0, 80, 124, 0.04), 0 10px 28px rgba(0, 80, 124, 0.06);
-  --shadow-hover: 0 14px 36px rgba(0, 80, 124, 0.12), 0 4px 10px rgba(0, 136, 206, 0.08);
-  --shadow-action: 0 6px 16px rgba(76, 175, 42, 0.28);
-  --brand-degrade: linear-gradient(135deg, var(--cnam-blue) 0%, var(--cnam-green) 100%);
-}
-
 html,
 body {
   font-family: "Source Sans 3", "Segoe UI", sans-serif;
@@ -63,11 +26,6 @@ body::before {
     var(--cnam-orange) 74% 100%
   );
   pointer-events: none;
-}
-
-:where(button, a, input, select, textarea, [tabindex]):focus-visible {
-  outline: 2px solid var(--cnam-blue);
-  outline-offset: 2px;
 }
 
 .enterprise-layout,
@@ -123,7 +81,7 @@ body::before {
 
 .sidebar-brand-sub {
   color: rgba(255, 255, 255, 0.78);
-  font-size: 0.68rem;
+  font-size: var(--texte-2xs);
 }
 
 .sidebar-cnam-lockup {
@@ -138,7 +96,7 @@ body::before {
 
 .sidebar-cnam-caption {
   color: #6b8592;
-  font-size: 0.58rem;
+  font-size: var(--texte-2xs);
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -159,7 +117,7 @@ body::before {
 .sidebar-nav-section-title {
   padding: 0 12px 6px;
   color: rgba(255, 255, 255, 0.55);
-  font-size: 0.62rem;
+  font-size: var(--texte-2xs);
   font-weight: 800;
   letter-spacing: 0.16em;
 }
@@ -229,7 +187,7 @@ body::before {
   align-items: center;
   gap: 7px;
   color: rgba(255, 255, 255, 0.72);
-  font-size: 0.64rem;
+  font-size: var(--texte-2xs);
   font-weight: 600;
 }
 
@@ -282,7 +240,7 @@ body::before {
   display: inline-flex;
   gap: 7px;
   color: var(--cnam-blue-dark);
-  font-size: 0.6rem;
+  font-size: var(--texte-2xs);
   font-weight: 800;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -307,18 +265,21 @@ body::before {
   background: var(--cnam-green-light);
 }
 
+/* Fond vert « encre » et non vert du logo : le blanc n'y tenait que
+   2,8:1, sous le seuil de lecture (WCAG AA : 4,5:1). */
 .btn-engine-start,
 .btn-start {
-  background: var(--cnam-green);
-  border-color: var(--cnam-green);
-  color: #ffffff;
+  background: var(--couleur-action);
+  border-color: var(--couleur-action);
+  color: var(--couleur-action-texte);
   border-radius: 11px;
   box-shadow: var(--shadow-action);
 }
 
 .btn-engine-start:hover:not(:disabled),
 .btn-start:hover:not(:disabled) {
-  background: var(--cnam-green-dark);
+  background: var(--couleur-action-survol);
+  border-color: var(--couleur-action-survol);
 }
 
 .btn-engine-stop {
@@ -357,7 +318,7 @@ body::before {
 .screen-section-title {
   margin-bottom: 14px;
   color: var(--cnam-blue-dark);
-  font-size: 0.68rem;
+  font-size: var(--texte-2xs);
   font-weight: 800;
   letter-spacing: 0.14em;
   text-transform: uppercase;

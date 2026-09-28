@@ -3,14 +3,6 @@
  * Le parcours se lit de haut en bas : où j'en suis → ce que je lance → ce qui s'est passé.
  */
 
-:root {
-  --sidebar-width: 248px;
-  --topbar-height: 64px;
-  --rayon-sm: 12px;
-  --rayon-md: 18px;
-  --rayon-lg: 24px;
-}
-
 .enterprise-layout {
   min-height: 100vh;
 }
@@ -129,7 +121,7 @@
   align-items: center;
   gap: 8px;
   margin-bottom: 8px;
-  font-size: 0.68rem;
+  font-size: var(--texte-2xs);
   font-weight: 800;
   letter-spacing: 0.14em;
   text-transform: uppercase;

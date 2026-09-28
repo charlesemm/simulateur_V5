@@ -5,75 +5,25 @@
    n'attire l'œil sur rien.
 ═══════════════════════════════════════════════════════════════ */
 :root {
-  font-family: "Source Sans 3", "Segoe UI", sans-serif;
+  font-family: var(--police);
 
   /* Toute l'échelle typographique est en rem : ce réglage-ci est donc le seul
      endroit où se change la taille du texte de l'interface entière. 112,5 %
      du défaut navigateur = 18 px, contre 16 auparavant — les libellés les plus
-     petits passaient sous les 10 px, illisibles à distance de bureau. */
+     petits passaient sous les 10 px, illisibles à distance de bureau.
+     Les jetons de couleur, d'espace et de mouvement vivent dans
+     styles/tokens.css. */
   font-size: 112.5%;
 
-  color: #123041;
-  background-color: #eaf4f9;
-  line-height: 1.5;
+  color: var(--couleur-texte);
+  background-color: var(--couleur-fond);
+  line-height: var(--interligne);
   font-synthesis: none;
   -webkit-font-smoothing: antialiased;
-
-  /* Charte du logo CNAM : bleu (grande silhouette), vert (mot-marque),
-     orange (petite silhouette). Rien d'autre. */
-  --cnam-green: #4caf2a;
-  --cnam-green-dark: #3b9220;
-  --cnam-green-vif: #5cbc38;
-  --cnam-green-light: #eef8e8;
-  --cnam-green-border: #c6e6b4;
-
-  --cnam-blue: #0088ce;
-  --cnam-blue-dark: #0069a3;
-  --cnam-blue-vif: #1a9cdc;
-  --cnam-blue-light: #e6f5fb;
-  --cnam-blue-border: #b3dff0;
-  --cnam-blue-deep: #005888;
-
-  --cnam-orange: #f07800;
-  --cnam-orange-vif: #f08a1c;
-  --cnam-orange-light: #fff4e8;
-  --cnam-orange-border: #ffd2a8;
-
-  --surface: #ffffff;
-  --surface-subtle: #f3f8fb;
-  --surface-hover: #eaf4f9;
-  --border: #d4e5ef;
-  --border-subtle: #e8f1f6;
-  --text-main: #123041;
-  --text-muted: #5a7380;
-  --text-light: #8aa0ab;
-
-  --sidebar-width: 268px;
-  --topbar-height: 68px;
-
-  --rayon-sm: 8px;
-  --rayon-md: 12px;
-  --rayon-lg: 16px;
-
-  /* Une seule durée pour toute l'interface : c'est ce qui donne
-     l'impression d'un même objet, et non d'un assemblage. */
-  --transition: 160ms cubic-bezier(0.4, 0, 0.2, 1);
-
-  --shadow-sm: 0 1px 2px 0 rgba(16, 32, 26, 0.04);
-  --shadow-card: 0 1px 2px rgba(16, 32, 26, 0.04), 0 1px 3px rgba(16, 32, 26, 0.03);
-  --shadow-hover: 0 6px 20px rgba(16, 32, 26, 0.09), 0 2px 6px rgba(16, 32, 26, 0.05);
-  --shadow-action: 0 2px 8px rgba(76, 175, 42, 0.28);
-
-  --brand-degrade: linear-gradient(135deg, var(--cnam-green) 0%, var(--cnam-blue) 100%);
 }
 
-/* Tout ce qui se clique le montre au clavier aussi, pas seulement à
-   la souris : un anneau unique, à la couleur d'action. */
-:where(button, a, input, select, textarea, [tabindex]):focus-visible {
-  outline: 2px solid var(--cnam-green);
-  outline-offset: 2px;
-  border-radius: var(--rayon-sm);
-}
+/* L'anneau de focus clavier est défini une seule fois, dans
+   styles/components.css. */
 
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -273,7 +223,7 @@ svg {
 }
 
 .sidebar-nav-section-title {
-  font-size: 0.68rem;
+  font-size: var(--texte-2xs);
   font-weight: 700;
   text-transform: uppercase;
   color: var(--text-light);
@@ -407,7 +357,7 @@ svg {
 }
 
 .sidebar-user-role {
-  font-size: 0.68rem;
+  font-size: var(--texte-2xs);
   color: var(--text-muted);
   text-transform: capitalize;
 }
@@ -426,7 +376,7 @@ svg {
 
 .sidebar-logout-btn:hover {
   background: #fee2e2;
-  color: #dc2626;
+  color: var(--couleur-erreur-vif);
 }
 
 .logout-icon {
@@ -642,7 +592,7 @@ svg {
 }
 
 .topbar-error {
-  color: #dc2626;
+  color: var(--couleur-erreur-vif);
   font-size: 0.74rem;
   font-weight: 600;
 }
@@ -997,7 +947,7 @@ svg {
 }
 
 .card-badge {
-  font-size: 0.68rem;
+  font-size: var(--texte-2xs);
   font-weight: 600;
   padding: 2px 7px;
   border-radius: 999px;
@@ -1313,7 +1263,7 @@ svg {
 }
 
 .panel-error-text {
-  color: #dc2626;
+  color: var(--couleur-erreur-vif);
   font-size: 0.75rem;
   margin-top: 6px;
 }
@@ -1422,7 +1372,7 @@ svg {
 
 .row-badge {
   font-weight: 700;
-  font-size: 0.65rem;
+  font-size: var(--texte-2xs);
   padding: 0 4px;
   border-radius: 3px;
 }
@@ -1476,9 +1426,9 @@ svg {
 }
 
 .alert-error {
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  color: #dc2626;
+  background: var(--couleur-erreur-fond);
+  border: 1px solid var(--couleur-erreur-bord);
+  color: var(--couleur-erreur-vif);
 }
 
 .alert-success {
@@ -1503,7 +1453,7 @@ svg {
 .info-banner-badge {
   background: #0284c7;
   color: #ffffff;
-  font-size: 0.65rem;
+  font-size: var(--texte-2xs);
   font-weight: 700;
   padding: 2px 6px;
   border-radius: 4px;
@@ -1610,9 +1560,9 @@ svg {
 }
 
 .icon-box-pdf {
-  background: #fef2f2;
-  color: #dc2626;
-  border: 1px solid #fecaca;
+  background: var(--couleur-erreur-fond);
+  color: var(--couleur-erreur-vif);
+  border: 1px solid var(--couleur-erreur-bord);
 }
 
 .icon-box-excel {
@@ -1643,16 +1593,16 @@ svg {
 }
 
 .file-type-pill {
-  font-size: 0.65rem;
+  font-size: var(--texte-2xs);
   font-weight: 700;
   padding: 2px 7px;
   border-radius: 4px;
 }
 
 .badge-pdf {
-  background: #fef2f2;
-  color: #dc2626;
-  border: 1px solid #fecaca;
+  background: var(--couleur-erreur-fond);
+  color: var(--couleur-erreur-vif);
+  border: 1px solid var(--couleur-erreur-bord);
 }
 
 .badge-excel {
@@ -1789,7 +1739,7 @@ svg {
 }
 
 .role-badge {
-  font-size: 0.68rem;
+  font-size: var(--texte-2xs);
   font-weight: 600;
   padding: 2px 7px;
   border-radius: 999px;
@@ -1797,7 +1747,7 @@ svg {
 }
 
 .status-pill {
-  font-size: 0.68rem;
+  font-size: var(--texte-2xs);
   font-weight: 600;
   padding: 2px 7px;
   border-radius: 999px;
@@ -1825,11 +1775,11 @@ svg {
 }
 
 .btn-disable {
-  color: #dc2626;
+  color: var(--couleur-erreur-vif);
 }
 .btn-disable:hover {
-  background: #fef2f2;
-  border-color: #fecaca;
+  background: var(--couleur-erreur-fond);
+  border-color: var(--couleur-erreur-bord);
 }
 
 /* Les actions d'une ligne respirent : « Désactiver » et « Réinitialiser »
@@ -1959,19 +1909,6 @@ svg {
    Le contenu reste clair et calme ; les couleurs des deux marques sont
    réservées aux actions, à l'état du moteur et aux repères de navigation.
 ═══════════════════════════════════════════════════════════════ */
-:root {
-  --sidebar-width: 252px;
-  --topbar-height: 84px;
-  --surface-subtle: #f5f8f7;
-  --border: #dce7e2;
-  --border-subtle: #eaf0ed;
-  --text-main: #12231c;
-  --text-muted: #617169;
-  --text-light: #91a098;
-  --shadow-card: 0 1px 2px rgba(18, 35, 28, 0.03), 0 8px 24px rgba(18, 35, 28, 0.04);
-  --shadow-hover: 0 12px 30px rgba(18, 35, 28, 0.1), 0 3px 8px rgba(18, 35, 28, 0.05);
-}
-
 body {
   background: #eef3f1;
 }
@@ -2045,7 +1982,7 @@ body {
 .sidebar-nav-section-title {
   padding: 0 11px 6px;
   color: #71887e;
-  font-size: 0.62rem;
+  font-size: var(--texte-2xs);
   letter-spacing: 0.14em;
 }
 
@@ -2161,7 +2098,7 @@ body {
 
 .topbar-eyebrow {
   color: #789087;
-  font-size: 0.59rem;
+  font-size: var(--texte-2xs);
   font-weight: 800;
   letter-spacing: 0.14em;
 }

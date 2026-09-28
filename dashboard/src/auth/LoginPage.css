@@ -179,7 +179,7 @@
 }
 
 .lp-stat-label {
-  font-size: 0.68rem;
+  font-size: var(--texte-2xs);
   font-weight: 600;
   color: rgba(255, 255, 255, 0.7);
   text-transform: uppercase;

@@ -1,0 +1,269 @@
+/* ═══════════════════════════════════════════════════════════════
+   ÉCHO — jetons de design
+
+   Seul fichier qui définit des variables globales. Trois couches :
+
+   1. Primitives   — la charte CNAM et les neutres, telles quelles.
+   2. Sémantique   — le rôle d'une couleur (action, texte, succès…),
+                     qu'on change sans toucher aux écrans.
+   3. Alias        — les anciens noms (--cnam-*, --surface, --text-*),
+                     conservés : tous les écrans les emploient déjà.
+
+   Charte : bleu de la grande silhouette = navigation, vert du mot-marque
+   = action, orange de la petite silhouette = alerte, injection, arrêt.
+   Les teintes de la charte servent de fond, de filet, de repère ; dès
+   qu'elles portent du texte, on prend leur nuance « encre », calculée
+   pour tenir 4,5:1 (WCAG AA) sur blanc et sur le fond de page.
+═══════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ── 1. Primitives ─────────────────────────────────────────── */
+
+  /* Vert CNAM */
+  --vert-50: #eef8e8;
+  --vert-100: #dcf0d0;
+  --vert-200: #c6e6b4;
+  --vert-400: #5cbc38;
+  --vert-500: #4caf2a; /* logo */
+  --vert-600: #3b9220;
+  --vert-700: #3a8620; /* encre : 4,55:1 sur blanc */
+  --vert-800: #2f7a18;
+
+  /* Bleu CNAM */
+  --bleu-50: #e6f5fb;
+  --bleu-100: #cdeaf7;
+  --bleu-200: #b3dff0;
+  --bleu-400: #1a9cdc;
+  --bleu-500: #0088ce; /* logo */
+  --bleu-600: #0069a3; /* encre : 5,9:1 sur blanc */
+  --bleu-700: #00507c;
+  --bleu-800: #043047;
+
+  /* Orange CNAM */
+  --orange-50: #fff4e8;
+  --orange-200: #ffd2a8;
+  --orange-400: #f08a1c;
+  --orange-500: #f07800; /* logo */
+  --orange-700: #ba5d00; /* encre : 4,5:1 sur blanc */
+
+  /* Rouge — réservé aux erreurs. Hors charte, mais une erreur doit se
+     distinguer d'une alerte au premier coup d'œil. */
+  --rouge-50: #fef2f2;
+  --rouge-200: #fecaca;
+  --rouge-500: #dc2626;
+  --rouge-700: #b91c1c;
+
+  /* Neutres, teintés du bleu profond de la charte */
+  --gris-0: #ffffff;
+  --gris-25: #f7fbfd;
+  --gris-50: #f2f8fb;
+  --gris-100: #eaf4f9; /* fond de page */
+  --gris-150: #e8f3f9;
+  --gris-200: #e4eef4;
+  --gris-300: #cfe3ee;
+  --gris-400: #a9c1cd;
+  --gris-500: #5b7480; /* 4,6:1 sur le fond de page */
+  --gris-600: #506874; /* 5,8:1 sur blanc */
+  --gris-800: #1f3f52;
+  --gris-900: #123041;
+
+  /* ── 2. Sémantique ─────────────────────────────────────────── */
+
+  --couleur-fond: var(--gris-100);
+  --couleur-surface: var(--gris-0);
+  --couleur-surface-douce: var(--gris-50);
+  --couleur-surface-survol: var(--gris-150);
+  --couleur-bord: var(--gris-300);
+  --couleur-bord-doux: var(--gris-200);
+  --couleur-bord-fort: var(--gris-400);
+
+  --couleur-texte: var(--gris-900);
+  --couleur-texte-doux: var(--gris-600);
+  --couleur-texte-faible: var(--gris-500);
+  --couleur-texte-inverse: var(--gris-0);
+
+  /* Action principale : fond vert encre, texte blanc lisible. */
+  --couleur-action: var(--vert-700);
+  --couleur-action-survol: var(--vert-800);
+  --couleur-action-texte: var(--gris-0);
+  --couleur-action-douce: var(--vert-50);
+
+  /* Navigation et liens */
+  --couleur-nav: var(--bleu-500);
+  --couleur-lien: var(--bleu-600);
+
+  --couleur-succes: var(--vert-700);
+  --couleur-succes-fond: var(--vert-50);
+  --couleur-succes-bord: var(--vert-200);
+
+  --couleur-alerte: var(--orange-700);
+  --couleur-alerte-fond: var(--orange-50);
+  --couleur-alerte-bord: var(--orange-200);
+
+  --couleur-erreur: var(--rouge-700);
+  --couleur-erreur-vif: var(--rouge-500);
+  --couleur-erreur-fond: var(--rouge-50);
+  --couleur-erreur-bord: var(--rouge-200);
+
+  --couleur-info: var(--bleu-600);
+  --couleur-info-fond: var(--bleu-50);
+  --couleur-info-bord: var(--bleu-200);
+
+  --couleur-focus: var(--bleu-500);
+  --couleur-voile: rgba(4, 48, 71, 0.48);
+
+  /* ── Typographie ───────────────────────────────────────────── */
+
+  --police: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --police-mono: ui-monospace, "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+
+  /* La racine vaut 18 px (voir index.css) : les rem ci-dessous s'y
+     rapportent. Rien sous 12 px — en dessous, on ne lit plus à
+     distance de bureau. */
+  --texte-2xs: 0.667rem; /* 12 px — mentions, sur-titres */
+  --texte-xs: 0.722rem;  /* 13 px */
+  --texte-sm: 0.8rem;    /* 14,4 px — libellés, tableaux */
+  --texte-md: 0.889rem;  /* 16 px — corps secondaire */
+  --texte-base: 1rem;    /* 18 px — corps */
+  --texte-lg: 1.111rem;  /* 20 px — titre de carte */
+  --texte-xl: 1.333rem;  /* 24 px — titre d'écran */
+  --texte-2xl: 1.667rem; /* 30 px — chiffre clé */
+  --texte-3xl: 2rem;     /* 36 px */
+
+  --graisse-normale: 400;
+  --graisse-moyenne: 500;
+  --graisse-forte: 600;
+  --graisse-titre: 700;
+
+  --interligne-serre: 1.2;
+  --interligne: 1.5;
+  --approche-majuscules: 0.1em;
+
+  /* ── Espacements (grille de 4 px) ──────────────────────────── */
+
+  --espace-1: 4px;
+  --espace-2: 8px;
+  --espace-3: 12px;
+  --espace-4: 16px;
+  --espace-5: 20px;
+  --espace-6: 24px;
+  --espace-7: 28px;
+  --espace-8: 32px;
+  --espace-10: 40px;
+  --espace-12: 48px;
+  --espace-16: 64px;
+
+  /* ── Rayons ────────────────────────────────────────────────── */
+
+  --rayon-xs: 8px;
+  --rayon-sm: 12px;
+  --rayon-md: 18px;
+  --rayon-lg: 24px;
+  --rayon-pilule: 999px;
+
+  /* ── Ombres et élévations ──────────────────────────────────── */
+
+  --ombre-1: 0 1px 2px rgba(0, 80, 124, 0.05);
+  --ombre-2: 0 1px 2px rgba(0, 80, 124, 0.04), 0 10px 28px rgba(0, 80, 124, 0.06);
+  --ombre-3: 0 14px 36px rgba(0, 80, 124, 0.12), 0 4px 10px rgba(0, 136, 206, 0.08);
+  --ombre-4: 0 24px 64px rgba(4, 48, 71, 0.24), 0 8px 20px rgba(4, 48, 71, 0.12);
+  --ombre-action: 0 6px 16px rgba(58, 134, 32, 0.28);
+  --ombre-focus: 0 0 0 3px rgba(0, 136, 206, 0.28);
+
+  /* ── Mouvement ─────────────────────────────────────────────── */
+
+  --duree-rapide: 150ms;
+  --duree: 200ms;
+  --duree-lente: 280ms;
+  --courbe: cubic-bezier(0.4, 0, 0.2, 1);
+  --courbe-sortie: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* ── Gabarit ───────────────────────────────────────────────── */
+
+  --sidebar-width: 248px;
+  --topbar-height: 64px;
+  --largeur-contenu: 1440px;
+
+  --z-collant: 10;
+  --z-tiroir: 60;
+  --z-voile: 90;
+  --z-modale: 100;
+  --z-toast: 120;
+
+  /* ── 3. Alias — noms historiques, une seule définition ─────── */
+
+  --cnam-green: var(--vert-500);
+  --cnam-green-dark: var(--vert-700);
+  --cnam-green-vif: var(--vert-400);
+  --cnam-green-light: var(--vert-50);
+  --cnam-green-border: var(--vert-200);
+
+  --cnam-blue: var(--bleu-500);
+  --cnam-blue-dark: var(--bleu-600);
+  --cnam-blue-vif: var(--bleu-400);
+  --cnam-blue-light: var(--bleu-50);
+  --cnam-blue-border: var(--bleu-200);
+  --cnam-blue-deep: var(--bleu-700);
+
+  --cnam-orange: var(--orange-500);
+  --cnam-orange-vif: var(--orange-400);
+  --cnam-orange-dark: var(--orange-700);
+  --cnam-orange-light: var(--orange-50);
+  --cnam-orange-border: var(--orange-200);
+
+  --surface: var(--couleur-surface);
+  --surface-subtle: var(--couleur-surface-douce);
+  --surface-hover: var(--couleur-surface-survol);
+  --border: var(--couleur-bord);
+  --border-subtle: var(--couleur-bord-doux);
+  --text-main: var(--couleur-texte);
+  --text-muted: var(--couleur-texte-doux);
+  --text-light: var(--couleur-texte-faible);
+
+  --shadow-sm: var(--ombre-1);
+  --shadow-card: var(--ombre-2);
+  --shadow-hover: var(--ombre-3);
+  --shadow-action: var(--ombre-action);
+
+  --transition: var(--duree-rapide) var(--courbe);
+  --brand-degrade: linear-gradient(135deg, var(--bleu-500) 0%, var(--vert-500) 100%);
+}
+
+/* ── Mode sombre — préparé, pas activé ─────────────────────────
+   Seule la couche sémantique change. Il s'active en posant
+   data-theme="dark" sur <html> ; rien ne le fait aujourd'hui.
+   Les écrans qui écrivent encore des couleurs en dur devront passer
+   par les jetons avant que ce thème ne soit proposé. */
+:root[data-theme="dark"] {
+  --couleur-fond: #06202f;
+  --couleur-surface: #0a2c40;
+  --couleur-surface-douce: #0d3349;
+  --couleur-surface-survol: #114059;
+  --couleur-bord: #1d5373;
+  --couleur-bord-doux: #163f58;
+  --couleur-bord-fort: #2d6a8c;
+
+  --couleur-texte: #eef7fb;
+  --couleur-texte-doux: #b3cbd8;
+  --couleur-texte-faible: #8fadbd;
+
+  --couleur-action: var(--vert-500);
+  --couleur-action-survol: var(--vert-400);
+  --couleur-action-texte: #06202f;
+  --couleur-action-douce: rgba(76, 175, 42, 0.14);
+  --couleur-lien: var(--bleu-400);
+
+  --couleur-succes: var(--vert-400);
+  --couleur-succes-fond: rgba(76, 175, 42, 0.14);
+  --couleur-succes-bord: rgba(76, 175, 42, 0.4);
+  --couleur-alerte: var(--orange-400);
+  --couleur-alerte-fond: rgba(240, 120, 0, 0.14);
+  --couleur-alerte-bord: rgba(240, 120, 0, 0.4);
+  --couleur-erreur: #f87171;
+  --couleur-erreur-fond: rgba(220, 38, 38, 0.14);
+  --couleur-erreur-bord: rgba(220, 38, 38, 0.4);
+  --couleur-info: var(--bleu-400);
+  --couleur-info-fond: rgba(0, 136, 206, 0.14);
+  --couleur-info-bord: rgba(0, 136, 206, 0.4);
+  --couleur-focus: var(--bleu-400);
+}

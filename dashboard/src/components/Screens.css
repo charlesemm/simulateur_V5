@@ -50,10 +50,10 @@
 
 .screen-error {
   padding: 12px 16px;
-  background: #fef2f2;
-  border: 1px solid #fecaca;
+  background: var(--couleur-erreur-fond);
+  border: 1px solid var(--couleur-erreur-bord);
   border-radius: 8px;
-  color: #b91c1c;
+  color: var(--couleur-erreur);
   font-size: 0.86rem;
   font-weight: 500;
 }
@@ -127,7 +127,7 @@
 
 .stat-tile-label {
   display: block;
-  font-size: 0.68rem;
+  font-size: var(--texte-2xs);
   font-weight: 600;
   letter-spacing: 0.09em;
   text-transform: uppercase;
@@ -267,7 +267,7 @@
 .type-card-code {
   display: inline-block;
   align-self: flex-start;
-  font-size: 0.64rem;
+  font-size: var(--texte-2xs);
   font-weight: 700;
   letter-spacing: 0.12em;
   color: var(--type-couleur, var(--cnam-green-dark));
@@ -337,7 +337,7 @@
 
 .screen-table th {
   text-align: left;
-  font-size: 0.66rem;
+  font-size: var(--texte-2xs);
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -392,7 +392,7 @@
   gap: 5px;
   padding: 2px 9px;
   border-radius: 100px;
-  font-size: 0.68rem;
+  font-size: var(--texte-2xs);
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -402,7 +402,7 @@
 .pastille-en_cours { background: var(--cnam-green-light); color: var(--cnam-green-dark); border: 1px solid var(--cnam-green-border); }
 .pastille-terminee { background: var(--cnam-blue-light); color: var(--cnam-blue-dark); border: 1px solid var(--cnam-blue-border); }
 .pastille-arretee { background: #f1f5f9; color: #475569; border: 1px solid var(--border); }
-.pastille-echouee { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+.pastille-echouee { background: var(--couleur-erreur-fond); color: var(--couleur-erreur); border: 1px solid var(--couleur-erreur-bord); }
 
 /* Statuts d'une campagne de test. Le gris dit « rien n'est encore joué »,
    le bleu « le jeu existe », le vert « c'est noté », l'orange l'échec
@@ -471,7 +471,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.64rem;
+  font-size: var(--texte-2xs);
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -621,7 +621,7 @@
 }
 
 .alea-nature {
-  font-size: 0.62rem;
+  font-size: var(--texte-2xs);
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -678,7 +678,7 @@
 
 .alea-code {
   display: block;
-  font-size: 0.68rem;
+  font-size: var(--texte-2xs);
   color: var(--text-light);
   font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
   margin-top: 2px;
@@ -686,12 +686,12 @@
 
 .btn-outline-danger {
   background: transparent;
-  border: 1px solid #fecaca;
-  color: #b91c1c;
+  border: 1px solid var(--couleur-erreur-bord);
+  color: var(--couleur-erreur);
 }
 
 .btn-outline-danger:hover:not(:disabled) {
-  background: #fef2f2;
+  background: var(--couleur-erreur-fond);
 }
 
 .btn-outline-danger:disabled {
@@ -754,7 +754,7 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-size: 0.68rem;
+  font-size: var(--texte-2xs);
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -1132,7 +1132,7 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-size: 0.68rem;
+  font-size: var(--texte-2xs);
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -1185,7 +1185,7 @@
   border-radius: var(--rayon-sm);
   padding: 9px 14px;
   font: inherit;
-  font-size: 0.68rem;
+  font-size: var(--texte-2xs);
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -1329,7 +1329,7 @@
 
 .recap-libelle {
   flex: none;
-  font-size: 0.68rem;
+  font-size: var(--texte-2xs);
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -1532,7 +1532,7 @@
 }
 
 .bilan-cle-valeur--vert { color: var(--cnam-green-dark); }
-.bilan-cle-valeur--rouge { color: #b91c1c; }
+.bilan-cle-valeur--rouge { color: var(--couleur-erreur); }
 
 .bilan-cle-nom {
   display: block;
@@ -1778,9 +1778,9 @@
 }
 
 .ecart--fort {
-  background: #fef2f2;
-  color: #b91c1c;
-  border: 1px solid #fecaca;
+  background: var(--couleur-erreur-fond);
+  color: var(--couleur-erreur);
+  border: 1px solid var(--couleur-erreur-bord);
 }
 
 .ecart--inconnu {
@@ -1863,7 +1863,7 @@
 .rapports-entete {
   background: var(--surface-subtle);
   border-bottom: 1px solid var(--border);
-  font-size: 0.66rem;
+  font-size: var(--texte-2xs);
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -2187,7 +2187,7 @@
   text-align: center;
   padding: 2px 8px;
   border-radius: 6px;
-  font-size: 0.66rem;
+  font-size: var(--texte-2xs);
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -2198,7 +2198,7 @@
 .api-methode-post { background: var(--cnam-green-light); color: var(--cnam-green-dark); border: 1px solid var(--cnam-green-border); }
 .api-methode-put,
 .api-methode-patch { background: var(--cnam-orange-light); color: #a75600; border: 1px solid var(--cnam-orange-border); }
-.api-methode-delete { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+.api-methode-delete { background: var(--couleur-erreur-fond); color: var(--couleur-erreur); border: 1px solid var(--couleur-erreur-bord); }
 
 .endpoint-ligne {
   display: flex;
@@ -2240,7 +2240,7 @@
 
 .endpoint-auth {
   flex: none;
-  font-size: 0.64rem;
+  font-size: var(--texte-2xs);
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -2301,9 +2301,9 @@
 }
 
 .endpoint-reponse--erreur {
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  color: #b91c1c;
+  background: var(--couleur-erreur-fond);
+  border: 1px solid var(--couleur-erreur-bord);
+  color: var(--couleur-erreur);
 }
 
 .endpoint-reponse-tete {
