@@ -4,6 +4,7 @@ import { useAuth } from "../auth/AuthContext";
 import { RequireRole } from "../auth/RequireRole";
 import { api } from "../services/api";
 import type { ProfilSimulation, SimulationRun, SimulationStatus } from "../types";
+import { activableAuClavier } from "./clavier";
 import { StatutPastille, dateCourte, duree } from "./format-execution";
 import "./Screens.css";
 
@@ -35,6 +36,11 @@ export function AccueilPage({
   const [executions, setExecutions] = useState<SimulationRun[]>([]);
   const [statut, setStatut] = useState<SimulationStatus | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
+  // Tant que la première réponse n'est pas arrivée, une liste vide ne veut
+  // pas dire « rien » : elle veut dire « pas encore ». On montre alors la
+  // forme de ce qui vient, pas un message d'absence.
+  const [profilsCharges, setProfilsCharges] = useState(false);
+  const [executionsChargees, setExecutionsChargees] = useState(false);
 
   const rafraichir = useCallback(async () => {
     try {
@@ -47,6 +53,8 @@ export function AccueilPage({
       setErreur(null);
     } catch (raison) {
       setErreur((raison as Error).message);
+    } finally {
+      setExecutionsChargees(true);
     }
   }, [token]);
 
@@ -59,6 +67,8 @@ export function AccueilPage({
         if (!annule) setProfils(listeProfils);
       } catch (raison) {
         if (!annule) setErreur((raison as Error).message);
+      } finally {
+        if (!annule) setProfilsCharges(true);
       }
     }
 
@@ -85,7 +95,7 @@ export function AccueilPage({
 
   return (
     <div className="screen">
-      {erreur && <p className="screen-error">{erreur}</p>}
+      {erreur && <p className="screen-error" role="alert">{erreur}</p>}
 
       <section className="home-hero">
         <div className={`home-status${enCours ? " home-status--live" : ""}`}>
@@ -241,7 +251,14 @@ export function AccueilPage({
             </RequireRole>
             );
           })}
-          {profils.length === 0 && (
+          {!profilsCharges && (
+            <div className="type-card type-card--featured" aria-busy="true" aria-label="Chargement des types">
+              <span className="ui-skeleton" style={{ width: 72, height: 22 }} />
+              <span className="ui-skeleton ui-skeleton--titre" style={{ gridArea: "title", marginTop: 8 }} />
+              <span className="ui-skeleton ui-skeleton--texte" style={{ gridArea: "desc", width: "70%" }} />
+            </div>
+          )}
+          {profilsCharges && profils.length === 0 && (
             <div className="screen-empty">Les types de simulation n'ont pas pu être chargés.</div>
           )}
         </div>
@@ -256,7 +273,15 @@ export function AccueilPage({
             </button>
           )}
         </div>
-        {executions.length === 0 ? (
+        {!executionsChargees ? (
+          <div className="screen-table-wrap" aria-busy="true" aria-label="Chargement des exécutions">
+            {[0, 1, 2].map((ligne) => (
+              <div key={ligne} className="ligne-squelette">
+                <span className="ui-skeleton ui-skeleton--texte" style={{ width: `${88 - ligne * 12}%` }} />
+              </div>
+            ))}
+          </div>
+        ) : executions.length === 0 ? (
           <div className="screen-empty">
             Aucune exécution enregistrée pour l'instant. Lancez un type ci-dessus.
           </div>
@@ -269,8 +294,8 @@ export function AccueilPage({
                   <th>Type</th>
                   <th>Statut</th>
                   <th>Durée</th>
-                  <th>Réussis</th>
-                  <th>Échoués</th>
+                  <th className="num">Réussis</th>
+                  <th className="num">Échoués</th>
                 </tr>
               </thead>
               <tbody>
@@ -279,13 +304,14 @@ export function AccueilPage({
                     key={execution.simulation_id}
                     className="cliquable"
                     onClick={() => onVoirExecution(execution.simulation_id)}
+                    {...activableAuClavier(() => onVoirExecution(execution.simulation_id))}
                   >
                     <td>{dateCourte(execution.simulation_date_debut)}</td>
                     <td>{execution.simulation_type ?? "—"}</td>
                     <td><StatutPastille statut={execution.simulation_statut} /></td>
                     <td>{duree(execution.simulation_date_debut, execution.simulation_date_fin)}</td>
-                    <td>{execution.passages_reussis}</td>
-                    <td>{execution.passages_echoues}</td>
+                    <td className="num">{execution.passages_reussis}</td>
+                    <td className="num">{execution.passages_echoues}</td>
                   </tr>
                 ))}
               </tbody>

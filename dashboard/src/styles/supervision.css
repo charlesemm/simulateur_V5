@@ -1,0 +1,556 @@
+/* ═══════════════════════════════════════════════════════════════
+   ÉCHO — supervision technique et activité métier
+
+   Cartes de télémétrie, graphiques, ententes, terminal d'événements.
+   Seul endroit qui les décrit : quatre feuilles se les disputaient.
+═══════════════════════════════════════════════════════════════ */
+
+.dashboard-content-space {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-6);
+  width: min(100%, var(--largeur-contenu));
+  margin-inline: auto;
+  animation: ecran-entree var(--duree-lente) var(--courbe-sortie) both;
+}
+
+.dashboard-row-2,
+.dashboard-row-3 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--espace-4);
+}
+
+/* ── Section « activité métier » ────────────────────────────────── */
+
+.dashboard-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-4);
+  padding-top: var(--espace-6);
+  border-top: 1px solid var(--couleur-bord);
+}
+
+.dashboard-section-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--espace-2);
+}
+
+.dashboard-section-title {
+  color: var(--couleur-texte);
+  font-size: var(--texte-lg);
+  font-weight: var(--graisse-titre);
+}
+
+.dashboard-section-meta {
+  color: var(--couleur-texte-doux);
+  font-size: var(--texte-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.dashboard-section-error {
+  padding: var(--espace-2) var(--espace-3);
+  border: 1px solid var(--couleur-alerte-bord);
+  border-left: 4px solid var(--cnam-orange);
+  border-radius: var(--rayon-xs);
+  background: var(--couleur-alerte-fond);
+  color: var(--couleur-alerte);
+  font-size: var(--texte-sm);
+}
+
+/* ── Cartes de télémétrie ───────────────────────────────────────── */
+
+.tech-metric-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--espace-4);
+}
+
+/* Une carte se lit, elle ne se clique pas : pas de soulèvement au
+   survol, qui promettrait une action. */
+.tech-metric-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--espace-3);
+  min-height: 128px;
+  padding: var(--espace-5);
+  border: 1px solid var(--couleur-bord);
+  border-radius: var(--rayon-md);
+  background: var(--couleur-surface);
+  box-shadow: var(--ombre-2);
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espace-2);
+}
+
+.card-header-title {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-2);
+  min-width: 0;
+}
+
+.card-icon-svg {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+}
+
+.icon-green { color: var(--couleur-succes); }
+.icon-blue { color: var(--cnam-blue); }
+.icon-cyan { color: var(--couleur-lien); }
+.icon-slate { color: var(--couleur-texte-doux); }
+
+.card-label {
+  color: var(--couleur-texte-doux);
+  font-size: var(--texte-xs);
+  font-weight: var(--graisse-titre);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.card-badge {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border-radius: var(--rayon-pilule);
+  font-size: var(--texte-2xs);
+  font-weight: var(--graisse-titre);
+  white-space: nowrap;
+}
+
+.card-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-1);
+  min-width: 0;
+}
+
+.card-value {
+  color: var(--couleur-texte);
+  font-size: var(--texte-2xl);
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.card-subtext {
+  overflow: hidden;
+  color: var(--couleur-texte-doux);
+  font-size: var(--texte-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Squelette de carte, pendant le premier relevé. */
+.skeleton {
+  border-radius: var(--rayon-md);
+  background: linear-gradient(
+    90deg,
+    var(--couleur-bord-doux) 0%,
+    var(--couleur-surface-douce) 50%,
+    var(--couleur-bord-doux) 100%
+  );
+  background-size: 200% 100%;
+  animation: ui-miroite 1.4s ease-in-out infinite;
+}
+
+/* ── Cartes de graphique ────────────────────────────────────────── */
+
+.chart-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: var(--espace-5) var(--espace-6);
+  border: 1px solid var(--couleur-bord);
+  border-radius: var(--rayon-md);
+  background: var(--couleur-surface);
+  box-shadow: var(--ombre-2);
+}
+
+.chart-card-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--espace-3);
+  margin-bottom: var(--espace-4);
+}
+
+.chart-title {
+  color: var(--couleur-texte);
+  font-size: var(--texte-md);
+  font-weight: var(--graisse-titre);
+}
+
+.chart-subtitle {
+  margin-top: 2px;
+  color: var(--couleur-texte-doux);
+  font-size: var(--texte-sm);
+}
+
+.chart-header-badge {
+  display: flex;
+  align-items: center;
+}
+
+.chart-container {
+  width: 100%;
+  min-width: 0;
+}
+
+.chart-empty {
+  display: grid;
+  flex: 1;
+  place-items: center;
+  min-height: 180px;
+  padding: var(--espace-4);
+  border: 1px dashed var(--couleur-bord);
+  border-radius: var(--rayon-sm);
+  color: var(--couleur-texte-doux);
+  font-size: var(--texte-sm);
+  text-align: center;
+}
+
+.chart-card .stat-strip {
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--espace-3);
+}
+
+.chart-card .stat-tile {
+  min-height: 0;
+  padding: var(--espace-4);
+  box-shadow: none;
+}
+
+.chart-card .stat-tile-value {
+  font-size: var(--texte-xl);
+}
+
+.chart-card .fiche-identifiant {
+  margin-top: var(--espace-3);
+}
+
+/* Indicateur d'état : un libellé, jamais une couleur seule. */
+.status-indicator {
+  padding: 3px 10px;
+  border: 1px solid var(--couleur-bord);
+  border-radius: var(--rayon-pilule);
+  background: var(--couleur-surface-douce);
+  color: var(--couleur-texte-doux);
+  font-size: var(--texte-xs);
+  font-weight: var(--graisse-titre);
+  white-space: nowrap;
+}
+
+.indicator-normal,
+.indicator-success {
+  border-color: var(--couleur-succes-bord);
+  background: var(--couleur-succes-fond);
+  color: var(--couleur-succes);
+}
+
+.indicator-blue {
+  border-color: var(--couleur-info-bord);
+  background: var(--couleur-info-fond);
+  color: var(--couleur-info);
+}
+
+.indicator-warning {
+  border-color: var(--couleur-alerte-bord);
+  background: var(--couleur-alerte-fond);
+  color: var(--couleur-alerte);
+}
+
+/* ── Habillage des graphiques ───────────────────────────────────
+   Recharts écrit grille, axes et graduations en attributs SVG, où les
+   variables CSS ne se résolvent pas. Une règle CSS l'emporte sur un
+   attribut : c'est ici que l'habillage suit le thème. En clair, les
+   valeurs sont celles de chartTheme.ts. */
+
+.recharts-cartesian-grid line {
+  stroke: var(--couleur-bord-doux);
+}
+
+.recharts-cartesian-axis-line {
+  stroke: var(--couleur-bord);
+}
+
+.recharts-cartesian-axis-tick-value {
+  fill: var(--couleur-texte-faible);
+}
+
+.recharts-yAxis .recharts-cartesian-axis-tick-value tspan {
+  fill: inherit;
+}
+
+.recharts-rectangle.recharts-tooltip-cursor {
+  fill: var(--couleur-surface-douce);
+}
+
+.recharts-curve.recharts-tooltip-cursor {
+  stroke: var(--couleur-bord);
+}
+
+/* Liserés qui séparent les parts du donut et cernent le point survolé :
+   à la couleur de la carte, quel que soit le thème. */
+.recharts-pie-sector path,
+.recharts-active-dot circle {
+  stroke: var(--couleur-surface);
+}
+
+/* ── Ententes préalables ────────────────────────────────────────── */
+
+.ententes-repartition {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-4);
+}
+
+.ententes-ligne {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-2);
+}
+
+.ententes-ligne-entete {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espace-2);
+}
+
+.ententes-ligne-valeur {
+  color: var(--couleur-texte);
+  font-size: var(--texte-sm);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--graisse-forte);
+}
+
+.ententes-jauge {
+  height: 8px;
+  overflow: hidden;
+  border-radius: var(--rayon-pilule);
+  background: var(--couleur-bord-doux);
+}
+
+.ententes-jauge-remplissage {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--couleur-texte-doux);
+  transition: width var(--duree-lente) var(--courbe);
+}
+
+/* Mêmes teintes que les indicateurs de la ligne : la jauge et son
+   libellé disent la même chose. */
+.jauge-acceptee { background: #2a6f15; }
+.jauge-validee_office { background: var(--cnam-blue); }
+.jauge-refusee { background: #d9731a; }
+
+.ententes-delais {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--espace-3);
+  margin-top: var(--espace-1);
+  padding-top: var(--espace-4);
+  border-top: 1px solid var(--couleur-bord-doux);
+}
+
+.ententes-delai {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-1);
+}
+
+.ententes-delai .card-value {
+  font-size: var(--texte-xl);
+}
+
+/* ── Terminal d'événements ──────────────────────────────────────── */
+
+/* Sombre, pour qu'un flux dense reste lisible — dans le bleu profond
+   de la charte (celui du cockpit), et non plus dans un gris ardoise
+   étranger à l'application. Toutes les couleurs de texte tiennent
+   4,5:1 sur ce fond. */
+.clean-terminal-card {
+  --terminal-fond: #04283b;
+  --terminal-barre: #073a55;
+  --terminal-bord: #1d5f82;
+  --terminal-texte: #e6f2f8;
+  --terminal-doux: #9dbccc;
+
+  overflow: hidden;
+  border: 1px solid var(--terminal-bord);
+  border-radius: var(--rayon-md);
+  background: var(--terminal-fond);
+  box-shadow: var(--ombre-2);
+  font-family: var(--police-mono);
+}
+
+.terminal-topbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espace-3);
+  padding: var(--espace-3) var(--espace-4);
+  border-bottom: 1px solid var(--terminal-bord);
+  background: var(--terminal-barre);
+  font-family: var(--police);
+}
+
+.terminal-header-left {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-2);
+}
+
+.terminal-icon-svg {
+  width: 16px;
+  height: 16px;
+  color: var(--cnam-green-vif);
+}
+
+.terminal-heading {
+  color: var(--terminal-texte);
+  font-size: var(--texte-sm);
+  font-weight: var(--graisse-forte);
+}
+
+.terminal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espace-3);
+}
+
+.terminal-select {
+  min-height: 32px;
+  padding: 0 var(--espace-2);
+  border: 1px solid var(--terminal-bord);
+  border-radius: var(--rayon-xs);
+  background: var(--terminal-fond);
+  color: var(--terminal-texte);
+  font: inherit;
+  font-size: var(--texte-xs);
+}
+
+.terminal-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--terminal-doux);
+  font-size: var(--texte-xs);
+  cursor: pointer;
+}
+
+.terminal-toggle input {
+  accent-color: var(--cnam-green-vif);
+}
+
+.clean-terminal-card :focus-visible {
+  outline-color: var(--gris-0);
+}
+
+.terminal-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  height: 220px;
+  padding: var(--espace-3) var(--espace-4);
+  overflow-y: auto;
+  font-size: var(--texte-xs);
+  line-height: 1.6;
+  scrollbar-color: var(--terminal-bord) transparent;
+}
+
+.terminal-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--espace-2);
+  padding: var(--espace-1) var(--espace-4);
+  word-break: break-all;
+}
+
+.terminal-content .terminal-row {
+  padding: 0;
+}
+
+.row-time,
+.row-source {
+  flex-shrink: 0;
+  color: var(--terminal-doux);
+  font-size: var(--texte-2xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.row-badge {
+  flex-shrink: 0;
+  min-width: 5.5em;
+  font-size: var(--texte-2xs);
+  font-weight: var(--graisse-titre);
+}
+
+.tag-info { color: #7cc8f0; }
+.tag-success { color: #7fd66a; }
+.tag-warn { color: #f5b565; }
+.tag-error { color: #ff9a9a; }
+
+.row-message {
+  color: var(--terminal-texte);
+}
+
+/* ── En-têtes de carte des formulaires (comptes) ────────────────── */
+
+.card-table-header,
+.form-card-header {
+  margin-bottom: var(--espace-4);
+  padding-bottom: var(--espace-3);
+  border-bottom: 1px solid var(--couleur-bord-doux);
+}
+
+.card-table-header h2,
+.form-card-header h2 {
+  color: var(--couleur-texte);
+  font-size: var(--texte-lg);
+  font-weight: var(--graisse-titre);
+}
+
+/* ── Adaptations ────────────────────────────────────────────────── */
+
+@media (max-width: 1100px) {
+  .tech-metric-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 960px) {
+  .dashboard-row-2,
+  .dashboard-row-3 {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .tech-metric-grid {
+    grid-template-columns: 1fr;
+    gap: var(--espace-3);
+  }
+
+  .tech-metric-card {
+    min-height: 0;
+    padding: var(--espace-4);
+  }
+
+  .chart-card {
+    padding: var(--espace-4);
+  }
+}

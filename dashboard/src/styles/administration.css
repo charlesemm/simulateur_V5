@@ -1,0 +1,671 @@
+/* ═══════════════════════════════════════════════════════════════
+   ÉCHO — administration : onglets, comptes, volumétrie, purge
+═══════════════════════════════════════════════════════════════ */
+
+/* ── Onglets ────────────────────────────────────────────────────── */
+
+.onglets {
+  display: flex;
+  gap: var(--espace-1);
+  overflow-x: auto;
+  border-bottom: 1px solid var(--couleur-bord);
+  scrollbar-width: none;
+}
+
+.onglet {
+  position: relative;
+  padding: var(--espace-3) var(--espace-5);
+  border: 0;
+  border-radius: var(--rayon-xs) var(--rayon-xs) 0 0;
+  background: none;
+  color: var(--couleur-texte-doux);
+  font: inherit;
+  font-size: var(--texte-md);
+  font-weight: var(--graisse-forte);
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    color var(--duree-rapide) var(--courbe),
+    background-color var(--duree-rapide) var(--courbe);
+}
+
+/* Le soulignement glisse sous l'onglet choisi. */
+.onglet::after {
+  content: "";
+  position: absolute;
+  right: var(--espace-3);
+  bottom: -1px;
+  left: var(--espace-3);
+  height: 3px;
+  border-radius: 3px 3px 0 0;
+  background: var(--couleur-nav);
+  transform: scaleX(0);
+  transition: transform var(--duree) var(--courbe-sortie);
+}
+
+.onglet:hover {
+  background: var(--couleur-surface-survol);
+  color: var(--couleur-texte);
+}
+
+.onglet.actif {
+  color: var(--couleur-lien);
+}
+
+.onglet.actif::after {
+  transform: scaleX(1);
+}
+
+.onglet-panneau {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-5);
+  animation: ecran-entree var(--duree-lente) var(--courbe-sortie) both;
+}
+
+.onglet-panneau:focus {
+  outline: none;
+}
+
+/* ── Purge ──────────────────────────────────────────────────────── */
+
+.bandeau-info.bandeau-alerte {
+  border-color: var(--couleur-alerte-bord);
+  border-left-color: var(--cnam-orange);
+  background: var(--couleur-alerte-fond);
+  color: var(--couleur-alerte);
+}
+
+.btn-outline-danger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 var(--espace-4);
+  border: 1px solid var(--couleur-erreur);
+  border-radius: var(--rayon-xs);
+  background: var(--couleur-surface);
+  color: var(--couleur-erreur);
+  font: inherit;
+  font-size: var(--texte-sm);
+  font-weight: var(--graisse-titre);
+  cursor: pointer;
+  transition: background-color var(--duree-rapide) var(--courbe), color var(--duree-rapide) var(--courbe);
+}
+
+/* Confirmation cochée : le bouton passe au rouge plein, l'action est
+   armée et se voit comme telle. */
+.btn-outline-danger:not(:disabled) {
+  background: var(--couleur-erreur);
+  color: var(--gris-0);
+}
+
+.btn-outline-danger:hover:not(:disabled) {
+  border-color: #991b1b;
+  background: #991b1b;
+}
+
+.btn-outline-danger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.purge-confirmation {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espace-3) var(--espace-5);
+  margin-top: var(--espace-5);
+  padding: var(--espace-4);
+  border: 1px solid var(--couleur-erreur-bord);
+  border-left: 4px solid var(--couleur-erreur-vif);
+  border-radius: var(--rayon-sm);
+  background: var(--couleur-erreur-fond);
+}
+
+/* ── Comptes ────────────────────────────────────────────────────── */
+
+.users-layout-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(300px, 1fr);
+  gap: var(--espace-5);
+  align-items: start;
+}
+
+.users-table-card,
+.users-form-card {
+  min-width: 0;
+  padding: var(--espace-5);
+  border: 1px solid var(--couleur-bord);
+  border-radius: var(--rayon-md);
+  background: var(--couleur-surface);
+  box-shadow: var(--ombre-2);
+}
+
+/* Le formulaire reste sous la main pendant qu'on parcourt la liste. */
+.users-form-card {
+  position: sticky;
+  top: var(--espace-2);
+}
+
+.form-card-subtitle {
+  margin-top: var(--espace-1);
+  color: var(--couleur-texte-doux);
+  font-size: var(--texte-sm);
+}
+
+.table-wrapper {
+  overflow-x: auto;
+}
+
+.clean-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.clean-table th {
+  padding: var(--espace-2) var(--espace-3);
+  border-bottom: 1px solid var(--couleur-bord);
+  color: var(--couleur-texte-doux);
+  font-size: var(--texte-2xs);
+  font-weight: var(--graisse-titre);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.clean-table td {
+  padding: var(--espace-3);
+  border-bottom: 1px solid var(--couleur-bord-doux);
+  font-size: var(--texte-sm);
+  vertical-align: middle;
+}
+
+.clean-table tbody tr {
+  transition: background-color var(--duree-rapide) var(--courbe);
+}
+
+.clean-table tbody tr:hover {
+  background: var(--couleur-surface-douce);
+}
+
+.clean-table tr:last-child td {
+  border-bottom: none;
+}
+
+.table-empty {
+  padding: var(--espace-6);
+  color: var(--couleur-texte-doux);
+  text-align: center;
+}
+
+.user-cell {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-3);
+  min-width: 0;
+}
+
+.user-avatar-sm {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--cnam-blue-border);
+  border-radius: 50%;
+  background: var(--cnam-blue-light);
+  color: var(--cnam-blue-dark);
+  font-size: var(--texte-sm);
+  font-weight: var(--graisse-titre);
+}
+
+/* Sur écran étroit, le tableau défile plutôt que d'écraser le nom et
+   l'e-mail lettre par lettre. */
+.clean-table .user-cell {
+  min-width: 220px;
+}
+
+.user-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.user-name {
+  color: var(--couleur-texte);
+  font-size: var(--texte-sm);
+}
+
+.user-email {
+  color: var(--couleur-texte-doux);
+  font-size: var(--texte-xs);
+  overflow-wrap: anywhere;
+}
+
+.role-badge,
+.status-pill {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: var(--rayon-pilule);
+  font-size: var(--texte-2xs);
+  font-weight: var(--graisse-titre);
+  white-space: nowrap;
+}
+
+.role-badge {
+  text-transform: capitalize;
+}
+
+.status-pill + .status-pill {
+  margin-left: var(--espace-1);
+}
+
+.pill-active {
+  border: 1px solid var(--couleur-succes-bord);
+  background: var(--couleur-succes-fond);
+  color: var(--couleur-succes);
+}
+
+.pill-inactive {
+  border: 1px solid var(--couleur-bord);
+  background: var(--couleur-surface-douce);
+  color: var(--couleur-texte-doux);
+}
+
+.user-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espace-2);
+}
+
+.btn-action-toggle {
+  min-height: 32px;
+  padding: 0 var(--espace-3);
+  border: 1px solid var(--couleur-bord);
+  border-radius: var(--rayon-xs);
+  background: var(--couleur-surface);
+  font: inherit;
+  font-size: var(--texte-xs);
+  font-weight: var(--graisse-forte);
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color var(--duree-rapide) var(--courbe),
+    border-color var(--duree-rapide) var(--courbe),
+    color var(--duree-rapide) var(--courbe);
+}
+
+.btn-disable {
+  color: var(--couleur-erreur);
+}
+
+.btn-disable:hover {
+  border-color: var(--couleur-erreur-bord);
+  background: var(--couleur-erreur-fond);
+}
+
+.btn-enable {
+  color: var(--couleur-succes);
+}
+
+.btn-enable:hover {
+  border-color: var(--couleur-succes-bord);
+  background: var(--couleur-succes-fond);
+}
+
+.btn-neutre {
+  color: var(--couleur-texte-doux);
+}
+
+.btn-neutre:hover {
+  background: var(--couleur-surface-survol);
+  color: var(--couleur-texte);
+}
+
+/* Formulaire de création */
+
+.clean-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-4);
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-1);
+}
+
+.form-label {
+  color: var(--couleur-texte);
+  font-size: var(--texte-sm);
+  font-weight: var(--graisse-forte);
+}
+
+.form-input,
+.form-select {
+  min-height: 42px;
+  padding: var(--espace-2) var(--espace-3);
+  border: 1px solid var(--couleur-bord);
+  border-radius: var(--rayon-xs);
+  background: var(--couleur-surface);
+  color: var(--couleur-texte);
+  font: inherit;
+  font-size: var(--texte-md);
+  transition:
+    border-color var(--duree-rapide) var(--courbe),
+    box-shadow var(--duree-rapide) var(--courbe);
+}
+
+.form-input::placeholder {
+  color: var(--couleur-texte-faible);
+}
+
+.form-input:hover,
+.form-select:hover {
+  border-color: var(--couleur-bord-fort);
+}
+
+.form-input:focus,
+.form-select:focus {
+  outline: none;
+  border-color: var(--couleur-focus);
+  box-shadow: var(--ombre-focus);
+}
+
+.btn-block {
+  width: 100%;
+  justify-content: center;
+  margin-top: var(--espace-1);
+}
+
+.users-form-card .alert-box {
+  margin-bottom: var(--espace-4);
+}
+
+/* Mot de passe temporaire : lisible une seule fois, il doit sauter aux
+   yeux et se recopier sans erreur. */
+.temp-password {
+  display: block;
+  margin-bottom: var(--espace-2);
+  padding: var(--espace-2) var(--espace-3);
+  border: 1px dashed var(--couleur-succes-bord);
+  border-radius: var(--rayon-xs);
+  background: var(--couleur-surface);
+  color: var(--couleur-texte);
+  font-family: var(--police-mono);
+  font-size: var(--texte-lg);
+  letter-spacing: 0.06em;
+  word-break: break-all;
+  user-select: all;
+}
+
+.temp-password-ligne {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--espace-2);
+}
+
+.temp-password-ligne .temp-password {
+  flex: 1;
+}
+
+.temp-password-note {
+  display: block;
+  color: var(--couleur-texte);
+  font-size: var(--texte-xs);
+  font-weight: var(--graisse-normale);
+}
+
+@media (max-width: 960px) {
+  /* minmax(0, …) : sans lui, la colonne prend la largeur du tableau et
+     toute la page déborde sur le côté en mobile. */
+  .users-layout-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .users-form-card {
+    position: static;
+  }
+}
+
+/* ── Explorateur API ────────────────────────────────────────────────
+   Une route par ligne, dépliable sur son propre formulaire de test. Le
+   verbe porte sa couleur et son nom : GET lit, POST/PUT/PATCH
+   transforment, DELETE supprime — on doit le savoir avant de cliquer. */
+
+.explorateur-recherche {
+  max-width: 640px;
+}
+
+.api-methode {
+  display: inline-block;
+  flex: none;
+  min-width: 64px;
+  padding: 2px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--rayon-xs);
+  font-family: var(--police-mono);
+  font-size: var(--texte-2xs);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--graisse-titre);
+  letter-spacing: 0.04em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.api-methode-get {
+  border-color: var(--couleur-info-bord);
+  background: var(--couleur-info-fond);
+  color: var(--couleur-info);
+}
+
+.api-methode-post {
+  border-color: var(--couleur-succes-bord);
+  background: var(--couleur-succes-fond);
+  color: var(--couleur-succes);
+}
+
+.api-methode-put,
+.api-methode-patch {
+  border-color: var(--couleur-alerte-bord);
+  background: var(--couleur-alerte-fond);
+  color: var(--couleur-alerte);
+}
+
+.api-methode-delete {
+  border-color: var(--couleur-erreur-bord);
+  background: var(--couleur-erreur-fond);
+  color: var(--couleur-erreur);
+}
+
+.endpoint-bloc .famille-bascule {
+  align-items: center;
+  gap: var(--espace-3);
+  color: var(--couleur-texte);
+}
+
+.endpoint-groupe-nom {
+  flex: 1;
+  text-align: left;
+}
+
+.endpoint-liste {
+  margin-top: var(--espace-2);
+  overflow: hidden;
+  border: 1px solid var(--couleur-bord);
+  border-radius: var(--rayon-md);
+  background: var(--couleur-surface);
+  box-shadow: var(--ombre-2);
+}
+
+.endpoint-ligne {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-3);
+  width: 100%;
+  padding: var(--espace-3) var(--espace-4);
+  border: none;
+  border-bottom: 1px solid var(--couleur-bord-doux);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--duree-rapide) var(--courbe);
+}
+
+.endpoint-ligne:hover,
+.endpoint-ligne[aria-expanded="true"] {
+  background: var(--couleur-surface-survol);
+}
+
+.endpoint-liste > div:last-child .endpoint-ligne:not([aria-expanded="true"]) {
+  border-bottom: none;
+}
+
+.endpoint-chemin {
+  flex: none;
+  color: var(--couleur-texte);
+  font-family: var(--police-mono);
+  font-size: var(--texte-sm);
+  word-break: break-all;
+}
+
+.endpoint-resume {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--couleur-texte-doux);
+  font-size: var(--texte-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.endpoint-auth {
+  flex: none;
+  padding: 1px 8px;
+  border: 1px solid var(--couleur-bord);
+  border-radius: var(--rayon-pilule);
+  color: var(--couleur-texte-doux);
+  font-size: var(--texte-2xs);
+  font-weight: var(--graisse-titre);
+  white-space: nowrap;
+}
+
+.endpoint-corps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-4);
+  padding: var(--espace-4) var(--espace-5) var(--espace-5);
+  border-bottom: 1px solid var(--couleur-bord-doux);
+  background: var(--couleur-surface-douce);
+  animation: ui-apparait var(--duree) var(--courbe-sortie);
+}
+
+.endpoint-description {
+  margin: 0;
+  max-width: 80ch;
+  color: var(--couleur-texte-doux);
+  font-size: var(--texte-sm);
+  line-height: var(--interligne);
+  white-space: pre-line;
+}
+
+.endpoint-champs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espace-3);
+}
+
+.endpoint-champs .champ-court {
+  flex: 1 1 200px;
+  max-width: 280px;
+}
+
+.champ-aide {
+  color: var(--couleur-texte-doux);
+  font-size: var(--texte-xs);
+}
+
+.endpoint-corps textarea.champ-console {
+  width: 100%;
+  min-height: 150px;
+  font-family: var(--police-mono);
+  font-size: var(--texte-xs);
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.endpoint-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espace-3);
+}
+
+.endpoint-actions .champ-aide {
+  font-size: var(--texte-sm);
+}
+
+.endpoint-reponse {
+  max-height: 380px;
+  overflow: auto;
+  border: 1px solid var(--couleur-bord);
+  border-radius: var(--rayon-sm);
+  background: var(--couleur-surface);
+  font-family: var(--police-mono);
+  font-size: var(--texte-xs);
+  line-height: 1.55;
+}
+
+.endpoint-reponse-tete {
+  position: sticky;
+  top: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--espace-2);
+  padding: var(--espace-2) var(--espace-3);
+  border-bottom: 1px solid var(--couleur-bord);
+  background: var(--couleur-surface-douce);
+  font-family: var(--police);
+  font-size: var(--texte-sm);
+  font-weight: var(--graisse-titre);
+}
+
+.endpoint-reponse-corps {
+  margin: 0;
+  padding: var(--espace-3);
+  color: var(--couleur-texte);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.endpoint-reponse--ok .endpoint-reponse-tete {
+  border-bottom-color: var(--couleur-succes-bord);
+  background: var(--couleur-succes-fond);
+  color: var(--couleur-succes);
+}
+
+.endpoint-reponse--erreur {
+  border-color: var(--couleur-erreur-bord);
+}
+
+.endpoint-reponse--erreur .endpoint-reponse-tete {
+  border-bottom-color: var(--couleur-erreur-bord);
+  background: var(--couleur-erreur-fond);
+  color: var(--couleur-erreur);
+}
+
+@media (max-width: 760px) {
+  .endpoint-ligne {
+    flex-wrap: wrap;
+  }
+
+  .endpoint-resume {
+    flex-basis: 100%;
+    white-space: normal;
+  }
+}

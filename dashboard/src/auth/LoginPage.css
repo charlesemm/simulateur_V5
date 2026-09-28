@@ -4,7 +4,7 @@
   display: flex;
   min-height: 100vh;
   font-family: "Source Sans 3", "Segoe UI", sans-serif;
-  background: #eaf4f9;
+  background: var(--couleur-fond);
   position: relative;
   overflow: hidden;
 }
@@ -172,6 +172,13 @@
   width: fit-content;
 }
 
+/* Chaque volet se lit en deux lignes : le nom, puis ce qu'il couvre. */
+.lp-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
 .lp-stat-value {
   font-size: 1.2rem;
   font-weight: 700;
@@ -179,9 +186,9 @@
 }
 
 .lp-stat-label {
-  font-size: 0.68rem;
+  font-size: var(--texte-2xs);
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(255, 255, 255, 0.9);
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
@@ -201,8 +208,8 @@
   padding: 40px 32px;
   position: relative;
   z-index: 1;
-  background: #ffffff;
-  border-left: 1px solid #d4e5ef;
+  background: var(--couleur-surface);
+  border-left: 1px solid var(--couleur-bord);
 }
 
 .lp-root:not(:has(.lp-brand)) {
@@ -210,7 +217,7 @@
   align-items: center;
   background:
     radial-gradient(circle at 15% 10%, rgba(0, 136, 206, 0.12), transparent 32%),
-    #eaf4f9;
+    var(--couleur-fond);
 }
 
 .lp-root:not(:has(.lp-brand)) .lp-form-col {
@@ -223,11 +230,11 @@
 .lp-card {
   width: 100%;
   max-width: 400px;
-  background: #ffffff;
-  border: 1px solid #d4e5ef;
+  background: var(--couleur-surface);
+  border: 1px solid var(--couleur-bord);
   border-radius: 22px;
   padding: 36px 32px;
-  box-shadow: 0 18px 48px rgba(0, 80, 124, 0.08);
+  box-shadow: var(--ombre-3);
 }
 
 .lp-badge {
@@ -235,12 +242,12 @@
   align-items: center;
   gap: 6px;
   padding: 4px 12px 4px 8px;
-  background: #eef8e8;
-  border: 1px solid #c6e6b4;
+  background: var(--couleur-succes-fond);
+  border: 1px solid var(--couleur-succes-bord);
   border-radius: 100px;
-  font-size: 0.7rem;
+  font-size: var(--texte-2xs);
   font-weight: 700;
-  color: #3b9220;
+  color: var(--couleur-succes);
   letter-spacing: 0.04em;
   text-transform: uppercase;
   margin-bottom: 18px;
@@ -250,19 +257,19 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #4caf2a;
+  background: var(--cnam-green);
 }
 
 .lp-card-title {
   font-size: 1.7rem;
   font-weight: 800;
-  color: #123041;
+  color: var(--couleur-texte);
   margin-bottom: 6px;
 }
 
 .lp-card-sub {
   font-size: 0.9rem;
-  color: #5a7380;
+  color: var(--couleur-texte-doux);
 }
 
 .lp-fields,
@@ -281,9 +288,12 @@
 }
 
 .lp-label {
-  font-size: 0.78rem;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espace-2);
+  font-size: var(--texte-xs);
   font-weight: 700;
-  color: #5a7380;
+  color: var(--couleur-texte-doux);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -291,34 +301,68 @@
 .lp-input {
   width: 100%;
   padding: 13px 16px;
-  background: #f4f9fc;
-  border: 1px solid #cfe3ee;
+  background: var(--couleur-surface-douce);
+  border: 1px solid var(--couleur-bord);
   border-radius: 12px;
-  color: #123041;
+  color: var(--couleur-texte);
   font-size: 0.95rem;
   font-family: inherit;
   outline: none;
 }
 
 .lp-input::placeholder {
-  color: #8aa0ab;
+  color: var(--couleur-texte-faible);
+}
+
+.lp-input:hover:not(:focus) {
+  border-color: var(--couleur-bord-fort);
+}
+
+/* Le champ refusé se désigne lui-même, en plus du message. */
+.lp-input[aria-invalid="true"] {
+  border-color: var(--couleur-erreur-vif);
+}
+
+.lp-input[aria-invalid="true"]:focus {
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.18);
+}
+
+/* Le champ du mot de passe laisse la place à l'œil. */
+.lp-input-wrap .lp-input:has(+ .lp-eye-btn) {
+  padding-right: 52px;
+}
+
+.lp-hint {
+  font-size: var(--texte-xs);
+  color: var(--couleur-texte-doux);
 }
 
 .lp-input:focus {
-  border-color: #0088ce;
-  background: #ffffff;
+  border-color: var(--couleur-focus);
+  background: var(--couleur-surface);
   box-shadow: 0 0 0 3px rgba(0, 136, 206, 0.16);
 }
 
 .lp-eye-btn {
   position: absolute;
-  right: 14px;
+  right: 8px;
   top: 50%;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
   transform: translateY(-50%);
   background: none;
   border: none;
-  color: #8aa0ab;
+  border-radius: var(--rayon-xs);
+  color: var(--couleur-texte-doux);
   cursor: pointer;
+  transition: background-color var(--duree-rapide) var(--courbe), color var(--duree-rapide) var(--courbe);
+}
+
+.lp-eye-btn:hover {
+  background: var(--couleur-surface-survol);
+  color: var(--couleur-texte);
 }
 
 .lp-input-wrap {
@@ -330,10 +374,11 @@
   align-items: center;
   gap: 8px;
   padding: 12px 16px;
-  background: #fff4e8;
-  border: 1px solid #ffd2a8;
+  background: var(--couleur-erreur-fond);
+  border: 1px solid var(--couleur-erreur-bord);
+  border-left: 4px solid var(--couleur-erreur-vif);
   border-radius: 10px;
-  color: #a34d00;
+  color: var(--couleur-erreur);
   font-size: 0.85rem;
   font-weight: 600;
   margin-bottom: 16px;
@@ -346,10 +391,10 @@
   justify-content: center;
   gap: 10px;
   padding: 14px 24px;
-  background: #4caf2a;
+  background: var(--couleur-action);
   border: none;
   border-radius: 12px;
-  color: #fff;
+  color: var(--couleur-action-texte);
   font-size: 0.95rem;
   font-weight: 700;
   font-family: inherit;
@@ -359,7 +404,7 @@
 }
 
 .lp-btn:hover:not(:disabled) {
-  background: #3b9220;
+  background: var(--couleur-action-survol);
 }
 
 .lp-btn:disabled {
@@ -368,7 +413,7 @@
 }
 
 .lp-btn--loading {
-  background: #6bbf4d;
+  background: var(--couleur-action);
 }
 
 .lp-spinner {
@@ -384,8 +429,8 @@
 
 .lp-footer-note {
   text-align: center;
-  font-size: 0.74rem;
-  color: #8aa0ab;
+  font-size: var(--texte-xs);
+  color: var(--couleur-texte-doux);
   line-height: 1.7;
 }
 
@@ -394,7 +439,7 @@
   border: none;
   padding: 0;
   font: inherit;
-  color: #0088ce;
+  color: var(--couleur-lien);
   text-decoration: underline;
   cursor: pointer;
 }
@@ -419,6 +464,17 @@
   .lp-form-col {
     width: 100%;
     border-left: 0;
-    border-top: 1px solid #d4e5ef;
+    border-top: 1px solid var(--couleur-bord);
   }
+}
+
+/* Repris de l'ancienne layout-flow.css : colonne du formulaire centrée,
+   carte aux angles plus ronds que le reste de l'interface. */
+.lp-form-col {
+  display: flex;
+  align-items: center;
+}
+
+.lp-card {
+  border-radius: 28px;
 }

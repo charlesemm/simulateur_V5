@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useAuth } from "../auth/AuthContext";
+import { useToast } from "../hooks/useToast";
 import { API_URL } from "../services/api";
 
 interface UserRow {
@@ -40,6 +41,9 @@ function messageErreur(corps: unknown, defaut: string): string {
 
 export function UsersPage() {
   const { token } = useAuth();
+  const { toast } = useToast();
+  // Une liste vide avant la première réponse veut dire « pas encore ».
+  const [chargee, setChargee] = useState(false);
   const [users, setUsers] = useState<UserRow[]>([]);
   const [email, setEmail] = useState("");
   const [nomUtilisateur, setNomUtilisateur] = useState("");
@@ -55,6 +59,9 @@ export function UsersPage() {
   // « Réinitialiser », deux boutons minuscules et sans garde-fou : on éteignait
   // un compte en croyant lui refaire un mot de passe, et rien ne le disait.
   const [confirmExtinction, setConfirmExtinction] = useState<string | null>(null);
+  // Même garde-fou pour la réinitialisation : en un clic, l'ancien mot de
+  // passe cessait de fonctionner, et la personne se retrouvait à la porte.
+  const [confirmReinit, setConfirmReinit] = useState<string | null>(null);
 
   async function refresh() {
     try {
@@ -71,6 +78,18 @@ export function UsersPage() {
       setUsers(await response.json());
     } catch (raison) {
       setErreur((raison as Error).message);
+    } finally {
+      setChargee(true);
+    }
+  }
+
+  /** Copie le mot de passe temporaire : le recopier à la main, c'est une faute de frappe assurée. */
+  async function copierMotDePasse(valeur: string) {
+    try {
+      await navigator.clipboard.writeText(valeur);
+      toast("succes", "Mot de passe copié", "Transmettez-le par un canal sûr.");
+    } catch {
+      toast("alerte", "Copie impossible", "Sélectionnez le mot de passe et copiez-le à la main.");
     }
   }
 
@@ -110,6 +129,7 @@ export function UsersPage() {
       setNomComplet("");
       setMotDePasseTemporaire(cree.mot_de_passe_temporaire);
       setSucces(`Compte créé. Transmettez ce mot de passe à ${cree.utilisateur.nom_complet} :`);
+      toast("succes", "Compte créé", cree.utilisateur.nom_complet);
       await refresh();
     } catch (err) {
       setErreur((err as Error).message);
@@ -139,10 +159,18 @@ export function UsersPage() {
     setSucces(user.statut_actif
       ? `${user.nom_complet} est désactivé : ses connexions seront refusées.`
       : `${user.nom_complet} est réactivé.`);
+    // Le bouton est dans la liste, le message dans la colonne d'à côté :
+    // le toast dit le résultat là où l'on regarde.
+    toast(
+      "succes",
+      user.statut_actif ? "Compte désactivé" : "Compte réactivé",
+      user.nom_complet,
+    );
     await refresh();
   }
 
   async function reinitialiser(user: UserRow) {
+    setConfirmReinit(null);
     setErreur(null);
     setSucces(null);
     setMotDePasseTemporaire(null);
@@ -158,6 +186,7 @@ export function UsersPage() {
     const resultat = await response.json();
     setMotDePasseTemporaire(resultat.mot_de_passe_temporaire);
     setSucces(`Mot de passe réinitialisé pour ${user.nom_complet} :`);
+    toast("succes", "Mot de passe réinitialisé", "Le nouveau mot de passe s'affiche à droite.");
     await refresh();
   }
 
@@ -173,10 +202,10 @@ export function UsersPage() {
   }
 
   return (
-    <main className="page-container">
+    <div className="page-container">
       <div className="page-header">
         <div>
-          <h1 className="page-title">Gestion des Utilisateurs & Rôles</h1>
+          <h2 className="page-title">Gestion des Utilisateurs & Rôles</h2>
           <p className="page-subtitle">
             Administration des comptes d'accès, permissions et statuts
           </p>
@@ -205,7 +234,7 @@ export function UsersPage() {
                   <tr key={u.utilisateur_uuid}>
                     <td>
                       <div className="user-cell">
-                        <div className="user-avatar-sm">
+                        <div className="user-avatar-sm" aria-hidden="true">
                           {u.nom_complet.charAt(0).toUpperCase()}
                         </div>
                         <div className="user-text">
@@ -234,15 +263,36 @@ export function UsersPage() {
                     </td>
                     <td>
                       <div className="user-actions">
-                        {confirmExtinction === u.utilisateur_uuid ? (
+                        {confirmReinit === u.utilisateur_uuid ? (
                           <>
                             <button
+                              type="button"
+                              className="btn-action-toggle btn-disable"
+                              onClick={() => void reinitialiser(u)}
+                              aria-label={`Confirmer la réinitialisation du mot de passe de ${u.nom_complet}`}
+                            >
+                              Confirmer la réinitialisation
+                            </button>
+                            <button
+                              type="button"
+                              className="btn-action-toggle btn-neutre"
+                              onClick={() => setConfirmReinit(null)}
+                            >
+                              Annuler
+                            </button>
+                          </>
+                        ) : confirmExtinction === u.utilisateur_uuid ? (
+                          <>
+                            <button
+                              type="button"
                               className="btn-action-toggle btn-disable"
                               onClick={() => void toggleActif(u)}
+                              aria-label={`Confirmer la désactivation de ${u.nom_complet}`}
                             >
                               Confirmer la désactivation
                             </button>
                             <button
+                              type="button"
                               className="btn-action-toggle btn-neutre"
                               onClick={() => setConfirmExtinction(null)}
                             >
@@ -254,18 +304,25 @@ export function UsersPage() {
                             {/* Éteindre demande confirmation ; rallumer non —
                                 seul le premier geste ferme une porte. */}
                             <button
+                              type="button"
+                              aria-label={`${u.statut_actif ? "Désactiver" : "Réactiver"} ${u.nom_complet}`}
                               className={`btn-action-toggle ${u.statut_actif ? "btn-disable" : "btn-enable"}`}
-                              onClick={() =>
-                                u.statut_actif
-                                  ? setConfirmExtinction(u.utilisateur_uuid)
-                                  : void toggleActif(u)
-                              }
+                              onClick={() => {
+                                setConfirmReinit(null);
+                                if (u.statut_actif) setConfirmExtinction(u.utilisateur_uuid);
+                                else void toggleActif(u);
+                              }}
                             >
                               {u.statut_actif ? "Désactiver" : "Réactiver"}
                             </button>
                             <button
+                              type="button"
                               className="btn-action-toggle btn-neutre"
-                              onClick={() => reinitialiser(u)}
+                              onClick={() => {
+                                setConfirmExtinction(null);
+                                setConfirmReinit(u.utilisateur_uuid);
+                              }}
+                              aria-label={`Réinitialiser le mot de passe de ${u.nom_complet}`}
                             >
                               Réinitialiser
                             </button>
@@ -275,7 +332,15 @@ export function UsersPage() {
                     </td>
                   </tr>
                 ))}
-                {users.length === 0 && (
+                {!chargee && (
+                  <tr>
+                    <td colSpan={4} aria-busy="true">
+                      <span className="ui-skeleton ui-skeleton--texte" style={{ width: "70%" }} />
+                      <span className="ui-skeleton ui-skeleton--texte" style={{ width: "55%" }} />
+                    </td>
+                  </tr>
+                )}
+                {chargee && users.length === 0 && (
                   <tr>
                     <td colSpan={4} className="table-empty">
                       Aucun utilisateur trouvé.
@@ -296,11 +361,20 @@ export function UsersPage() {
             </p>
           </div>
 
-          {erreur && <div className="alert-box alert-error">{erreur}</div>}
-          {succes && <div className="alert-box alert-success">{succes}</div>}
+          {erreur && <div className="alert-box alert-error" role="alert">{erreur}</div>}
+          {succes && <div className="alert-box alert-success" role="status">{succes}</div>}
           {motDePasseTemporaire && (
             <div className="alert-box alert-success">
-              <code className="temp-password">{motDePasseTemporaire}</code>
+              <div className="temp-password-ligne">
+                <code className="temp-password">{motDePasseTemporaire}</code>
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  onClick={() => void copierMotDePasse(motDePasseTemporaire)}
+                >
+                  Copier
+                </button>
+              </div>
               <span className="temp-password-note">
                 Il ne sera plus affiché : notez-le maintenant. Son remplacement
                 sera exigé à la première connexion.
@@ -310,9 +384,11 @@ export function UsersPage() {
 
           <form className="clean-form" onSubmit={handleCreate}>
             <div className="form-group">
-              <label className="form-label">Nom complet</label>
+              <label className="form-label" htmlFor="compte-nom-complet">Nom complet</label>
               <input
+                id="compte-nom-complet"
                 className="form-input"
+                autoComplete="name"
                 placeholder="Ex: Jean Kouassi"
                 value={nomComplet}
                 onChange={(e) => setNomComplet(e.target.value)}
@@ -321,10 +397,12 @@ export function UsersPage() {
             </div>
 
             <div className="form-group">
-              <label className="form-label">Adresse email</label>
+              <label className="form-label" htmlFor="compte-email">Adresse email</label>
               <input
+                id="compte-email"
                 type="email"
                 className="form-input"
+                autoComplete="email"
                 placeholder="nom@cnam.ci"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -333,9 +411,11 @@ export function UsersPage() {
             </div>
 
             <div className="form-group">
-              <label className="form-label">Nom d'utilisateur</label>
+              <label className="form-label" htmlFor="compte-identifiant">Nom d'utilisateur</label>
               <input
+                id="compte-identifiant"
                 className="form-input"
+                autoComplete="username"
                 placeholder="Ex: j.kouassi"
                 value={nomUtilisateur}
                 onChange={(e) => setNomUtilisateur(e.target.value)}
@@ -346,8 +426,9 @@ export function UsersPage() {
             </div>
 
             <div className="form-group">
-              <label className="form-label">Rôle attribué</label>
+              <label className="form-label" htmlFor="compte-role">Rôle attribué</label>
               <select
+                id="compte-role"
                 className="form-select"
                 value={role}
                 onChange={(e) => setRole(e.target.value as typeof role)}
@@ -360,12 +441,20 @@ export function UsersPage() {
               </select>
             </div>
 
-            <button type="submit" className="btn btn-start btn-block" disabled={creating}>
+            <button
+              type="submit"
+              className="btn btn-start btn-block"
+              disabled={creating}
+              aria-busy={creating}
+            >
+              {creating && (
+                <span className="ui-spinner ui-spinner--petit ui-spinner--inverse" aria-hidden="true" />
+              )}
               {creating ? "Création en cours..." : "Enregistrer le compte"}
             </button>
           </form>
         </section>
       </div>
-    </main>
+    </div>
   );
 }

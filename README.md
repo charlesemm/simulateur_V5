@@ -58,9 +58,12 @@ uvicorn api.main:app --reload --host 127.0.0.1 --port 8000
 #### 4. Démarrage du Dashboard Frontend
 ```powershell
 cd dashboard
-npm install
+npm ci --legacy-peer-deps
 npm run dev
 ```
+*`--legacy-peer-deps` est nécessaire : `recharts` 2 déclare encore React 18
+en dépendance homologue, et npm refuse sinon d'installer avec React 19 — les
+graphiques fonctionnent pourtant. La CI et le Containerfile font de même.*
 
 ### Accéder aux services 🌐
 * 📊 **Dashboard (Interface React 19, mode dev)** : [http://localhost:5173](http://localhost:5173)

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Area, AreaChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { TechnicalMetricsSnapshot } from "../types";
+import { GRADUATION, HABILLAGE, LEGENDE_STYLE, TOOLTIP_LIBELLE, TOOLTIP_STYLE, legendeEnEncre, usePaletteGraphique } from "./chartTheme";
 
 interface PointCharge {
   heure: string;
@@ -15,6 +16,7 @@ interface ChargeTraitementChartProps {
 }
 
 export function ChargeTraitementChart({ metrics }: ChargeTraitementChartProps) {
+  const { serie, fond } = usePaletteGraphique();
   const [points, setPoints] = useState<PointCharge[]>([]);
   const lastTimeRef = useRef<string>("");
 
@@ -71,41 +73,40 @@ export function ChargeTraitementChart({ metrics }: ChargeTraitementChartProps) {
             <AreaChart data={points} margin={{ top: 10, right: 15, left: -20, bottom: 0 }}>
               <defs>
                 <linearGradient id="gradientCnamGreen" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#4caf2a" stopOpacity={0.28} />
-                  <stop offset="95%" stopColor="#4caf2a" stopOpacity={0.0} />
+                  <stop offset="5%" stopColor={serie.vert} stopOpacity={0.22} />
+                  <stop offset="95%" stopColor={serie.vert} stopOpacity={0.0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-              <XAxis dataKey="heure" tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={{ stroke: "#e2e8f0" }} />
-              <YAxis allowDecimals={false} domain={[0, (dataMax: number) => Math.max(dataMax + 2, 22)]} tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke={HABILLAGE.grille} vertical={false} />
+              <XAxis dataKey="heure" tick={GRADUATION} axisLine={{ stroke: HABILLAGE.axe }} tickLine={false} minTickGap={24} />
+              <YAxis allowDecimals={false} domain={[0, (dataMax: number) => Math.max(dataMax + 2, 22)]} tick={GRADUATION} axisLine={false} tickLine={false} />
               <Tooltip
-                contentStyle={{
-                  background: "#ffffff",
-                  border: "1px solid #e2e8f0",
-                  borderRadius: "8px",
-                  boxShadow: "0 4px 12px rgba(0, 0, 0, 0.08)",
-                  fontSize: "12px",
-                  color: "#0f172a",
-                }}
-                itemStyle={{ color: "#4caf2a", fontWeight: 600 }}
+                contentStyle={TOOLTIP_STYLE}
+                labelStyle={TOOLTIP_LIBELLE}
+                cursor={{ stroke: HABILLAGE.axe, strokeWidth: 1 }}
               />
+              {/* Deux séries : une légende, pour que la ligne pointillée ne
+                  se lise pas comme une seconde mesure. */}
+              <Legend verticalAlign="bottom" iconType="plainline" iconSize={16} wrapperStyle={LEGENDE_STYLE} formatter={legendeEnEncre} />
               <Area
                 type="monotone"
                 dataKey="passagesActifs"
                 name="Passages actifs"
-                stroke="#4caf2a"
+                stroke={serie.vert}
                 strokeWidth={2}
                 fillOpacity={1}
                 fill="url(#gradientCnamGreen)"
+                activeDot={{ r: 4, strokeWidth: 2, stroke: fond }}
               />
               <Area
                 type="step"
                 dataKey="capaciteMax"
                 name="Capacité max"
-                stroke="#cbd5e1"
+                stroke={HABILLAGE.reference}
                 strokeDasharray="4 4"
                 strokeWidth={1.5}
                 fill="none"
+                activeDot={false}
               />
             </AreaChart>
           </ResponsiveContainer>

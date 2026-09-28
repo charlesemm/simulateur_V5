@@ -1,0 +1,142 @@
+/* ═══════════════════════════════════════════════════════════════
+   ÉCHO — base
+
+   Remise à zéro, typographie racine et boutons historiques (.btn).
+   Deux sources de couleur, et deux seulement : ÉCHO et le logo CNAM.
+   Le reste est gris. Une interface où tout crie n'attire l'œil sur rien.
+═══════════════════════════════════════════════════════════════ */
+
+:root {
+  font-family: var(--police);
+
+  /* Toute l'échelle typographique est en rem : ce réglage-ci est donc le
+     seul endroit où se change la taille du texte de l'interface entière.
+     112,5 % du défaut navigateur = 18 px, contre 16 auparavant — les
+     libellés les plus petits passaient sous les 10 px, illisibles à
+     distance de bureau. */
+  font-size: 112.5%;
+
+  color: var(--couleur-texte);
+  background-color: var(--couleur-fond);
+  line-height: var(--interligne);
+  font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  background: var(--couleur-fond);
+  color: var(--couleur-texte);
+  font-family: var(--police);
+  overflow-x: hidden;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+svg {
+  flex-shrink: 0;
+}
+
+.svg-icon {
+  display: inline-block;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+
+/* ── Boutons historiques ────────────────────────────────────────────
+   Utilisés par tous les écrans ; les composants « ui-btn » en sont la
+   version complète, pour ce qui s'écrira désormais. */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--espace-2);
+  min-height: 40px;
+  padding: 0 var(--espace-4);
+  border: 1px solid transparent;
+  border-radius: var(--rayon-sm);
+  font-size: var(--texte-sm);
+  font-weight: var(--graisse-forte);
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color var(--duree-rapide) var(--courbe),
+    border-color var(--duree-rapide) var(--courbe),
+    box-shadow var(--duree-rapide) var(--courbe),
+    color var(--duree-rapide) var(--courbe),
+    transform var(--duree-rapide) var(--courbe);
+}
+
+/* Un bouton s'enfonce quand on le presse : c'est ce petit retour qui
+   fait la différence entre une interface et une image. */
+.btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn svg,
+.btn .svg-icon {
+  width: 16px;
+  height: 16px;
+  max-width: 16px;
+  max-height: 16px;
+  flex-shrink: 0;
+}
+
+/* Action principale : vert « encre », le blanc y tient 4,5:1 — sur le
+   vert du logo, il n'en tenait que 2,8. */
+.btn-start {
+  border-color: var(--couleur-action);
+  background: var(--couleur-action);
+  color: var(--couleur-action-texte);
+  box-shadow: var(--ombre-action);
+}
+
+.btn-start:hover:not(:disabled) {
+  border-color: var(--couleur-action-survol);
+  background: var(--couleur-action-survol);
+}
+
+.btn-start:disabled {
+  box-shadow: none;
+}
+
+/* Le bouton neutre : contour net, jamais un texte flottant qu'on
+   hésite à cliquer. */
+.btn-outline {
+  border-color: var(--couleur-bord);
+  background: var(--couleur-surface);
+  color: var(--couleur-texte);
+}
+
+.btn-outline:hover:not(:disabled) {
+  border-color: var(--couleur-bord-fort);
+  background: var(--couleur-surface-survol);
+}

@@ -1,10 +1,11 @@
 // dashboard/src/components/SimulationsPage.tsx
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { api } from "../services/api";
 import type {
   ExecutionDetail, ScenarioAlea, SimulationRun, TypeAnomalie,
 } from "../types";
+import { activableAuClavier } from "./clavier";
 import { StatutPastille, dateCourte, duree } from "./format-execution";
 import "./Screens.css";
 
@@ -38,6 +39,9 @@ export function SimulationsPage({ executionInitiale = null }: SimulationsPagePro
   // leur intitulé lisible.
   const [catalogue, setCatalogue] = useState<TypeAnomalie[]>([]);
   const [aleas, setAleas] = useState<ScenarioAlea[]>([]);
+  // Une liste vide avant la première réponse veut dire « pas encore ».
+  const [listeChargee, setListeChargee] = useState(false);
+  const ficheRef = useRef<HTMLDivElement>(null);
 
   const chargerListe = useCallback(async () => {
     try {
@@ -45,6 +49,8 @@ export function SimulationsPage({ executionInitiale = null }: SimulationsPagePro
       setErreur(null);
     } catch (raison) {
       setErreur((raison as Error).message);
+    } finally {
+      setListeChargee(true);
     }
   }, [token]);
 
@@ -97,6 +103,24 @@ export function SimulationsPage({ executionInitiale = null }: SimulationsPagePro
     };
   }, [selection, token, executions]);
 
+  const ficheOuverte = fiche?.execution.simulation_id ?? null;
+  const ficheEnChargement = selection !== null && ficheOuverte !== selection;
+
+  // La fiche s'ouvre sous une liste qui peut compter cinquante lignes : on
+  // l'amène sous les yeux dès le clic, puis de nouveau quand elle est
+  // arrivée (le squelette, plus court, ne laissait pas descendre assez).
+  // Le rafraîchissement de la liste ne touche à aucune de ces deux valeurs :
+  // l'écran ne saute pas toutes les cinq secondes.
+  useEffect(() => {
+    if (!selection) return;
+    const sansAnimation = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    ficheRef.current?.scrollIntoView({
+      behavior: sansAnimation ? "auto" : "smooth",
+      block: "start",
+    });
+  }, [selection, ficheEnChargement]);
+
+
   // Ce qui a été demandé au lancement vit dans les paramètres de l'exécution ;
   // ce qui a réellement été fait vient du journal d'injection. Les deux côte à
   // côte, y compris les types restés à zéro — un type demandé qui n'a rien
@@ -147,11 +171,26 @@ export function SimulationsPage({ executionInitiale = null }: SimulationsPagePro
 
   return (
     <div className="screen">
-      {erreur && <p className="screen-error">{erreur}</p>}
+      {erreur && <p className="screen-error" role="alert">{erreur}</p>}
 
       <section>
-        <h2 className="screen-section-title">Historique des exécutions</h2>
-        {executions.length === 0 ? (
+        <div className="screen-section-head">
+          <h2 className="screen-section-title">Historique des exécutions</h2>
+          {executions.length > 0 && (
+            <span className="screen-section-compte">
+              {executions.length} exécution(s) · cliquez une ligne pour ouvrir sa fiche
+            </span>
+          )}
+        </div>
+        {!listeChargee ? (
+          <div className="screen-table-wrap" aria-busy="true" aria-label="Chargement de l'historique">
+            {[0, 1, 2, 3].map((ligne) => (
+              <div key={ligne} className="ligne-squelette">
+                <span className="ui-skeleton ui-skeleton--texte" style={{ width: `${90 - ligne * 10}%` }} />
+              </div>
+            ))}
+          </div>
+        ) : executions.length === 0 ? (
           <div className="screen-empty">
             Aucune exécution enregistrée. Lancez un type depuis l'accueil.
           </div>
@@ -165,8 +204,8 @@ export function SimulationsPage({ executionInitiale = null }: SimulationsPagePro
                   <th>Type</th>
                   <th>Statut</th>
                   <th>Durée</th>
-                  <th>Réussis</th>
-                  <th>Échoués</th>
+                  <th className="num">Réussis</th>
+                  <th className="num">Échoués</th>
                 </tr>
               </thead>
               <tbody>
@@ -181,14 +220,20 @@ export function SimulationsPage({ executionInitiale = null }: SimulationsPagePro
                         execution.simulation_id === selection ? null : execution.simulation_id
                       )
                     }
+                    {...activableAuClavier(() =>
+                      setSelection(
+                        execution.simulation_id === selection ? null : execution.simulation_id
+                      )
+                    )}
+                    aria-expanded={execution.simulation_id === selection}
                   >
                     <td>{dateCourte(execution.simulation_date_debut)}</td>
                     <td>{dateCourte(execution.simulation_date_fin)}</td>
                     <td>{execution.simulation_type ?? "—"}</td>
                     <td><StatutPastille statut={execution.simulation_statut} /></td>
                     <td>{duree(execution.simulation_date_debut, execution.simulation_date_fin)}</td>
-                    <td>{execution.passages_reussis}</td>
-                    <td>{execution.passages_echoues}</td>
+                    <td className="num">{execution.passages_reussis}</td>
+                    <td className="num">{execution.passages_echoues}</td>
                   </tr>
                 ))}
               </tbody>
@@ -197,8 +242,24 @@ export function SimulationsPage({ executionInitiale = null }: SimulationsPagePro
         )}
       </section>
 
-      {fiche && (
-        <section>
+      <div ref={ficheRef} className="fiche-zone">
+      {ficheEnChargement && (
+        <section aria-busy="true" aria-label="Chargement de la fiche">
+          <h2 className="screen-section-title">Fiche d'exécution</h2>
+          <div className="fiche">
+            <span className="ui-skeleton ui-skeleton--titre" />
+            <span className="ui-skeleton ui-skeleton--texte" style={{ width: "30%", marginBottom: 20 }} />
+            <div className="stat-strip">
+              {[0, 1, 2, 3].map((tuile) => (
+                <span key={tuile} className="ui-skeleton" style={{ height: 96 }} />
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {fiche && !ficheEnChargement && (
+        <section className="fiche--ouverte">
           <h2 className="screen-section-title">Fiche d'exécution</h2>
           <article className="fiche">
             <div className="fiche-tete">
@@ -206,7 +267,12 @@ export function SimulationsPage({ executionInitiale = null }: SimulationsPagePro
                 <div className="fiche-titre">{fiche.execution.simulation_libelle}</div>
                 <div className="fiche-identifiant">{fiche.execution.simulation_id}</div>
               </div>
-              <StatutPastille statut={fiche.execution.simulation_statut} />
+              <div className="fiche-actions">
+                <StatutPastille statut={fiche.execution.simulation_statut} />
+                <button type="button" className="btn btn-outline" onClick={() => setSelection(null)}>
+                  Fermer la fiche
+                </button>
+              </div>
             </div>
 
             <div className="stat-strip">
@@ -220,7 +286,7 @@ export function SimulationsPage({ executionInitiale = null }: SimulationsPagePro
 
             {anomaliesParametrees.length > 0 && (
               <>
-                <h3 className="screen-section-title" style={{ marginTop: 22 }}>
+                <h3 className="screen-section-title fiche-partie">
                   Anomalies — demandé puis obtenu
                 </h3>
                 <div className="cellules">
@@ -240,7 +306,7 @@ export function SimulationsPage({ executionInitiale = null }: SimulationsPagePro
                   ))}
                 </div>
                 {anomaliesParametrees.some((ligne) => ligne.injectees === 0) && (
-                  <p className="stat-tile-hint" style={{ marginTop: 10 }}>
+                  <p className="fiche-note">
                     Un type demandé mais jamais injecté n'est pas forcément une
                     panne : à faible taux, une exécution courte peut ne jamais
                     tomber dessus.
@@ -251,7 +317,7 @@ export function SimulationsPage({ executionInitiale = null }: SimulationsPagePro
 
             {aleasParametres.length > 0 && (
               <>
-                <h3 className="screen-section-title" style={{ marginTop: 22 }}>
+                <h3 className="screen-section-title fiche-partie">
                   Aléas demandés
                 </h3>
                 <div className="cellules">
@@ -268,7 +334,7 @@ export function SimulationsPage({ executionInitiale = null }: SimulationsPagePro
               </>
             )}
 
-            <h3 className="screen-section-title" style={{ marginTop: 22 }}>
+            <h3 className="screen-section-title fiche-partie">
               Cadence demandée
             </h3>
             <div className="cellules">
@@ -286,6 +352,7 @@ export function SimulationsPage({ executionInitiale = null }: SimulationsPagePro
           </article>
         </section>
       )}
+      </div>
     </div>
   );
 }

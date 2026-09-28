@@ -1,9 +1,10 @@
 // dashboard/src/components/CampagnesPage.tsx
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { RequireRole } from "../auth/RequireRole";
 import { api } from "../services/api";
 import type { Campagne, TypeAnomalieCampagne } from "../types";
+import { activableAuClavier } from "./clavier";
 import { FicheCampagne } from "./FicheCampagne";
 import { dateCourte } from "./format-execution";
 import "./Screens.css";
@@ -35,6 +36,9 @@ export function CampagnesPage({ campagneInitiale = null, onNouvelle }: Campagnes
   const [types, setTypes] = useState<TypeAnomalieCampagne[]>([]);
   const [selection, setSelection] = useState<string | null>(campagneInitiale);
   const [erreur, setErreur] = useState<string | null>(null);
+  // Une liste vide avant la première réponse veut dire « pas encore ».
+  const [chargee, setChargee] = useState(false);
+  const ficheRef = useRef<HTMLElement>(null);
 
   const charger = useCallback(async () => {
     try {
@@ -49,6 +53,8 @@ export function CampagnesPage({ campagneInitiale = null, onNouvelle }: Campagnes
       setErreur(null);
     } catch (raison) {
       setErreur((raison as Error).message);
+    } finally {
+      setChargee(true);
     }
   }, [token]);
 
@@ -62,9 +68,21 @@ export function CampagnesPage({ campagneInitiale = null, onNouvelle }: Campagnes
 
   const ouverte = campagnes.find((candidate) => candidate.campagne_id === selection) ?? null;
 
+  // La fiche s'ouvre sous la liste : on l'amène sous les yeux quand on en
+  // choisit une — et quand on arrive de la création d'une campagne.
+  const ficheAffichee = ouverte?.campagne_id ?? null;
+  useEffect(() => {
+    if (!ficheAffichee) return;
+    const sansAnimation = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    ficheRef.current?.scrollIntoView({
+      behavior: sansAnimation ? "auto" : "smooth",
+      block: "start",
+    });
+  }, [ficheAffichee]);
+
   return (
     <div className="screen">
-      {erreur && <p className="screen-error">{erreur}</p>}
+      {erreur && <p className="screen-error" role="alert">{erreur}</p>}
 
       <section>
         <div className="screen-section-head">
@@ -81,7 +99,15 @@ export function CampagnesPage({ campagneInitiale = null, onNouvelle }: Campagnes
           d'un même outil.
         </p>
 
-        {campagnes.length === 0 ? (
+        {!chargee ? (
+          <div className="screen-table-wrap" aria-busy="true" aria-label="Chargement des campagnes">
+            {[0, 1, 2].map((ligne) => (
+              <div key={ligne} className="ligne-squelette">
+                <span className="ui-skeleton ui-skeleton--texte" style={{ width: `${90 - ligne * 12}%` }} />
+              </div>
+            ))}
+          </div>
+        ) : campagnes.length === 0 ? (
           <div className="screen-empty">
             Aucune campagne pour l'instant. Créez-en une pour éprouver un outil
             de qualité des données.
@@ -95,9 +121,9 @@ export function CampagnesPage({ campagneInitiale = null, onNouvelle }: Campagnes
                   <th>Nom</th>
                   <th>Statut</th>
                   <th>Palier</th>
-                  <th>Volume visé</th>
-                  <th>Graine</th>
-                  <th>Lignes</th>
+                  <th className="num">Volume visé</th>
+                  <th className="num">Graine</th>
+                  <th className="num">Lignes</th>
                   <th>Empreinte</th>
                   <th>Créée le</th>
                 </tr>
@@ -107,6 +133,8 @@ export function CampagnesPage({ campagneInitiale = null, onNouvelle }: Campagnes
                   <tr
                     key={campagne.campagne_id}
                     onClick={() => setSelection(campagne.campagne_id)}
+                    {...activableAuClavier(() => setSelection(campagne.campagne_id))}
+                    aria-expanded={campagne.campagne_id === selection}
                     className={`cliquable${
                       campagne.campagne_id === selection ? " selectionnee" : ""
                     }`}
@@ -121,9 +149,9 @@ export function CampagnesPage({ campagneInitiale = null, onNouvelle }: Campagnes
                       </span>
                     </td>
                     <td>{campagne.campagne_palier}</td>
-                    <td>{entier(campagne.campagne_volume_cible)}</td>
-                    <td>{entier(campagne.campagne_graine)}</td>
-                    <td>
+                    <td className="num">{entier(campagne.campagne_volume_cible)}</td>
+                    <td className="num">{entier(campagne.campagne_graine)}</td>
+                    <td className="num">
                       {campagne.campagne_lignes_generees > 0
                         ? entier(campagne.campagne_lignes_generees)
                         : "—"}
@@ -143,12 +171,13 @@ export function CampagnesPage({ campagneInitiale = null, onNouvelle }: Campagnes
       </section>
 
       {ouverte && (
-        <section>
+        <section ref={ficheRef} className="fiche--ouverte">
           <FicheCampagne
             campagne={ouverte}
             types={types}
             statuts={statuts}
             onChangement={() => void charger()}
+            onFermer={() => setSelection(null)}
           />
         </section>
       )}

@@ -42,7 +42,7 @@ export function ChangePasswordPage() {
 
   return (
     <div className="lp-root">
-      <div className="lp-bg">
+      <div className="lp-bg" aria-hidden="true">
         <div className="lp-orb lp-orb-1" />
         <div className="lp-orb lp-orb-2" />
         <div className="lp-grid" />
@@ -90,8 +90,13 @@ export function ChangePasswordPage() {
                   required
                   minLength={LONGUEUR_MINIMALE}
                   autoComplete="new-password"
+                  aria-describedby={erreur ? "cp-aide cp-erreur" : "cp-aide"}
+                  aria-invalid={erreur ? true : undefined}
                 />
               </div>
+              <span className="lp-hint" id="cp-aide">
+                Au moins {LONGUEUR_MINIMALE} caractères.
+              </span>
             </div>
 
             <div className="lp-field-group">
@@ -107,13 +112,15 @@ export function ChangePasswordPage() {
                   onChange={(e) => setConfirmation(e.target.value)}
                   required
                   autoComplete="new-password"
+                  aria-describedby={erreur ? "cp-erreur" : undefined}
+                  aria-invalid={erreur ? true : undefined}
                 />
               </div>
             </div>
           </div>
 
           {erreur && (
-            <div className="lp-error" role="alert">
+            <div className="lp-error" role="alert" id="cp-erreur">
               {erreur}
             </div>
           )}

@@ -100,7 +100,7 @@ export function BilanExecutionPage({
   if (erreur) {
     return (
       <div className="screen">
-        <p className="screen-error">{erreur}</p>
+        <p className="screen-error" role="alert">{erreur}</p>
         <button className="btn btn-outline" onClick={onAccueil}>
           Retour à l&rsquo;accueil
         </button>
@@ -109,7 +109,23 @@ export function BilanExecutionPage({
   }
 
   if (!execution) {
-    return <div className="screen"><div className="screen-empty">Chargement du bilan…</div></div>;
+    // La forme du bilan, le temps qu'il arrive : le bandeau, puis les chiffres.
+    return (
+      <div className="screen" aria-busy="true" aria-label="Chargement du bilan">
+        <div className="bilan-bandeau">
+          <span className="ui-skeleton" style={{ width: 52, height: 52, borderRadius: 14 }} />
+          <div className="bilan-identite">
+            <span className="ui-skeleton ui-skeleton--texte" style={{ width: 140 }} />
+            <span className="ui-skeleton ui-skeleton--titre" style={{ width: "60%" }} />
+          </div>
+        </div>
+        <div className="bilan-volumetrie">
+          {[0, 1, 2, 3].map((tuile) => (
+            <span key={tuile} className="ui-skeleton" style={{ height: 92 }} />
+          ))}
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -202,7 +218,7 @@ export function BilanExecutionPage({
                         && ` · ${Math.round((ligne.nombre / parFamille.total) * 100)} %`}
                     </span>
                   </div>
-                  <div className="bilan-piste">
+                  <div className="bilan-piste" aria-hidden="true">
                     <div
                       className="bilan-piste-remplie"
                       style={{
