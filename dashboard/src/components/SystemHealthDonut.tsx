@@ -1,5 +1,6 @@
 import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import type { TechnicalMetricsSnapshot } from "../types";
+import { ETAT, LEGENDE_STYLE, TOOLTIP_STYLE } from "./chartTheme";
 
 interface SystemHealthDonutProps {
   metrics: TechnicalMetricsSnapshot | null;
@@ -21,8 +22,11 @@ export function SystemHealthDonut({ metrics }: SystemHealthDonutProps) {
   const total = success + errors;
 
   const data = [
-    { name: "Passages réussis", value: success, color: "#4caf2a" },
-    { name: "Passages échoués", value: errors, color: "#f07800" },
+    // Réussite et échec sont des états, pas des séries quelconques : une paire
+    // choisie pour rester distincte aux daltoniens, et toujours accompagnée
+    // de son libellé dans la légende.
+    { name: "Passages réussis", value: success, color: ETAT.reussite },
+    { name: "Passages échoués", value: errors, color: ETAT.echec },
   ];
 
   return (
@@ -50,24 +54,25 @@ export function SystemHealthDonut({ metrics }: SystemHealthDonutProps) {
                 nameKey="name"
                 innerRadius={52}
                 outerRadius={78}
-                paddingAngle={4}
+                paddingAngle={2}
+                stroke="#ffffff"
+                strokeWidth={2}
               >
                 {data.map((entry) => (
                   <Cell key={entry.name} fill={entry.color} />
                 ))}
               </Pie>
               <Tooltip
-                contentStyle={{
-                  background: "#ffffff",
-                  border: "1px solid #e2e8f0",
-                  borderRadius: "8px",
-                  boxShadow: "0 4px 12px rgba(0, 0, 0, 0.08)",
-                  fontSize: "12px",
-                  color: "#0f172a",
-                }}
+                contentStyle={TOOLTIP_STYLE}
                 formatter={(val) => [Number(val).toLocaleString("fr-FR"), "Passages"]}
               />
-              <Legend verticalAlign="bottom" height={32} iconType="circle" iconSize={8} />
+              <Legend
+                verticalAlign="bottom"
+                height={32}
+                iconType="circle"
+                iconSize={10}
+                wrapperStyle={LEGENDE_STYLE}
+              />
             </PieChart>
           </ResponsiveContainer>
         </div>

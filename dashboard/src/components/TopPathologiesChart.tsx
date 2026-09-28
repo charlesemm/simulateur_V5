@@ -1,7 +1,9 @@
 // Les cinq pathologies les plus fréquentes sur la fenêtre du snapshot KPI.
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { KpiSnapshot } from "../types";
-import { TOOLTIP_STYLE } from "./chartTheme";
+import {
+  GRADUATION, GRADUATION_LIBELLE, HABILLAGE, SERIE, TOOLTIP_LIBELLE, TOOLTIP_STYLE,
+} from "./chartTheme";
 
 interface TopPathologiesChartProps {
   snapshot: KpiSnapshot | null;
@@ -37,30 +39,32 @@ export function TopPathologiesChart({ snapshot }: TopPathologiesChartProps) {
         <div className="chart-container">
           <ResponsiveContainer width="100%" height={240}>
             <BarChart data={donnees} layout="vertical" margin={{ top: 5, right: 20, left: 20, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke={HABILLAGE.grille} horizontal={false} />
               <XAxis
                 type="number"
                 allowDecimals={false}
-                tick={{ fontSize: 11, fill: "#94a3b8" }}
-                axisLine={{ stroke: "#e2e8f0" }}
+                tick={GRADUATION}
+                axisLine={{ stroke: HABILLAGE.axe }}
+                tickLine={false}
               />
               <YAxis
                 type="category"
                 dataKey="libelle"
                 width={150}
-                tick={{ fontSize: 11, fill: "#64748b" }}
+                tick={GRADUATION_LIBELLE}
                 axisLine={false}
                 tickLine={false}
               />
               <Tooltip
-                cursor={{ fill: "#f8fafc" }}
+                cursor={{ fill: HABILLAGE.curseur }}
                 contentStyle={TOOLTIP_STYLE}
+                labelStyle={TOOLTIP_LIBELLE}
                 formatter={(valeur: number, _nom, element) => [
                   `${valeur.toLocaleString("fr-FR")} passages`,
                   `${element.payload.code} — ${element.payload.libelleComplet}`,
                 ]}
               />
-              <Bar dataKey="nombre" name="Passages" fill="#0088ce" radius={[0, 4, 4, 0]} maxBarSize={26} />
+              <Bar dataKey="nombre" name="Passages" fill={SERIE.bleu} radius={[0, 4, 4, 0]} maxBarSize={26} />
             </BarChart>
           </ResponsiveContainer>
         </div>

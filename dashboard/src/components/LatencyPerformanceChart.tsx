@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { TechnicalMetricsSnapshot } from "../types";
+import {
+  GRADUATION, HABILLAGE, LEGENDE_STYLE, SERIE, TOOLTIP_LIBELLE, TOOLTIP_STYLE,
+} from "./chartTheme";
 
 interface PointLatence {
   heure: string;
@@ -62,34 +65,32 @@ export function LatencyPerformanceChart({ metrics }: LatencyPerformanceChartProp
         <div className="chart-container">
           <ResponsiveContainer width="100%" height={240}>
             <LineChart data={points} margin={{ top: 10, right: 15, left: -20, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-              <XAxis dataKey="heure" tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={{ stroke: "#e2e8f0" }} />
-              <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} unit=" ms" />
+              <CartesianGrid strokeDasharray="3 3" stroke={HABILLAGE.grille} vertical={false} />
+              <XAxis dataKey="heure" tick={GRADUATION} axisLine={{ stroke: HABILLAGE.axe }} tickLine={false} minTickGap={24} />
+              <YAxis allowDecimals={false} tick={GRADUATION} axisLine={false} tickLine={false} unit=" ms" />
               <Tooltip
-                contentStyle={{
-                  background: "#ffffff",
-                  border: "1px solid #e2e8f0",
-                  borderRadius: "8px",
-                  boxShadow: "0 4px 12px rgba(0, 0, 0, 0.08)",
-                  fontSize: "12px",
-                  color: "#0f172a",
-                }}
+                contentStyle={TOOLTIP_STYLE}
+                labelStyle={TOOLTIP_LIBELLE}
+                cursor={{ stroke: HABILLAGE.axe, strokeWidth: 1 }}
               />
+              <Legend verticalAlign="bottom" iconType="plainline" iconSize={16} wrapperStyle={LEGENDE_STYLE} />
               <Line
                 type="monotone"
                 dataKey="latenceApiMs"
                 name="Latence API (ms)"
-                stroke="#0088ce"
+                stroke={SERIE.bleu}
                 strokeWidth={2}
                 dot={false}
+                activeDot={{ r: 4, strokeWidth: 2, stroke: "#ffffff" }}
               />
               <Line
                 type="monotone"
                 dataKey="latenceKpiMs"
                 name="Pipeline KPI (ms)"
-                stroke="#f07800"
+                stroke={SERIE.orange}
                 strokeWidth={2}
                 dot={false}
+                activeDot={{ r: 4, strokeWidth: 2, stroke: "#ffffff" }}
               />
             </LineChart>
           </ResponsiveContainer>
