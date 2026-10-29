@@ -1,0 +1,5 @@
+name: echo_prod
+values:
+  - key: campagne
+    value: ''
+color: 0
