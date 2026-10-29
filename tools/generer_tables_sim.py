@@ -16,7 +16,7 @@ from typing import Any
 
 RACINE = Path(__file__).resolve().parent.parent
 SOURCE = RACINE / "schema_mirka" / "schema_sim.json"
-SORTIE = RACINE / "simulation" / "schema_sim" / "tables_generees.py"
+SORTIE = RACINE / "src" / "echo" / "moteur" / "simulation" / "schema_sim" / "tables_generees.py"
 
 # Les référentiels et tables de valeurs décrivent le monde, pas une exécution :
 # ils sont partagés par toutes les simulations et ne portent pas de SIMULATION_ID.

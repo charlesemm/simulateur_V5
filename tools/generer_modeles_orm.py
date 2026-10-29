@@ -28,7 +28,7 @@ from typing import Any
 # exécute `app/models/__init__.py`, qui importe le module que ce script
 # génère. Un module à demi généré rendrait le générateur inutilisable.
 _specification = importlib.util.spec_from_file_location(
-    "correspondances", Path(__file__).resolve().parent.parent / "app" / "models" / "correspondances.py"
+    "correspondances", Path(__file__).resolve().parent.parent / "src" / "echo" / "web" / "app" / "models" / "correspondances.py"
 )
 _correspondances = importlib.util.module_from_spec(_specification)
 _specification.loader.exec_module(_correspondances)
@@ -39,7 +39,7 @@ table_de = _correspondances.table_de
 
 RACINE = Path(__file__).resolve().parent.parent
 SOURCE = RACINE / "schema_mirka" / "schema_sim.json"
-SORTIE = RACINE / "app" / "models" / "mirka.py"
+SORTIE = RACINE / "src" / "echo" / "web" / "app" / "models" / "mirka.py"
 
 # Ces quatre colonnes existent sur presque toutes les tables de Mirka, et
 # AuditMixin les déclare déjà : les redéclarer ferait doublon.
@@ -265,7 +265,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import DOUBLE_PRECISION
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.models.base import AuditMixin, Base, SimulationScopedMixin
+from echo.web.app.models.base import AuditMixin, Base, SimulationScopedMixin
 '''
 
 

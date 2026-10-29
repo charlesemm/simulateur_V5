@@ -10,12 +10,12 @@ from __future__ import annotations
 
 import random
 
-from seed.constants import PROFESSIONS
-from seed.identifiants import (
+from echo.moteur.seed.constants import PROFESSIONS
+from echo.moteur.seed.identifiants import (
     CHIFFRES, brouiller, numero, numero_libre, numero_securite_sociale_libre,
     taille,
 )
-from seed.runner import (
+from echo.moteur.seed.runner import (
     PROFESSION_REGIME, insured_profession, insured_profile,
     numero_securite_sociale,
 )

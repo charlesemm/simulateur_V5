@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import asyncio
 
-from api.services.simulation_manager import simulation_manager
+from echo.web.api.services.simulation_manager import simulation_manager
 
 
 async def test_le_moteur_survit_a_la_vitesse_maximale(client_api):

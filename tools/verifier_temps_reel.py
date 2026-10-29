@@ -2,8 +2,8 @@ import asyncio
 from datetime import datetime, timezone
 import socketio
 import uvicorn
-from events import DomainEvent, event_bus
-from realtime import shutdown_event_pipeline, socket_app, startup_event_pipeline
+from echo.moteur.events import DomainEvent, event_bus
+from echo.moteur.realtime import shutdown_event_pipeline, socket_app, startup_event_pipeline
 
 async def main() -> None:
     """Lance ASGI, connecte un client et exige les deux événements KPI."""

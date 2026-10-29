@@ -51,6 +51,9 @@ COPY --from=deps /usr/local/bin /usr/local/bin
 # Code source
 COPY . .
 
+# Le code vit sous src/ : on l'ajoute au chemin d'import.
+ENV PYTHONPATH=/app/src
+
 # Dashboard compilé depuis l'étage 1
 COPY --from=dashboard /app/dashboard/dist /app/dashboard/dist
 
@@ -69,4 +72,4 @@ USER echo
 EXPOSE 8000
 
 # Uvicorn avec un seul worker (asyncio gère la concurrence)
-CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "echo.web.api.main:app", "--host", "0.0.0.0", "--port", "8000"]

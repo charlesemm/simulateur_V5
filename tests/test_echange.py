@@ -13,12 +13,12 @@ import uuid
 import httpx
 import pytest
 
-from api.main import fastapi_app
-from campagnes import creer, historique, lancer, lire, transmettre
-from campagnes.echange import (
+from echo.web.api.main import fastapi_app
+from echo.metier.campagnes import creer, historique, lancer, lire, transmettre
+from echo.metier.campagnes.echange import (
     AdresseRefusee, _classer_rapport, _entetes_pour, verifier_adresse,
 )
-from campagnes.models import (
+from echo.metier.campagnes.models import (
     MOTIF_RAPPORT_MALFORME, MOTIF_RAPPORT_SANS_DETAIL, MOTIF_SILENCE,
     RESULTAT_ECHEC, RESULTAT_SUCCES, STATUT_ECHEC_ECHANGE, STATUT_RAPPORT_RECU,
 )

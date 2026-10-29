@@ -4,7 +4,7 @@ from __future__ import annotations
 import jwt
 import pytest
 
-from auth.security import (
+from echo.web.auth.security import (
     ALPHABET_TEMPORAIRE, LONGUEUR_MOT_DE_PASSE_TEMPORAIRE, MotDePasseTropLong,
     create_access_token, decode_access_token, generer_mot_de_passe_temporaire,
     hash_password, jeton_toujours_lie, verify_password,

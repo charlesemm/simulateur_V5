@@ -1,0 +1,231 @@
+"""Gère les comptes administrateurs hors de l'API, depuis la ligne de commande.
+
+    python -m echo.web.auth.bootstrap                  crée le premier administrateur
+    python -m echo.web.auth.bootstrap --lister         liste les comptes existants
+    python -m echo.web.auth.bootstrap --reinitialiser  redonne un mot de passe à un compte
+    python -m echo.web.auth.bootstrap --creer ...      crée un administrateur sans invite
+
+Le mot de passe n'est jamais passé en argument : il se saisit à l'invite, sans
+écho, pour qu'il ne reste ni dans l'historique du terminal ni dans la liste des
+processus. En conteneur, où aucun clavier n'est branché, `--creer` le lit dans
+la variable d'environnement `ECHO_ADMIN_PASSWORD` — même principe : la valeur
+ne transite pas par la ligne de commande.
+"""
+from __future__ import annotations
+
+import asyncio
+import getpass
+import os
+import sys
+import uuid
+
+from sqlalchemy import func, or_, select
+
+from echo.web.app.database import get_database_session
+from echo.web.auth.models import User
+from echo.web.auth.security import (
+    LONGUEUR_MOT_DE_PASSE_MAXIMALE_OCTETS, depasse_la_limite_bcrypt, hash_password,
+)
+
+LONGUEUR_MINIMALE = 8
+
+MESSAGE_TROP_LONG = (
+    f"Mot de passe trop long ({LONGUEUR_MOT_DE_PASSE_MAXIMALE_OCTETS} octets maximum, "
+    "une lettre accentuée en compte deux), opération annulée."
+)
+
+
+async def _create_admin(email: str, nom_utilisateur: str, mot_de_passe: str,
+                        nom_complet: str) -> None:
+    async for session in get_database_session():
+        existing = await session.execute(select(User).where(or_(
+            User.email == email, User.nom_utilisateur == nom_utilisateur
+        )))
+        if existing.scalar_one_or_none() is not None:
+            print(f"Un compte existe déjà pour {email} ou {nom_utilisateur}.")
+            return
+
+        # Ce compte-ci choisit son mot de passe à la saisie : aucun changement
+        # ne lui est imposé, contrairement aux comptes créés depuis l'API.
+        user = User(
+            utilisateur_uuid=uuid.uuid4(),
+            email=email,
+            nom_utilisateur=nom_utilisateur,
+            mot_de_passe_hash=hash_password(mot_de_passe),
+            nom_complet=nom_complet,
+            role="administrateur",
+            statut_actif=True,
+            doit_changer_mot_de_passe=False,
+        )
+        session.add(user)
+        await session.commit()
+        print(f"Compte administrateur créé pour {email}.")
+
+
+async def _lister() -> None:
+    """Affiche les comptes et leurs deux identifiants de connexion.
+
+    Aucune empreinte n'est montrée : ce qu'on cherche ici, c'est de savoir
+    quoi taper dans le champ « identifiant », rien de plus.
+    """
+
+    async for session in get_database_session():
+        comptes = list((await session.execute(
+            select(User).order_by(User.email)
+        )).scalars())
+
+        if not comptes:
+            print("Aucun compte. Lancez « python -m echo.web.auth.bootstrap » pour en créer un.")
+            return
+
+        print(f"{len(comptes)} compte(s) — la connexion accepte l'e-mail ou le nom :\n")
+        for compte in comptes:
+            etat = "actif" if compte.statut_actif else "DÉSACTIVÉ"
+            a_changer = " · mot de passe à changer" if compte.doit_changer_mot_de_passe else ""
+            print(f"  e-mail : {compte.email}")
+            print(f"  nom    : {compte.nom_utilisateur}")
+            print(f"  rôle   : {compte.role} · {etat}{a_changer}\n")
+
+
+async def _reinitialiser(identifiant: str, mot_de_passe: str) -> None:
+    """Remplace le mot de passe d'un compte et le réactive au besoin."""
+
+    async for session in get_database_session():
+        recherche = identifiant.strip().lower()
+        # Même règle qu'à la connexion : e-mail ou nom d'utilisateur, sans
+        # égard à la casse. Un décalage entre les deux rendrait cette commande
+        # incapable de retrouver un compte qui, lui, sait se connecter.
+        compte = (await session.execute(select(User).where(or_(
+            func.lower(User.email) == recherche,
+            func.lower(User.nom_utilisateur) == recherche,
+        )))).scalar_one_or_none()
+
+        if compte is None:
+            print(f"Aucun compte ne correspond à « {identifiant} ».")
+            print("Lancez « python -m echo.web.auth.bootstrap --lister » pour voir les identifiants.")
+            return
+
+        compte.mot_de_passe_hash = hash_password(mot_de_passe)
+        # Le mot de passe vient d'être choisi par la personne elle-même :
+        # rien ne justifie de lui en imposer un autre à la connexion.
+        compte.doit_changer_mot_de_passe = False
+        compte.statut_actif = True
+        await session.commit()
+
+        print(f"Mot de passe remplacé pour {compte.email} ({compte.role}).")
+        print(f"Connectez-vous avec « {compte.email} » ou « {compte.nom_utilisateur} ».")
+
+
+def _demander_mot_de_passe() -> str | None:
+    """Fait saisir le mot de passe deux fois, sans écho, et le valide."""
+
+    mot_de_passe = getpass.getpass(f"Nouveau mot de passe ({LONGUEUR_MINIMALE} caractères minimum) : ")
+    if len(mot_de_passe) < LONGUEUR_MINIMALE:
+        print("Mot de passe trop court, opération annulée.")
+        return None
+    if depasse_la_limite_bcrypt(mot_de_passe):
+        print(MESSAGE_TROP_LONG)
+        return None
+    if mot_de_passe != getpass.getpass("Confirmez le mot de passe : "):
+        # Sans cette confirmation, une faute de frappe verrouillerait le compte
+        # aussi sûrement qu'un mot de passe oublié.
+        print("Les deux saisies diffèrent, opération annulée.")
+        return None
+    return mot_de_passe
+
+
+VARIABLE_MOT_DE_PASSE = "ECHO_ADMIN_PASSWORD"
+
+
+def _creer_sans_invite(arguments: list[str]) -> None:
+    """Crée le premier administrateur sans poser de question.
+
+    C'est le seul chemin praticable en conteneur : aucun clavier n'y est
+    branché, et les invites de `input()` échouent sur une fin de fichier.
+    Sans cette porte, on déployait une base neuve dans laquelle personne ne
+    pouvait entrer.
+
+    Relancer la commande sur un compte déjà présent ne fait rien et le dit :
+    c'est ce qui permet de la laisser dans une procédure de démarrage sans
+    craindre de l'exécuter deux fois.
+    """
+
+    valeurs: dict[str, str] = {}
+    attendu = {"--email": "email", "--utilisateur": "nom_utilisateur", "--nom": "nom_complet"}
+    reste = list(arguments)
+    while reste:
+        drapeau = reste.pop(0)
+        if drapeau not in attendu:
+            print(f"Option inconnue : {drapeau}.")
+            print("Attendu : --creer --email <e-mail> --utilisateur <nom> --nom <nom complet>")
+            return
+        if not reste:
+            print(f"L'option {drapeau} attend une valeur.")
+            return
+        valeurs[attendu[drapeau]] = reste.pop(0).strip()
+
+    manquants = [d for d, cle in attendu.items() if not valeurs.get(cle)]
+    if manquants:
+        print(f"Options obligatoires manquantes : {', '.join(manquants)}.")
+        return
+
+    if len(valeurs["nom_utilisateur"]) < 3:
+        print("Nom d'utilisateur trop court, operation annulee.")
+        return
+
+    mot_de_passe = os.environ.get(VARIABLE_MOT_DE_PASSE, "")
+    if len(mot_de_passe) < LONGUEUR_MINIMALE:
+        print(
+            f"La variable {VARIABLE_MOT_DE_PASSE} est vide ou trop courte "
+            f"({LONGUEUR_MINIMALE} caracteres minimum). Operation annulee."
+        )
+        return
+    if depasse_la_limite_bcrypt(mot_de_passe):
+        print(MESSAGE_TROP_LONG)
+        return
+
+    asyncio.run(_create_admin(
+        valeurs["email"], valeurs["nom_utilisateur"],
+        mot_de_passe, valeurs["nom_complet"],
+    ))
+
+
+def main() -> None:
+    option = sys.argv[1] if len(sys.argv) > 1 else ""
+
+    if option == "--creer":
+        _creer_sans_invite(sys.argv[2:])
+        return
+
+    if option == "--lister":
+        asyncio.run(_lister())
+        return
+
+    if option == "--reinitialiser":
+        identifiant = input("E-mail ou nom d'utilisateur du compte : ").strip()
+        if not identifiant:
+            print("Identifiant vide, opération annulée.")
+            return
+        mot_de_passe = _demander_mot_de_passe()
+        if mot_de_passe:
+            asyncio.run(_reinitialiser(identifiant, mot_de_passe))
+        return
+
+    email = input("Email de l'administrateur : ").strip()
+    nom_utilisateur = input("Nom d'utilisateur : ").strip()
+    nom_complet = input("Nom complet : ").strip()
+    mot_de_passe = getpass.getpass(f"Mot de passe ({LONGUEUR_MINIMALE} caractères minimum) : ")
+    if len(nom_utilisateur) < 3:
+        print("Nom d'utilisateur trop court, opération annulée.")
+        return
+    if len(mot_de_passe) < LONGUEUR_MINIMALE:
+        print("Mot de passe trop court, opération annulée.")
+        return
+    if depasse_la_limite_bcrypt(mot_de_passe):
+        print(MESSAGE_TROP_LONG)
+        return
+    asyncio.run(_create_admin(email, nom_utilisateur, mot_de_passe, nom_complet))
+
+
+if __name__ == "__main__":
+    main()

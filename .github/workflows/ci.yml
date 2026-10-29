@@ -83,7 +83,7 @@ jobs:
         run: pip install --require-hashes -r requirements-dev.lock
 
       - name: Vérifier la syntaxe Python
-        run: python -m compileall app api auth events kpi metrics realtime reports seed simulation
+        run: python -m compileall src
 
       - name: Appliquer les migrations Alembic
         run: python -m alembic upgrade head
@@ -106,9 +106,7 @@ jobs:
       - name: Audit du code — bandit
         continue-on-error: true
         run: >-
-          python -m bandit -r -q
-          anomalies api app auth campagnes entrepot events gouvernance kpi
-          mdm metrics qualite realtime reports seed simulation temoin
+          python -m bandit -r -q src
 
       - name: Audit des dépendances — pip-audit
         continue-on-error: true
@@ -116,7 +114,7 @@ jobs:
 
       - name: Smoke test — l'API démarre et répond /health
         run: |
-          uvicorn api.main:app --host 127.0.0.1 --port 8765 &
+          uvicorn --app-dir src echo.web.api.main:app --host 127.0.0.1 --port 8765 &
           SERVER_PID=$!
           for i in $(seq 1 30); do
             if curl -sf http://127.0.0.1:8765/health; then

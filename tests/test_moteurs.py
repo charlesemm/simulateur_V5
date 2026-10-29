@@ -9,13 +9,13 @@ from __future__ import annotations
 import pytest
 from sqlalchemy import func, select
 
-from app.database import async_session_factory
-from app.models import InsuredPerson, InsuredProfession, InsuredRight
-from entrepot import approfondir_historique
-from gouvernance import inventaire, rapport, volumetrie
-from mdm import evaluer, generer_variantes, lire_paires
-from mdm.models import MdmPair
-from simulation.runs import ouvrir_execution
+from echo.web.app.database import async_session_factory
+from echo.web.app.models import InsuredPerson, InsuredProfession, InsuredRight
+from echo.metier.entrepot import approfondir_historique
+from echo.metier.gouvernance import inventaire, rapport, volumetrie
+from echo.metier.mdm import evaluer, generer_variantes, lire_paires
+from echo.metier.mdm.models import MdmPair
+from echo.moteur.simulation.runs import ouvrir_execution
 
 
 # ── T2 : rapprochement d'identités ───────────────────────────────────────
@@ -197,7 +197,7 @@ async def test_la_volumetrie_compte_les_lignes_du_catalogue(base_vierge):
 
 async def test_le_rapport_reprend_les_violations_de_la_qualite(base_vierge):
     del base_vierge
-    from app.models import Agent
+    from echo.web.app.models import Agent
 
     async with async_session_factory() as session:
         agent = await session.get(Agent, "AG0001")

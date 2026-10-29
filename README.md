@@ -45,14 +45,15 @@ Renseigne `DATABASE_URL` avec ton mot de passe PostgreSQL local :
 #### 2. Base de données, migrations et données
 ```powershell
 .\.venv\Scripts\Activate.ps1
+$env:PYTHONPATH = "src"   # le code vit sous src/echo/
 python -m alembic upgrade head
-python -m auth.bootstrap
-python -m seed
+python -m echo.web.auth.bootstrap
+python -m echo.moteur.seed
 ```
 
 #### 3. Démarrage de l'API & WebSocket
 ```powershell
-uvicorn api.main:app --reload --host 127.0.0.1 --port 8000
+uvicorn echo.web.api.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
 #### 4. Démarrage du Dashboard Frontend

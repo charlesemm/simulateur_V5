@@ -3,17 +3,17 @@ from __future__ import annotations
 
 import httpx
 
-from app.database import async_session_factory
-from simulation.events import SimulationEvent
-from simulation.passage import PassageSimulation
-from simulation_config import DEFAULT_CONFIG
+from echo.web.app.database import async_session_factory
+from echo.moteur.simulation.events import SimulationEvent
+from echo.moteur.simulation.passage import PassageSimulation
+from echo.moteur.simulation_config import DEFAULT_CONFIG
 from tests.conftest import ASSURE_COUVERT
 
 
 async def _produire_une_facture() -> str:
     """Joue un passage complet et retourne le numéro de facture obtenu."""
 
-    from events import publish_simulation_event
+    from echo.moteur.events import publish_simulation_event
 
     async def journaliser(evenement: SimulationEvent) -> None:
         await publish_simulation_event(evenement)
@@ -24,7 +24,7 @@ async def _produire_une_facture() -> str:
 
     from sqlalchemy import select
 
-    from app.models import Invoice
+    from echo.web.app.models import Invoice
     async with async_session_factory() as session:
         return (await session.execute(select(Invoice.facture_numero))).scalar_one()
 
@@ -41,7 +41,7 @@ async def test_la_racine_oriente_au_lieu_de_renvoyer_un_mur(client_api):
     aller. Ce qui est interdit dans les deux cas, c'est le mur.
     """
 
-    from api.main import DASHBOARD_DIST
+    from echo.web.api.main import DASHBOARD_DIST
 
     reponse = await client_api.get("/")
     assert reponse.status_code == 200
@@ -244,7 +244,7 @@ async def test_un_passage_inconnu_repond_404(client_api):
 # ── La documentation de l'API (AUDIT A07) ────────────────────────────────
 
 async def _anonyme() -> httpx.AsyncClient:
-    from api.main import fastapi_app
+    from echo.web.api.main import fastapi_app
 
     return httpx.AsyncClient(
         transport=httpx.ASGITransport(app=fastapi_app), base_url="http://tests"

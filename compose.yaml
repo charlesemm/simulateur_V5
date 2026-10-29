@@ -52,7 +52,7 @@ services:
       # La valeur est entre guillemets : le message contient un « : », que YAML
       # lirait autrement comme une structure et rejetterait tout le fichier.
       JWT_SECRET_KEY: "${JWT_SECRET_KEY:?obligatoire - generez-la avec la commande donnee dans docs/GUIDE_PODMAN.md}"
-      # Lu par « python -m auth.bootstrap --creer » pour poser le premier
+      # Lu par « python -m echo.web.auth.bootstrap --creer » pour poser le premier
       # administrateur. Le mot de passe passe par l'environnement et non par
       # la ligne de commande : il ne se retrouve ainsi ni dans l'historique
       # du terminal, ni dans la liste des processus.

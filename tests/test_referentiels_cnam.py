@@ -8,9 +8,9 @@ from __future__ import annotations
 import re
 from decimal import Decimal
 
-from seed.constants import HEALTH_CENTER_TYPES
-from seed.donnees import ETABLISSEMENTS, MEDICAMENTS, PHARMACIES, lire
-from seed.runner import (
+from echo.moteur.seed.constants import HEALTH_CENTER_TYPES
+from echo.moteur.seed.donnees import ETABLISSEMENTS, MEDICAMENTS, PHARMACIES, lire
+from echo.moteur.seed.runner import (
     MEDECINS_CONSEILS, build_agents, build_collectivites, build_dci,
     build_health_centers, build_localisation, build_medications,
     build_pharmacies, build_professionals, calculate_ean13,

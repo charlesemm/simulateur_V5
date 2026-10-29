@@ -11,15 +11,15 @@ from datetime import datetime, timezone
 import pytest
 from sqlalchemy import select
 
-from anomalies.catalogue import (
+from echo.metier.anomalies.catalogue import (
     CHAMP_OBLIGATOIRE_VIDE, DOUBLON_APPROCHANT, DOUBLON_EXACT, ENCODAGE_CASSE,
     TENTATIVE_INJECTION,
 )
-from anomalies.config import anomalies_config
-from anomalies.models import AnomalyInjection
-from app.database import async_session_factory
-from app.models import InsuredPerson, InsuredRight
-from simulation.inscription import (
+from echo.metier.anomalies.config import anomalies_config
+from echo.metier.anomalies.models import AnomalyInjection
+from echo.web.app.database import async_session_factory
+from echo.web.app.models import InsuredPerson, InsuredRight
+from echo.moteur.simulation.inscription import (
     CHARGES_INJECTION, code_identite_a_inscrire, inscrire_assure,
 )
 

@@ -10,19 +10,19 @@ from decimal import Decimal
 
 from sqlalchemy import select
 
-from anomalies.catalogue import (
+from echo.metier.anomalies.catalogue import (
     CATALOGUE_INITIAL, DATE_ANTIDATEE, MONTANT_ABERRANT, QUANTITE_EXCESSIVE,
 )
-from anomalies.config import AnomaliesConfig, Reglage
-from anomalies.models import AnomalyInjection, AnomalyType
-from anomalies.repository import (
+from echo.metier.anomalies.config import AnomaliesConfig, Reglage
+from echo.metier.anomalies.models import AnomalyInjection, AnomalyType
+from echo.metier.anomalies.repository import (
     charger_catalogue, enregistrer_injections, modifier_type,
 )
-from app.database import async_session_factory
-from events import publish_simulation_event
-from simulation.passage import PassageSimulation
-from simulation.runs import ouvrir_execution
-from simulation_config import DEFAULT_CONFIG
+from echo.web.app.database import async_session_factory
+from echo.moteur.events import publish_simulation_event
+from echo.moteur.simulation.passage import PassageSimulation
+from echo.moteur.simulation.runs import ouvrir_execution
+from echo.moteur.simulation_config import DEFAULT_CONFIG
 from tests.conftest import ASSURE_COUVERT
 
 REFERENCE = Decimal("10000")
@@ -107,7 +107,7 @@ async def test_le_catalogue_est_installe_par_la_migration(base_vierge):
 
 async def test_modifier_un_type_change_la_base_et_la_memoire(base_vierge):
     del base_vierge
-    from anomalies.config import anomalies_config
+    from echo.metier.anomalies.config import anomalies_config
 
     modifie = await modifier_type(MONTANT_ABERRANT, active=False, taux=0.5)
 
@@ -126,7 +126,7 @@ async def test_le_passage_consigne_ses_anomalies(base_vierge):
     """Un passage à 100 % laisse au journal des lignes rattachées à son run."""
 
     del base_vierge
-    from anomalies.config import anomalies_config
+    from echo.metier.anomalies.config import anomalies_config
 
     simulation_id = await ouvrir_execution({"vitesse": 60})
     anomalies_config.enabled = True

@@ -63,17 +63,17 @@ os.environ["DATABASE_URL"] = URL_TEST
 from sqlalchemy import select, text  # noqa: E402
 from sqlalchemy.ext.asyncio import create_async_engine  # noqa: E402
 
-from app.database import async_session_factory  # noqa: E402
-from app.models import (  # noqa: E402
+from echo.web.app.database import async_session_factory  # noqa: E402
+from echo.web.app.models import (  # noqa: E402
     Agent, HealthCenter, HealthProfessional, InsuredBirthInfo,
     InsuredIdentifier, InsuredPerson, InsuredProfession, InsuredRight,
     MedicalAct, Medication, Pathology, Regime,
 )
-from anomalies.catalogue import CATALOGUE_INITIAL, CODES  # noqa: E402
-from anomalies.models import AnomalyType  # noqa: E402
-from auth.models import User  # noqa: E402
-from auth.security import hash_password  # noqa: E402
-from seed.constants import MEDICAL_ACTS  # noqa: E402
+from echo.metier.anomalies.catalogue import CATALOGUE_INITIAL, CODES  # noqa: E402
+from echo.metier.anomalies.models import AnomalyType  # noqa: E402
+from echo.web.auth.models import User  # noqa: E402
+from echo.web.auth.security import hash_password  # noqa: E402
+from echo.moteur.seed.constants import MEDICAL_ACTS  # noqa: E402
 
 VALIDITE = datetime(2026, 1, 1, tzinfo=timezone.utc)
 
@@ -91,7 +91,7 @@ def frein_de_connexion_vierge():
     plusieurs tests s'additionneraient sur « admin » jusqu'à le bloquer.
     """
 
-    from auth import limitation
+    from echo.web.auth import limitation
 
     limitation.reinitialiser()
     yield
@@ -137,7 +137,7 @@ async def base_vierge(base_de_test):
 
     # La configuration des anomalies est un singleton de processus : sans
     # remise à zéro, un test qui coupe un type le couperait pour les suivants.
-    from anomalies.config import Reglage, anomalies_config
+    from echo.metier.anomalies.config import Reglage, anomalies_config
 
     anomalies_config.enabled = False
     anomalies_config.rate = 0.0
@@ -276,8 +276,8 @@ async def client_api(administrateur):
 
     import httpx
 
-    from api.main import fastapi_app
-    from auth.security import create_access_token
+    from echo.web.api.main import fastapi_app
+    from echo.web.auth.security import create_access_token
 
     jeton = create_access_token(
         email=administrateur.email, role=administrateur.role,

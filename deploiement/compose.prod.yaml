@@ -131,7 +131,7 @@ services:
       ECHO_CLE_OUTIL_TESTE: "${ECHO_CLE_OUTIL_TESTE:-}"
       JWT_SECRET_KEY: "${JWT_SECRET_KEY:?absent du .env - generez-la, voir docs/GUIDE_DEPLOIEMENT.md section 10}"
       # Seule variable facultative du fichier, et deliberement : elle ne sert
-      # qu'une fois, a « auth.bootstrap --creer » au premier demarrage. Le
+      # qu'une fois, a « echo.web.auth.bootstrap --creer » au premier demarrage. Le
       # guide (section 12) demande ensuite de la vider — avec la forme « :? »,
       # une valeur vide aurait bloque le demarrage suivant. « :- » laisse
       # passer ; bootstrap, lui, refuse de creer un compte sans mot de passe.

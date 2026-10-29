@@ -829,7 +829,7 @@ déploiement tient debout tout seul. C'est le vrai critère de mise en productio
 étape, la page de connexion refuse tout le monde.
 
 ```bash
-sudo podman-compose -f compose.prod.yaml exec api python -m auth.bootstrap --creer --email admin@ipscnam.ci --utilisateur admin --nom "Administrateur ECHO"
+sudo podman-compose -f compose.prod.yaml exec api python -m echo.web.auth.bootstrap --creer --email admin@ipscnam.ci --utilisateur admin --nom "Administrateur ECHO"
 ```
 
 `exec` exécute une commande **à l'intérieur** du conteneur déjà en marche.

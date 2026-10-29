@@ -12,25 +12,25 @@ from decimal import Decimal
 
 from sqlalchemy import select
 
-from anomalies.catalogue import (
+from echo.metier.anomalies.catalogue import (
     DECLENCHEMENT_DEMARRAGE, DECLENCHEMENT_DIFFERE, DECLENCHEMENT_MANUEL,
     MONTANT_ABERRANT,
 )
-from anomalies.config import AnomaliesConfig, Reglage
-from app.database import async_session_factory
-from app.models import Invoice, InvoiceStatus
-from events import publish_simulation_event
-from simulation.aleas import (
+from echo.metier.anomalies.config import AnomaliesConfig, Reglage
+from echo.web.app.database import async_session_factory
+from echo.web.app.models import Invoice, InvoiceStatus
+from echo.moteur.events import publish_simulation_event
+from echo.moteur.simulation.aleas import (
     BASE_RALENTIE, COUPURE_BRUTALE, HORLOGE_DECALEE, RAFALE,
     PassageInterrompu, ScenarioAleas,
 )
-from simulation.commandes import (
+from echo.moteur.simulation.commandes import (
     ARMER_ANOMALIE, DECLENCHER_ALEA, CanalDeCommande, Commande,
 )
-from simulation.passage import PassageSimulation
-from simulation.profils import ENTREPOT, GOUVERNANCE, LIBRE, MDM, PROFILS, QUALITE, profil
-from simulation.runs import ouvrir_execution
-from simulation_config import DEFAULT_CONFIG
+from echo.moteur.simulation.passage import PassageSimulation
+from echo.moteur.simulation.profils import ENTREPOT, GOUVERNANCE, LIBRE, MDM, PROFILS, QUALITE, profil
+from echo.moteur.simulation.runs import ouvrir_execution
+from echo.moteur.simulation_config import DEFAULT_CONFIG
 from tests.conftest import ASSURE_COUVERT
 
 REFERENCE = Decimal("10000")
@@ -148,7 +148,7 @@ def test_un_alea_certain_frappe_toujours():
 def test_chaque_alea_declare_les_reglages_qu_il_accepte():
     """Un écran ne peut proposer que ce que le moteur déclare accepter."""
 
-    from simulation.aleas import ALEAS, DEFAUTS, PARAMETRES
+    from echo.moteur.simulation.aleas import ALEAS, DEFAUTS, PARAMETRES
 
     assert set(PARAMETRES) == set(ALEAS)
     for code, reglages in PARAMETRES.items():
@@ -163,7 +163,7 @@ def test_chaque_alea_declare_les_reglages_qu_il_accepte():
 def test_les_aleas_sans_reglage_n_en_declarent_aucun():
     """Une coupure frappe ou ne frappe pas : rien à régler."""
 
-    from simulation.aleas import PARAMETRES, PERTE_CONNEXION
+    from echo.moteur.simulation.aleas import PARAMETRES, PERTE_CONNEXION
 
     assert PARAMETRES[COUPURE_BRUTALE] == ()
     assert PARAMETRES[PERTE_CONNEXION] == ()

@@ -9,9 +9,9 @@ from __future__ import annotations
 import httpx
 import pytest
 
-import temoin.service
-from temoin.regles import Constat, analyser
-from temoin.service import analyser_fichier
+from echo.metier.temoin import service as temoin_service
+from echo.metier.temoin.regles import Constat, analyser
+from echo.metier.temoin.service import analyser_fichier
 
 # Une ligne saine, telle qu'un DictReader la rendrait : tout est du texte.
 # Construite à la main plutôt qu'avec `ligne_saine` de campagnes/generateur —
@@ -216,7 +216,7 @@ ENTETE_CSV = ";".join(LIGNE_SAINE) + "\n"
 
 
 async def _envoyer(contenu: bytes, **entetes: str) -> httpx.Response:
-    from api.main import fastapi_app
+    from echo.web.api.main import fastapi_app
 
     transport = httpx.ASGITransport(app=fastapi_app)
     async with httpx.AsyncClient(transport=transport, base_url="http://tests") as client:
@@ -229,7 +229,7 @@ async def _envoyer(contenu: bytes, **entetes: str) -> httpx.Response:
 
 async def test_un_fichier_au_dela_du_plafond_est_refuse(monkeypatch):
     monkeypatch.delenv("ECHO_CLE_OUTIL_TESTE", raising=False)
-    monkeypatch.setattr(temoin.service, "TAILLE_MAXIMALE_OCTETS", 1024)
+    monkeypatch.setattr(temoin_service, "TAILLE_MAXIMALE_OCTETS", 1024)
 
     reponse = await _envoyer(ENTETE_CSV.encode() + b"x" * 2048)
 

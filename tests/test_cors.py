@@ -58,7 +58,7 @@ async def test_la_poignee_de_main_temps_reel_accepte_les_origines_locales(origin
 
     import httpx
 
-    from api.main import app
+    from echo.web.api.main import app
 
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://tests") as client:
@@ -91,7 +91,7 @@ async def test_la_connexion_repond_bien_a_une_requete_avec_origine(client_api):
 async def _poignee_de_main(origine: str):
     import httpx
 
-    from api.main import app
+    from echo.web.api.main import app
 
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://tests") as client:
@@ -108,7 +108,7 @@ async def test_la_poignee_de_main_refuse_une_origine_etrangere():
 
 
 async def test_en_production_le_temps_reel_suit_le_domaine(monkeypatch):
-    from app import cors
+    from echo.web.app import cors
 
     monkeypatch.setattr(cors, "ORIGINES", ["https://echo.ipscnam.ci"])
     monkeypatch.setattr(cors, "MOTIF_ORIGINE", r"https://echo\.ipscnam\.ci")
@@ -125,7 +125,7 @@ async def test_en_production_le_temps_reel_suit_le_domaine(monkeypatch):
 # ── Le compte relu à la connexion temps réel (AUDIT A11) ─────────────────
 
 async def _connecter(jeton: str) -> None:
-    from realtime.socket_server import connect
+    from echo.moteur.realtime.socket_server import connect
 
     await connect("sid-de-test", {}, {"token": jeton})
 

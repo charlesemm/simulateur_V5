@@ -10,19 +10,19 @@ from decimal import Decimal
 
 from sqlalchemy import select
 
-from anomalies.catalogue import (
+from echo.metier.anomalies.catalogue import (
     CATALOGUE_INITIAL, DATE_HORS_DROITS, DATE_SOINS_FUTURE, FAMILLES,
     MONTANT_HORS_BAREME, PRESTATION_ORPHELINE, QUANTITE_NULLE,
     REPARTITION_FAUSSEE, TYPE_CENTRE_INCONNU,
 )
-from anomalies.config import AnomaliesConfig, Reglage, anomalies_config
-from app.database import async_session_factory
-from app.models import Invoice, InvoiceProvision
-from events import publish_simulation_event
-from qualite import analyser
-from simulation.passage import PassageSimulation
-from simulation.runs import ouvrir_execution
-from simulation_config import DEFAULT_CONFIG
+from echo.metier.anomalies.config import AnomaliesConfig, Reglage, anomalies_config
+from echo.web.app.database import async_session_factory
+from echo.web.app.models import Invoice, InvoiceProvision
+from echo.moteur.events import publish_simulation_event
+from echo.metier.qualite import analyser
+from echo.moteur.simulation.passage import PassageSimulation
+from echo.moteur.simulation.runs import ouvrir_execution
+from echo.moteur.simulation_config import DEFAULT_CONFIG
 from tests.conftest import ASSURE_COUVERT
 
 JOUR = date(2026, 8, 22)
@@ -202,7 +202,7 @@ async def test_le_type_de_centre_inconnu_est_injecte_et_detecte(base_vierge):
 async def test_le_lancement_accepte_un_nom_et_ses_propres_reglages(client_api):
     """L'écran de lancement doit pouvoir tout décider, sans toucher au catalogue."""
 
-    from anomalies.repository import lire_catalogue
+    from echo.metier.anomalies.repository import lire_catalogue
 
     avant = {
         ligne.anomalie_code: float(ligne.anomalie_taux)

@@ -9,10 +9,10 @@ import uuid
 
 from sqlalchemy import select
 
-from app.database import async_session_factory
-from auth.bootstrap import _reinitialiser
-from auth.models import User
-from auth.security import hash_password, verify_password
+from echo.web.app.database import async_session_factory
+from echo.web.auth.bootstrap import _reinitialiser
+from echo.web.auth.models import User
+from echo.web.auth.security import hash_password, verify_password
 
 
 async def _compte(email: str) -> User:

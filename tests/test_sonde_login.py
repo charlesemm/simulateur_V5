@@ -5,7 +5,7 @@ d'identifiant, et un compte désactivé doit être refusé sans jamais dire
 pourquoi au visiteur.
 """
 
-from auth.limitation import TENTATIVES_MAXIMALES, TENTATIVES_MAXIMALES_PAR_SOURCE
+from echo.web.auth.limitation import TENTATIVES_MAXIMALES, TENTATIVES_MAXIMALES_PAR_SOURCE
 
 
 async def test_le_mot_de_passe_genere_ouvre_par_email_comme_par_nom(client_api):

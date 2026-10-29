@@ -104,7 +104,7 @@ Au premier lancement, la base est vide : **aucun compte n'existe et personne ne
 peut se connecter**. Cette étape n'est pas optionnelle.
 
 ```bash
-podman-compose exec api python -m auth.bootstrap --creer \
+podman-compose exec api python -m echo.web.auth.bootstrap --creer \
   --email admin@cnam.ci \
   --utilisateur admin \
   --nom "Administrateur ÉCHO"
@@ -121,7 +121,7 @@ dit et ne touche à rien.
 ### Vérifier, ou repartir d'un mot de passe oublié
 
 ```bash
-podman-compose exec api python -m auth.bootstrap --lister
+podman-compose exec api python -m echo.web.auth.bootstrap --lister
 ```
 
 `--reinitialiser` redonne un mot de passe à un compte et le réactive au
@@ -129,7 +129,7 @@ passage — c'est la porte de secours si le dernier administrateur se retrouve
 désactivé. Elle pose ses questions au clavier, donc lancez-la avec `-it` :
 
 ```bash
-podman-compose exec -it api python -m auth.bootstrap --reinitialiser
+podman-compose exec -it api python -m echo.web.auth.bootstrap --reinitialiser
 ```
 
 ---
@@ -182,7 +182,7 @@ podman-compose run --rm migrations
 ### Peupler la base (seed)
 
 ```bash
-podman-compose exec api python -m seed
+podman-compose exec api python -m echo.moteur.seed
 ```
 
 ### Arrêter

@@ -5,12 +5,12 @@ from pathlib import Path
 
 from sqlalchemy import select
 
-from app.database import async_session_factory
-from app.models import Invoice
-from events import publish_simulation_event
-from seed.constants import HEALTH_CENTER_TYPES
-from simulation.passage import LIBELLES_TYPE_CENTRE, PassageSimulation
-from simulation_config import DEFAULT_CONFIG
+from echo.web.app.database import async_session_factory
+from echo.web.app.models import Invoice
+from echo.moteur.events import publish_simulation_event
+from echo.moteur.seed.constants import HEALTH_CENTER_TYPES
+from echo.moteur.simulation.passage import LIBELLES_TYPE_CENTRE, PassageSimulation
+from echo.moteur.simulation_config import DEFAULT_CONFIG
 from tests.conftest import ASSURE_COUVERT
 
 RACINE = Path(__file__).resolve().parent.parent
@@ -83,7 +83,7 @@ def test_env_alembic_exige_database_url(monkeypatch):
 def test_l_affichage_du_seed_survit_a_une_console_limitee(capsys, monkeypatch):
     """Le seed avait déjà commité quand son dernier print le faisait échouer."""
 
-    from seed.__main__ import afficher
+    from echo.moteur.seed.__main__ import afficher
 
     class SortieLimitee:
         """Refuse tout ce qui sort du cp1252, comme une console Windows."""

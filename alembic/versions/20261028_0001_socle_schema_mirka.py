@@ -40,7 +40,7 @@ from pathlib import Path
 
 from alembic import op
 
-from simulation.schema_sim import metadonnees_sim
+from echo.moteur.simulation.schema_sim import metadonnees_sim
 
 revision = "20261028_0001"
 down_revision = None

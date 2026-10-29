@@ -24,7 +24,7 @@ from pathlib import Path
 
 from sqlalchemy.orm import configure_mappers
 
-import app.models as modeles
+import echo.web.app.models as modeles
 
 RACINE = Path(__file__).resolve().parent.parent
 

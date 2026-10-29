@@ -20,8 +20,8 @@ from typing import Any, Callable
 
 from sqlalchemy.orm import configure_mappers
 
-import app.models as modeles
-from seed import runner
+import echo.web.app.models as modeles
+from echo.moteur.seed import runner
 
 ECHANTILLON = 3
 
