@@ -6,7 +6,7 @@
 # l'est définitivement. Ce script produit un dump compressé par jour et
 # efface ceux de plus de trente jours.
 #
-# Installation (section 13 du GUIDE_DEPLOIEMENT.md) :
+# Installation (section 13 du docs/GUIDE_DEPLOIEMENT.md) :
 #   chmod +x /opt/echo/sauvegarde.sh
 #   sudo crontab -e   →   15 2 * * * /opt/echo/sauvegarde.sh >> /var/log/echo-sauvegarde.log 2>&1
 #

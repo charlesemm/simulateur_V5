@@ -58,3 +58,6 @@ dashboard/coverage/
 .local/
 .cache/
 .sonar/
+
+# Sauvegardes pg_dump : volumineuses et datees, elles n'ont rien a faire dans Git.
+sauvegardes/

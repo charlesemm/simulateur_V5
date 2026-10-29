@@ -12,19 +12,19 @@ services:
     image: docker.io/library/postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB: echo_db
+      POSTGRES_DB: echo_db_v2
       POSTGRES_USER: echo
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-echo_dev_2026}
     # Publié temporairement sur 5433 (5432 est déjà pris par le PostgreSQL
     # natif du poste) pour une inspection DBeaver -- à retirer une fois fini.
     # Alternative sans rien publier :
-    #   podman compose exec postgres psql -U echo -d echo_db
+    #   podman compose exec postgres psql -U echo -d echo_db_v2
     ports:
       - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U echo -d echo_db"]
+      test: ["CMD-SHELL", "pg_isready -U echo -d echo_db_v2"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -43,7 +43,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      DATABASE_URL: postgresql+asyncpg://echo:${POSTGRES_PASSWORD:-echo_dev_2026}@postgres:5432/echo_db
+      DATABASE_URL: postgresql+asyncpg://echo:${POSTGRES_PASSWORD:-echo_dev_2026}@postgres:5432/echo_db_v2
       CORS_ORIGIN_REGEX: "http://(localhost|127\\.0\\.0\\.1)(:\\d+)?"
       # Clé de signature des jetons. Sans elle l'API refuse de démarrer, et
       # le `.env` du dépôt n'entre pas dans l'image : elle doit venir d'ici.
@@ -51,7 +51,7 @@ services:
       # de laisser un conteneur redémarrer en boucle sans qu'on sache pourquoi.
       # La valeur est entre guillemets : le message contient un « : », que YAML
       # lirait autrement comme une structure et rejetterait tout le fichier.
-      JWT_SECRET_KEY: "${JWT_SECRET_KEY:?obligatoire - generez-la avec la commande donnee dans GUIDE_PODMAN.md}"
+      JWT_SECRET_KEY: "${JWT_SECRET_KEY:?obligatoire - generez-la avec la commande donnee dans docs/GUIDE_PODMAN.md}"
       # Lu par « python -m auth.bootstrap --creer » pour poser le premier
       # administrateur. Le mot de passe passe par l'environnement et non par
       # la ligne de commande : il ne se retrouve ainsi ni dans l'historique
@@ -84,7 +84,7 @@ services:
       dockerfile: Containerfile
     command: ["python", "-m", "alembic", "upgrade", "head"]
     environment:
-      DATABASE_URL: postgresql+asyncpg://echo:${POSTGRES_PASSWORD:-echo_dev_2026}@postgres:5432/echo_db
+      DATABASE_URL: postgresql+asyncpg://echo:${POSTGRES_PASSWORD:-echo_dev_2026}@postgres:5432/echo_db_v2
     depends_on:
       postgres:
         condition: service_healthy

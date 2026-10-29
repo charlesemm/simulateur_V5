@@ -22,7 +22,7 @@
 # que faisait le Caddyfile — blocage du témoin, en-têtes de sécurité, montée
 # en WebSocket — est repris dans deploiement/nginx/echo.ipscnam.ci.conf.
 #
-# Voir GUIDE_DEPLOIEMENT.md pour la marche à suivre.
+# Voir docs/GUIDE_DEPLOIEMENT.md pour la marche à suivre.
 # ═══════════════════════════════════════════════════════════════
 
 services:
@@ -38,33 +38,53 @@ services:
     # l'illusion d'être couvert puisque le service, lui, était bien actif.
     restart: always
     environment:
-      POSTGRES_DB: echo_db
+      POSTGRES_DB: echo_db_v2
       POSTGRES_USER: echo
-      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?absent du .env - voir GUIDE_DEPLOIEMENT.md section 10}"
-    # Toujours aucun port publié : la base ne se joint que depuis le réseau
-    # interne des conteneurs. Pour l'inspecter le temps voulu :
-    #   podman-compose -f compose.prod.yaml exec postgres psql -U echo -d echo_db
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?absent du .env - voir docs/GUIDE_DEPLOIEMENT.md section 10}"
+    # ⚠️ OUVERTURE TEMPORAIRE — à retirer après l'inspection.
+    #
+    # En temps normal ce service ne publie AUCUN port : la base ne se joint
+    # que depuis le réseau interne des conteneurs, et c'est la protection la
+    # plus forte dont elle dispose. La ligne ci-dessous l'entrouvre le temps
+    # d'une inspection au client graphique (DBeaver).
+    #
+    # Le préfixe « 127.0.0.1: » porte à lui seul toute la sûreté du geste.
+    # Sans lui, Podman publierait sur 0.0.0.0 et la base de production serait
+    # offerte, en clair, à tout le réseau de l'IPS-CNAM — mot de passe et
+    # données comprises. Lié à la boucle locale, le port n'est atteignable
+    # que depuis srv-gouv elle-même ; le poste du consultant y accède par un
+    # tunnel SSH, qui chiffre le trajet et exige déjà un compte sur la machine.
+    #
+    # 5433 et non 5432 : srv-gouv est une machine partagée où un PostgreSQL
+    # natif occupe peut-être déjà 5432. Deux programmes ne peuvent pas écouter
+    # le même port, et se tromper de serveur en croyant lire ÉCHO serait pire
+    # qu'une erreur de connexion.
+    #
+    # Sans client graphique, rien de tout ceci n'est nécessaire :
+    #   podman-compose -f compose.prod.yaml exec postgres psql -U echo -d echo_db_v2
+    ports:
+      - "127.0.0.1:5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U echo -d echo_db"]
+      test: ["CMD-SHELL", "pg_isready -U echo -d echo_db_v2"]
       interval: 5s
       timeout: 3s
       retries: 10
 
   # ── Migrations (s'exécute une fois puis s'arrête) ────────────
   migrations:
-    image: "${ECHO_IMAGE:?absent du .env - voir GUIDE_DEPLOIEMENT.md section 10}"
+    image: "${ECHO_IMAGE:?absent du .env - voir docs/GUIDE_DEPLOIEMENT.md section 10}"
     command: ["python", "-m", "alembic", "upgrade", "head"]
     environment:
-      DATABASE_URL: postgresql+asyncpg://echo:${POSTGRES_PASSWORD}@postgres:5432/echo_db
+      DATABASE_URL: postgresql+asyncpg://echo:${POSTGRES_PASSWORD}@postgres:5432/echo_db_v2
     depends_on:
       postgres:
         condition: service_healthy
 
   # ── API + dashboard ─────────────────────────────────────────
   api:
-    image: "${ECHO_IMAGE:?absent du .env - voir GUIDE_DEPLOIEMENT.md section 10}"
+    image: "${ECHO_IMAGE:?absent du .env - voir docs/GUIDE_DEPLOIEMENT.md section 10}"
     # « always » : voir la note sur le service postgres ci-dessus.
     restart: always
     # « 127.0.0.1: » en tête n'est pas décoratif, c'est la protection la plus
@@ -76,15 +96,15 @@ services:
     ports:
       - "127.0.0.1:8000:8000"
     environment:
-      DATABASE_URL: postgresql+asyncpg://echo:${POSTGRES_PASSWORD}@postgres:5432/echo_db
+      DATABASE_URL: postgresql+asyncpg://echo:${POSTGRES_PASSWORD}@postgres:5432/echo_db_v2
       # Le navigateur refuse une réponse dont l'origine n'est pas déclarée.
       # En production il n'y en a qu'une : le domaine du service. Les points
       # sont échappés — sans cela « . » vaudrait n'importe quel caractère et
       # « echoXexample.ci » serait accepté au même titre.
-      CORS_ORIGIN_REGEX: "${CORS_ORIGIN_REGEX:?absent du .env - voir GUIDE_DEPLOIEMENT.md section 10}"
+      CORS_ORIGIN_REGEX: "${CORS_ORIGIN_REGEX:?absent du .env - voir docs/GUIDE_DEPLOIEMENT.md section 10}"
       # Sans elle, app/cors.py retombe sur les origines Vite de développement
       # (localhost:5173), qui n'ont rien à faire sur un serveur de production.
-      CORS_ORIGINS: "https://${ECHO_DOMAINE:?absent du .env - voir GUIDE_DEPLOIEMENT.md section 10}"
+      CORS_ORIGINS: "https://${ECHO_DOMAINE:?absent du .env - voir docs/GUIDE_DEPLOIEMENT.md section 10}"
       # Le schéma OpenAPI ne se lit qu'avec un jeton, /docs et /redoc sont
       # fermés. L'explorateur d'API du tableau de bord reste utilisable.
       ECHO_DOCS_PUBLIQUES: "false"
@@ -109,7 +129,7 @@ services:
       # Clé que le témoin exige dans l'en-tête X-Echo-Cle. Facultative : le
       # témoin n'est de toute façon pas relayé par nginx (il y répond 404).
       ECHO_CLE_OUTIL_TESTE: "${ECHO_CLE_OUTIL_TESTE:-}"
-      JWT_SECRET_KEY: "${JWT_SECRET_KEY:?absent du .env - generez-la, voir GUIDE_DEPLOIEMENT.md section 10}"
+      JWT_SECRET_KEY: "${JWT_SECRET_KEY:?absent du .env - generez-la, voir docs/GUIDE_DEPLOIEMENT.md section 10}"
       # Seule variable facultative du fichier, et deliberement : elle ne sert
       # qu'une fois, a « auth.bootstrap --creer » au premier demarrage. Le
       # guide (section 12) demande ensuite de la vider — avec la forme « :? »,
