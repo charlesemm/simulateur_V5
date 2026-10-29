@@ -98,25 +98,21 @@ systématique.
 ## 🏗️ Architecture du Projet
 
 ```text
-simulateur_v5/
-├── api/                     ← Endpoints REST FastAPI & WebSocket Socket.IO
-│   ├── main.py              ← Point d'entrée ASGI & configuration CORS
-│   └── routes/              ← Routes (auth, simulation, métriques, rapports)
-├── app/                     ← Configuration DB SQLAlchemy asynchrone & modèles
-├── auth/                    ← Authentification JWT, hash bcrypt & bootstrap admin
-├── dashboard/               ← Frontend SPA (React 19 + TypeScript + Vite + Tailwind/CSS)
-│   ├── src/                 ← Composants télémétrie, graphiques Recharts & cockpit
-│   └── nginx.conf           ← Configuration Nginx conservée pour la mise en production
-├── events/                  ← Bus d'événements asynchrone interne
-├── kpi/                     ← Calculateurs d'agrégations et métriques temps réel
-├── metrics/                 ← Registre de métriques système (Prometheus / SRE)
-├── realtime/                ← Gestionnaire des connexions Socket.IO
-├── reports/                 ← Générateur de rapports PDF / Excel
-├── seed/                    ← Scripts d'alimentation des données de santé
-├── simulation/              ← Moteur de simulation (passages de soins, agents, files)
-├── alembic/                 ← Migrations de schéma PostgreSQL
-└── .github/workflows/       ← Pipeline CI/CD GitHub Actions (tests, build, image)
+simulateur_V5/
+├── src/echo/
+│   ├── moteur/        ← simulation (passages, aléas), bus d'événements, temps réel, seed
+│   ├── metier/        ← anomalies, campagnes, qualité, témoin, MDM, entrepôt, gouvernance, KPI
+│   └── web/           ← API FastAPI (routers), base, authentification, métriques, rapports
+├── dashboard/         ← SPA React 19 + TypeScript + Vite + Recharts
+├── alembic/           ← migrations PostgreSQL (socle unique ; anciennes migrations archivées)
+├── schema_mirka/      ← sources du schéma de référence TB_SIM_*
+├── tools/             ← scripts de génération et de vérification
+├── tests/             ← suite pytest
+├── deploiement/       ← compose de production, Caddy, nginx, sauvegarde
+└── docs/              ← documentation complète
 ```
+
+**Documentation complète : [docs/README.md](docs/README.md)** — architecture, référence de l'API, modèle de données, moteur et anomalies, campagnes qualité, dashboard, configuration et sécurité, guide du développeur.
 
 ---
 
