@@ -1,6 +1,7 @@
 // dashboard/src/components/NouvelleCampagnePage.tsx
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
+import { useToast } from "../hooks/useToast";
 import { api } from "../services/api";
 import type { DimensionQualite, PalierCampagne, TypeAnomalieCampagne } from "../types";
 import "./Screens.css";
@@ -47,7 +48,10 @@ function entier(valeur: number): string {
  */
 export function NouvelleCampagnePage({ onAnnuler, onCreee }: NouvelleCampagnePageProps) {
   const { token } = useAuth();
+  const { toast } = useToast();
   const [etape, setEtape] = useState(1);
+  // Distingue « pas encore reçu » de « rien reçu ».
+  const [charge, setCharge] = useState(false);
   const [paliers, setPaliers] = useState<PalierCampagne[]>([]);
   const [dimensions, setDimensions] = useState<DimensionQualite[]>([]);
   const [types, setTypes] = useState<TypeAnomalieCampagne[]>([]);
@@ -100,12 +104,29 @@ export function NouvelleCampagnePage({ onAnnuler, onCreee }: NouvelleCampagnePag
         );
       } catch (raison) {
         if (!annule) setErreur((raison as Error).message);
+      } finally {
+        if (!annule) setCharge(true);
       }
     })();
     return () => {
       annule = true;
     };
   }, [token]);
+
+  // On passe d'une étape à l'autre depuis la barre du bas : sans ce retour en
+  // haut, la nouvelle étape s'ouvrait déjà défilée, son début hors de vue.
+  const premiereEtape = useRef(true);
+  useEffect(() => {
+    if (premiereEtape.current) {
+      premiereEtape.current = false;
+      return;
+    }
+    const sansAnimation = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    document.getElementById("contenu")?.scrollTo({
+      top: 0,
+      behavior: sansAnimation ? "auto" : "smooth",
+    });
+  }, [etape]);
 
   const palierCourant = useMemo(
     () => paliers.find((candidat) => candidat.code === palierChoisi) ?? null,
@@ -196,15 +217,17 @@ export function NouvelleCampagnePage({ onAnnuler, onCreee }: NouvelleCampagnePag
         anomalies,
       });
       setErreur(null);
+      toast("succes", "Campagne créée", campagne.campagne_reference);
       onCreee(campagne.campagne_id);
     } catch (raison) {
       setErreur((raison as Error).message);
+      toast("erreur", "Création impossible", (raison as Error).message);
     } finally {
       setCreation(false);
     }
   }, [
     token, palierChoisi, volume, graineAleatoire, graine, actifs,
-    reglages, onCreee,
+    reglages, onCreee, toast,
   ]);
 
   return (
@@ -269,7 +292,14 @@ export function NouvelleCampagnePage({ onAnnuler, onCreee }: NouvelleCampagnePag
                   </span>
                 </button>
               ))}
-              {paliers.length === 0 && (
+              {!charge && [0, 1].map((carte) => (
+                <div key={carte} className="type-card" aria-hidden="true">
+                  <span className="ui-skeleton" style={{ width: 96, height: 22 }} />
+                  <span className="ui-skeleton ui-skeleton--titre" style={{ marginTop: 12 }} />
+                  <span className="ui-skeleton ui-skeleton--texte" style={{ width: "80%" }} />
+                </div>
+              ))}
+              {charge && paliers.length === 0 && (
                 <EtatBloc ton="vide">
                   Les paliers n'ont pas pu être chargés.
                 </EtatBloc>
@@ -337,7 +367,7 @@ export function NouvelleCampagnePage({ onAnnuler, onCreee }: NouvelleCampagnePag
               </div>
 
               {palierCourant && (
-                <p className="screen-section-lead ecart-haut-m">
+                <p className="screen-section-lead fiche-partie">
                   {palierCourant.libelle} — {entier(volume)} lignes visées,{" "}
                   {graineAleatoire
                     ? "graine tirée à la création et affichée sur la campagne."
@@ -429,6 +459,7 @@ export function NouvelleCampagnePage({ onAnnuler, onCreee }: NouvelleCampagnePag
                                 <input
                                   type="number"
                                   className="champ-console"
+                                  aria-label={`Taux — ${type.libelle}`}
                                   min={1}
                                   max={100}
                                   value={reglage.pourcentage}
@@ -519,7 +550,7 @@ export function NouvelleCampagnePage({ onAnnuler, onCreee }: NouvelleCampagnePag
                     <tr>
                       <th>Dimension</th>
                       <th>Type d'anomalie</th>
-                      <th>Taux</th>
+                      <th className="num">Taux</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -530,7 +561,7 @@ export function NouvelleCampagnePage({ onAnnuler, onCreee }: NouvelleCampagnePag
                           <b>{type.libelle}</b>
                           <div className="cellule-pied">{type.code}</div>
                         </td>
-                        <td>{reglages[type.code]?.pourcentage} %</td>
+                        <td className="num">{reglages[type.code]?.pourcentage} %</td>
                       </tr>
                     ))}
                   </tbody>
@@ -562,6 +593,10 @@ export function NouvelleCampagnePage({ onAnnuler, onCreee }: NouvelleCampagnePag
       )}
 
       <div className="barre-lancement">
+        {erreur && <span className="barre-lancement-erreur">{erreur}</span>}
+        <span className="barre-lancement-etape" aria-hidden="true">
+          Étape {etape} sur {ETAPES.length}
+        </span>
         <button
           className="btn btn-outline"
           onClick={() => (etape === 1 ? onAnnuler() : setEtape(etape - 1))}
@@ -578,7 +613,11 @@ export function NouvelleCampagnePage({ onAnnuler, onCreee }: NouvelleCampagnePag
             className="btn btn-start"
             onClick={() => void creer()}
             disabled={creation}
+            aria-busy={creation}
           >
+            {creation && (
+              <span className="ui-spinner ui-spinner--petit ui-spinner--inverse" aria-hidden="true" />
+            )}
             {creation ? "Création…" : "Créer la campagne"}
           </button>
         )}

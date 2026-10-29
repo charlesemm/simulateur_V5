@@ -1,6 +1,7 @@
 // dashboard/src/components/AdministrationPage.tsx
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { useAuth } from "../auth/AuthContext";
+import { useToast } from "../hooks/useToast";
 import { api } from "../services/api";
 import type { FicheGouvernance, SimulationRun } from "../types";
 import { UsersPage } from "./UsersPage";
@@ -9,6 +10,12 @@ import "./Screens.css";
 import { EtatBloc } from "./EtatBloc";
 
 type Volet = "comptes" | "volumetrie" | "purge";
+
+const VOLETS: Array<[Volet, string]> = [
+  ["comptes", "Comptes"],
+  ["volumetrie", "Volumétrie"],
+  ["purge", "Purge des données"],
+];
 
 /**
  * W8 — Administration.
@@ -20,7 +27,12 @@ type Volet = "comptes" | "volumetrie" | "purge";
  */
 export function AdministrationPage() {
   const { token } = useAuth();
+  const { toast } = useToast();
   const [volet, setVolet] = useState<Volet>("comptes");
+  // Volets déjà chargés une fois : avant, une liste vide n'est pas « rien ».
+  const [charges, setCharges] = useState<Set<Volet>>(new Set());
+  const ongletsRef = useRef<Array<HTMLButtonElement | null>>([]);
+  const apercuRef = useRef<HTMLElement>(null);
   const [erreur, setErreur] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -38,6 +50,8 @@ export function AdministrationPage() {
       setErreur(null);
     } catch (raison) {
       setErreur((raison as Error).message);
+    } finally {
+      setCharges((precedents) => new Set(precedents).add(volet));
     }
   }, [token, volet]);
 
@@ -52,6 +66,12 @@ export function AdministrationPage() {
     try {
       setApercu(await api.previsualiserPurge(simulationId, token));
       setErreur(null);
+      // L'aperçu s'ouvre sous une liste de cinquante lignes : on l'amène
+      // sous les yeux, sans quoi « Examiner » semblait ne rien faire.
+      requestAnimationFrame(() => {
+        const sansAnimation = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        apercuRef.current?.scrollIntoView({ behavior: sansAnimation ? "auto" : "smooth", block: "start" });
+      });
     } catch (raison) {
       setErreur((raison as Error).message);
     }
@@ -63,6 +83,7 @@ export function AdministrationPage() {
     try {
       const supprimees = await api.purgerExecution(cible, token);
       setMessage(`${supprimees.total} ligne(s) supprimée(s). L'exécution reste dans l'historique.`);
+      toast("succes", "Purge effectuée", `${supprimees.total} ligne(s) supprimée(s)`);
       setApercu(null);
       setCible(null);
       setConfirmation(false);
@@ -70,9 +91,25 @@ export function AdministrationPage() {
       setErreur(null);
     } catch (raison) {
       setErreur((raison as Error).message);
+      toast("erreur", "Purge impossible", (raison as Error).message);
     } finally {
       setOccupe(false);
     }
+  }
+
+  /** Flèches, Début et Fin déplacent d'un onglet à l'autre, comme attendu. */
+  function surToucheOnglet(evenement: KeyboardEvent<HTMLButtonElement>, rang: number) {
+    const cibles: Record<string, number> = {
+      ArrowRight: (rang + 1) % VOLETS.length,
+      ArrowLeft: (rang - 1 + VOLETS.length) % VOLETS.length,
+      Home: 0,
+      End: VOLETS.length - 1,
+    };
+    const suivant = cibles[evenement.key];
+    if (suivant === undefined) return;
+    evenement.preventDefault();
+    setVolet(VOLETS[suivant][0]);
+    ongletsRef.current[suivant]?.focus();
   }
 
   const totalLignes = tables.reduce((somme, fiche) => somme + fiche.lignes, 0);
@@ -82,28 +119,34 @@ export function AdministrationPage() {
       {erreur && <EtatBloc ton="erreur">{erreur}</EtatBloc>}
       {message && <EtatBloc ton="succes">{message}</EtatBloc>}
 
-      <section>
-        <div className="onglets">
-          {([
-            ["comptes", "Comptes"],
-            ["volumetrie", "Volumétrie"],
-            ["purge", "Purge des données"],
-          ] as Array<[Volet, string]>).map(([code, libelle]) => (
-            <button
-              key={code}
-              className={`onglet${volet === code ? " actif" : ""}`}
-              onClick={() => setVolet(code)}
-            >
-              {libelle}
-            </button>
-          ))}
-        </div>
-      </section>
+      <div className="onglets" role="tablist" aria-label="Volets de l'administration">
+        {VOLETS.map(([code, libelle], rang) => (
+          <button
+            key={code}
+            ref={(element) => { ongletsRef.current[rang] = element; }}
+            type="button"
+            role="tab"
+            id={`onglet-${code}`}
+            aria-selected={volet === code}
+            aria-controls={`panneau-${code}`}
+            tabIndex={volet === code ? 0 : -1}
+            className={`onglet${volet === code ? " actif" : ""}`}
+            onClick={() => setVolet(code)}
+            onKeyDown={(evenement) => surToucheOnglet(evenement, rang)}
+          >
+            {libelle}
+          </button>
+        ))}
+      </div>
 
-      {volet === "comptes" && <UsersPage />}
+      {volet === "comptes" && (
+        <div role="tabpanel" id="panneau-comptes" aria-labelledby="onglet-comptes" className="onglet-panneau">
+          <UsersPage />
+        </div>
+      )}
 
       {volet === "volumetrie" && (
-        <section>
+        <section role="tabpanel" id="panneau-volumetrie" aria-labelledby="onglet-volumetrie" className="onglet-panneau">
           <div className="stat-strip ecart-bas-m">
             <div className="stat-tile">
               <span className="stat-tile-label">Tables au catalogue</span>
@@ -125,10 +168,17 @@ export function AdministrationPage() {
                   <th>Propriétaire</th>
                   <th>Criticité</th>
                   <th>Données personnelles</th>
-                  <th>Lignes</th>
+                  <th className="num">Lignes</th>
                 </tr>
               </thead>
               <tbody>
+                {!charges.has("volumetrie") && (
+                  <tr>
+                    <td colSpan={6} aria-busy="true">
+                      <span className="ui-skeleton ui-skeleton--texte" style={{ width: "60%" }} />
+                    </td>
+                  </tr>
+                )}
                 {tables.map((fiche) => (
                   <tr key={fiche.table}>
                     <td>{fiche.table}</td>
@@ -136,7 +186,7 @@ export function AdministrationPage() {
                     <td>{fiche.proprietaire}</td>
                     <td>{fiche.criticite}</td>
                     <td>{fiche.donnees_personnelles ? "oui" : "non"}</td>
-                    <td>{fiche.lignes.toLocaleString("fr-FR")}</td>
+                    <td className="num">{fiche.lignes.toLocaleString("fr-FR")}</td>
                   </tr>
                 ))}
               </tbody>
@@ -146,7 +196,7 @@ export function AdministrationPage() {
       )}
 
       {volet === "purge" && (
-        <section>
+        <section role="tabpanel" id="panneau-purge" aria-labelledby="onglet-purge" className="onglet-panneau">
           <div className="bandeau-info bandeau-alerte">
             ÉCHO conserve toutes les lignes de chaque exécution. La purge est la
             seule sortie — elle est définitive et ne concerne que l'exécution
@@ -160,8 +210,8 @@ export function AdministrationPage() {
                   <th>Début</th>
                   <th>Type</th>
                   <th>Statut</th>
-                  <th>Réussis</th>
-                  <th />
+                  <th className="num">Réussis</th>
+                  <th><span className="ui-sr-only">Action</span></th>
                 </tr>
               </thead>
               <tbody>
@@ -173,12 +223,13 @@ export function AdministrationPage() {
                     <td>{dateCourte(execution.simulation_date_debut)}</td>
                     <td>{execution.simulation_type ?? "—"}</td>
                     <td><StatutPastille statut={execution.simulation_statut} /></td>
-                    <td>{execution.passages_reussis}</td>
+                    <td className="num">{execution.passages_reussis}</td>
                     <td>
                       <button
                         className="btn btn-outline"
                         onClick={() => void previsualiser(execution.simulation_id)}
                         disabled={occupe}
+                        aria-label={`Examiner l'exécution du ${dateCourte(execution.simulation_date_debut)}`}
                       >
                         Examiner
                       </button>
@@ -190,7 +241,7 @@ export function AdministrationPage() {
           </div>
 
           {apercu && cible && (
-            <article className="fiche ecart-haut-l">
+            <article className="fiche fiche--ouverte ecart-haut-l" ref={apercuRef}>
               <div className="fiche-tete">
                 <div>
                   <div className="fiche-titre">Ce que la purge supprimerait</div>
@@ -210,11 +261,11 @@ export function AdministrationPage() {
               </div>
 
               {Object.values(apercu).every((nombre) => nombre === 0) ? (
-                <p className="stat-tile-hint ecart-haut-m">
+                <p className="fiche-note">
                   Cette exécution n'a laissé aucune donnée : il n'y a rien à purger.
                 </p>
               ) : (
-                <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 18 }}>
+                <div className="purge-confirmation">
                   <label className="toggle-switch-label">
                     <input
                       type="checkbox"
@@ -227,10 +278,14 @@ export function AdministrationPage() {
                     </span>
                   </label>
                   <button
-                    className="btn btn-danger-outline"
+                    className="btn btn-outline-danger"
                     disabled={!confirmation || occupe}
                     onClick={() => void purger()}
+                    aria-busy={occupe}
                   >
+                    {occupe && (
+                      <span className="ui-spinner ui-spinner--petit ui-spinner--inverse" aria-hidden="true" />
+                    )}
                     {occupe ? "Purge…" : "Purger"}
                   </button>
                 </div>

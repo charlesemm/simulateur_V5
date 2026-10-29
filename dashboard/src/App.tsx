@@ -1,22 +1,32 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Header } from "./components/Header";
 import { Sidebar } from "./components/Sidebar";
 import { AuthProvider, useAuth } from "./auth/AuthContext";
 import { LoginPage } from "./auth/LoginPage";
 import { ChangePasswordPage } from "./auth/ChangePasswordPage";
 import { RequireRole } from "./auth/RequireRole";
 import { KpiSocketProvider } from "./hooks/useKpiSocket";
+import { ToastProvider } from "./hooks/useToast";
+import { TechMetricCards } from "./components/TechMetricCards";
+import { ChargeTraitementChart } from "./components/ChargeTraitementChart";
+import { LatencyPerformanceChart } from "./components/LatencyPerformanceChart";
+import { SystemHealthDonut } from "./components/SystemHealthDonut";
+import { LiveLogTerminal } from "./components/LiveLogTerminal";
 import { ReportsPage } from "./components/ReportsPage";
+import { ExecutionEnCoursCard } from "./components/ExecutionEnCoursCard";
 import { ExecutionEnCoursPage } from "./components/ExecutionEnCoursPage";
+import { ActiviteMetierSection } from "./components/ActiviteMetierSection";
 import { AccueilPage } from "./components/AccueilPage";
 import { CampagnesPage } from "./components/CampagnesPage";
 import { NouvelleCampagnePage } from "./components/NouvelleCampagnePage";
 import { BilanExecutionPage, type FrappeBilan } from "./components/BilanExecutionPage";
 import { AdministrationPage } from "./components/AdministrationPage";
 import { ApiExplorerPage } from "./components/ApiExplorerPage";
+import { ConsoleInjectionPage } from "./components/ConsoleInjectionPage";
 import { LancementPage } from "./components/LancementPage";
 import { QualitePage } from "./components/QualitePage";
 import { SimulationsPage } from "./components/SimulationsPage";
-import { TITRES, type Onglet } from "./navigation";
+import type { Onglet } from "./navigation";
 import { api } from "./services/api";
 import type { TechnicalMetricsSnapshot } from "./types";
 
@@ -36,6 +46,10 @@ function DashboardShell() {
     { simulationId: string; frappes: FrappeBilan[] } | null
   >(null);
   const [metrics, setMetrics] = useState<TechnicalMetricsSnapshot | null>(null);
+  // Tiroir de navigation, en mobile seulement : sur grand écran la barre
+  // latérale reste affichée et cet état n'a aucun effet.
+  const [menuOuvert, setMenuOuvert] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     // Inutile de sonder les métriques tant que l'API refuse les autres
@@ -48,6 +62,7 @@ function DashboardShell() {
         const data = await api.getTechnicalMetrics(token);
         if (!cancelled) {
           setMetrics(data);
+          setLoading(false);
         }
       } catch {
         // En cas d'erreur ponctuelle, le prochain sondage réessaiera
@@ -112,23 +127,26 @@ function DashboardShell() {
         />
       ) : (
       <div className="enterprise-layout">
+        <a className="ui-skip-link" href="#contenu">Aller au contenu</a>
+
         {/* Navigation Latérale Gauche */}
         <Sidebar
           ongletActif={ongletActif}
           onNaviguer={(onglet) => onglet === "encours" ? allerAuCockpit() : setOngletActif(onglet)}
           moteurEnCours={moteurEnCours}
+          ouvert={menuOuvert}
+          onFermer={() => setMenuOuvert(false)}
         />
 
         {/* Zone de contenu principale avec Topbar */}
         <div className="enterprise-main">
-          <div className="content-scrollable">
-            {/* Le titre de l'écran ouvre la page et défile avec elle : on
-                sait où l'on est sans qu'un bandeau fixe prenne de la place. */}
-            <header className="page-entete">
-              <h1 className="page-entete-titre">{TITRES[ongletActif].titre}</h1>
-              <p className="page-entete-lead">{TITRES[ongletActif].sousTitre}</p>
-            </header>
+          <Header
+            ongletActif={ongletActif}
+            onRejoindreCockpit={allerAuCockpit}
+            onOuvrirMenu={() => setMenuOuvert(true)}
+          />
 
+          <main id="contenu" className="content-scrollable" tabIndex={-1}>
             {ongletActif === "accueil" && (
               <AccueilPage
                 onVoirExecution={(simulationId) => {
@@ -172,6 +190,12 @@ function DashboardShell() {
               />
             )}
 
+            {ongletActif === "injection" && (
+              <RequireRole minimum="operateur">
+                <ConsoleInjectionPage />
+              </RequireRole>
+            )}
+
             {ongletActif === "simulations" && (
               <SimulationsPage executionInitiale={executionOuverte} />
             )}
@@ -197,6 +221,36 @@ function DashboardShell() {
               </RequireRole>
             )}
 
+            {ongletActif === "dashboard" && (
+              <div className="dashboard-content-space">
+                {/* Rangée 1 : Compteurs & KPIs SRE avec icônes SVG */}
+                <TechMetricCards metrics={metrics} loading={loading} />
+
+                {/* Rangée 2 : Graphiques de Concurrence & Latence */}
+                <section className="dashboard-row-2">
+                  <ChargeTraitementChart metrics={metrics} />
+                  <LatencyPerformanceChart metrics={metrics} />
+                </section>
+
+                {/* Rangée 3 : Fiabilité & Test de Résilience */}
+                {/* Le panneau d'anomalies a quitté cette page : la console
+                    d'injection le remplace entièrement, et deux endroits pour
+                    régler le même interrupteur se contrediraient. */}
+                <section className="dashboard-row-3">
+                  <SystemHealthDonut metrics={metrics} />
+                  <ExecutionEnCoursCard />
+                </section>
+
+                {/* Rangée 4 : Terminal de Logs & Événements en Direct */}
+                <section className="dashboard-row-4">
+                  <LiveLogTerminal />
+                </section>
+
+                {/* Rangée 5 : Activité métier issue du snapshot KPI temps réel */}
+                <ActiviteMetierSection />
+              </div>
+            )}
+
             {ongletActif === "rapports" && (
               <RequireRole minimum="operateur">
                 <ReportsPage />
@@ -214,7 +268,7 @@ function DashboardShell() {
                 <ApiExplorerPage />
               </RequireRole>
             )}
-          </div>
+          </main>
         </div>
       </div>
       )}
@@ -225,7 +279,9 @@ function DashboardShell() {
 export default function App() {
   return (
     <AuthProvider>
-      <DashboardShell />
+      <ToastProvider>
+        <DashboardShell />
+      </ToastProvider>
     </AuthProvider>
   );
 }

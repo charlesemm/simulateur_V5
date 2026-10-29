@@ -1,6 +1,7 @@
 // dashboard/src/components/LancementPage.tsx
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
+import { useToast } from "../hooks/useToast";
 import { api } from "../services/api";
 import type { CadenceMoteur, ProfilSimulation, TypeAnomalie } from "../types";
 import "./Screens.css";
@@ -56,6 +57,7 @@ const ETAPES_LANCEMENT = [
 
 export function LancementPage({ typeSimulation, onAnnuler, onDemarre }: LancementPageProps) {
   const { token } = useAuth();
+  const { toast } = useToast();
   const [profil, setProfil] = useState<ProfilSimulation | null>(null);
   const [catalogue, setCatalogue] = useState<TypeAnomalie[]>([]);
   const [erreur, setErreur] = useState<string | null>(null);
@@ -217,9 +219,11 @@ export function LancementPage({ typeSimulation, onAnnuler, onDemarre }: Lancemen
         anomalies,
         aleas: {},
       });
+      toast("succes", "Simulation démarrée", nom || undefined);
       onDemarre(statut.simulation_id);
     } catch (raison) {
       setErreur((raison as Error).message);
+      toast("erreur", "Démarrage impossible", (raison as Error).message);
     } finally {
       setDemarrage(false);
     }
@@ -446,7 +450,7 @@ export function LancementPage({ typeSimulation, onAnnuler, onDemarre }: Lancemen
                 ["--famille-couleur" as string]: typesFamille[0].anomalie_couleur,
               }}
             >
-              <span className="dot" />
+              <span className="dot" aria-hidden="true" />
               {famille}
               <span className="famille-compte">
                 {allumes} / {typesFamille.length}
@@ -461,11 +465,11 @@ export function LancementPage({ typeSimulation, onAnnuler, onDemarre }: Lancemen
               <table className="screen-table">
                 <thead>
                   <tr>
-                    <th>Anomalie</th>
-                    <th>Cible</th>
-                    <th style={{ width: 120 }}>Taux</th>
-                    <th style={{ width: 150 }}>Moment</th>
-                    <th style={{ width: 110 }}>Délai (s)</th>
+                    <th scope="col">Anomalie</th>
+                    <th scope="col">Cible</th>
+                    <th scope="col" style={{ width: 120 }}>Taux</th>
+                    <th scope="col" style={{ width: 150 }}>Moment</th>
+                    <th scope="col" style={{ width: 110 }}>Délai (s)</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -478,6 +482,7 @@ export function LancementPage({ typeSimulation, onAnnuler, onDemarre }: Lancemen
                           <label className="toggle-switch-label">
                             <input
                               type="checkbox"
+                              role="switch"
                               className="toggle-checkbox"
                               checked={reglage.active}
                               onChange={(evenement) =>
@@ -501,6 +506,7 @@ export function LancementPage({ typeSimulation, onAnnuler, onDemarre }: Lancemen
                             <input
                               type="number"
                               className="champ-console"
+                              aria-label={`Taux — ${type.anomalie_libelle}`}
                               min={0}
                               max={100}
                               value={reglage.pourcentage}
@@ -519,6 +525,7 @@ export function LancementPage({ typeSimulation, onAnnuler, onDemarre }: Lancemen
                         <td>
                           <select
                             className="champ-console"
+                            aria-label={`Moment — ${type.anomalie_libelle}`}
                             value={reglage.declenchement}
                             disabled={!reglage.active}
                             onChange={(evenement) =>
@@ -538,6 +545,7 @@ export function LancementPage({ typeSimulation, onAnnuler, onDemarre }: Lancemen
                           <input
                             type="number"
                             className="champ-console"
+                            aria-label={`Délai en secondes — ${type.anomalie_libelle}`}
                             min={0}
                             value={reglage.delaiSecondes}
                             disabled={
@@ -577,7 +585,10 @@ export function LancementPage({ typeSimulation, onAnnuler, onDemarre }: Lancemen
       <div className="recap-lancement" ref={sectionRecap} id="lancement-recap">
         <span className="recap-libelle">Au départ</span>
         <span className="recap-texte">
-          <b style={{ color: profil?.couleur ?? "var(--cnam-green-dark)" }}>
+          <b
+            className="recap-type"
+            style={{ ["--type-couleur" as string]: profil?.couleur ?? "var(--cnam-green)" }}
+          >
             {typeSimulation}
           </b>
           {" · vitesse "}<b>×{vitesse}</b>
@@ -594,10 +605,19 @@ export function LancementPage({ typeSimulation, onAnnuler, onDemarre }: Lancemen
       </div>
 
       <div className="barre-lancement">
+        {/* Rappel de l'erreur à côté du bouton : le message du haut de page
+            est hors de vue quand on vient de cliquer ici. */}
+        {erreur && <span className="barre-lancement-erreur">{erreur}</span>}
         <button className="btn btn-outline" onClick={onAnnuler} disabled={demarrage}>
           Annuler
         </button>
-        <button className="btn btn-start" onClick={() => void demarrer()} disabled={demarrage}>
+        <button
+          className="btn btn-start"
+          onClick={() => void demarrer()}
+          disabled={demarrage}
+          aria-busy={demarrage}
+        >
+          {demarrage && <span className="ui-spinner ui-spinner--petit ui-spinner--inverse" aria-hidden="true" />}
           {demarrage ? "Démarrage…" : "Démarrer la simulation"}
         </button>
       </div>

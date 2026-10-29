@@ -1,0 +1,679 @@
+/* ═══════════════════════════════════════════════════════════════
+   ÉCHO — saisie et réglages
+
+   Champs, interrupteurs, familles d'anomalies et cartes de réglage :
+   ce qu'utilisent l'écran de lancement, la console d'injection et,
+   pour les champs, la plupart des formulaires.
+═══════════════════════════════════════════════════════════════ */
+
+/* ── Champs ─────────────────────────────────────────────────────── */
+
+.champ-groupe {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--espace-2);
+  min-width: 0;
+}
+
+.champ-court {
+  flex: 0 0 180px;
+  min-width: 160px;
+}
+
+/* Un libellé se lit comme une phrase, pas comme un sur-titre gris. */
+.champ-libelle {
+  color: var(--couleur-texte);
+  font-size: var(--texte-sm);
+  font-weight: var(--graisse-forte);
+}
+
+.champ-console {
+  width: 100%;
+  min-height: 40px;
+  padding: var(--espace-2) var(--espace-3);
+  border: 1px solid var(--couleur-bord);
+  border-radius: var(--rayon-xs);
+  background: var(--couleur-surface);
+  color: var(--couleur-texte);
+  font: inherit;
+  font-size: var(--texte-sm);
+  transition:
+    border-color var(--duree-rapide) var(--courbe),
+    box-shadow var(--duree-rapide) var(--courbe);
+}
+
+.champ-console:hover:not(:disabled) {
+  border-color: var(--couleur-bord-fort);
+}
+
+.champ-console:focus {
+  outline: none;
+  border-color: var(--couleur-focus);
+  box-shadow: var(--ombre-focus);
+}
+
+.champ-console:disabled {
+  background: var(--couleur-surface-douce);
+  color: var(--couleur-texte-faible);
+  cursor: not-allowed;
+}
+
+.champ-pourcentage,
+.champ-taux {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.champ-pourcentage .champ-console,
+.champ-taux .champ-console {
+  width: 80px;
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--graisse-forte);
+  text-align: right;
+}
+
+.champ-pourcentage span {
+  color: var(--couleur-texte-doux);
+  font-size: var(--texte-sm);
+  font-weight: var(--graisse-forte);
+}
+
+/* ── Interrupteur ───────────────────────────────────────────────── */
+
+.toggle-switch-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espace-2);
+  cursor: pointer;
+}
+
+/* Une case à cocher dessinée en interrupteur : l'élément reste une
+   case native, lue et manipulée comme telle au clavier. */
+.toggle-checkbox {
+  position: relative;
+  flex-shrink: 0;
+  width: 40px;
+  height: 22px;
+  margin: 0;
+  border: 1px solid var(--couleur-bord-fort);
+  border-radius: var(--rayon-pilule);
+  background: var(--couleur-bord);
+  cursor: pointer;
+  appearance: none;
+  transition: background-color var(--duree) var(--courbe), border-color var(--duree) var(--courbe);
+}
+
+.toggle-checkbox::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--gris-0);
+  box-shadow: 0 1px 3px rgba(4, 48, 71, 0.3);
+  transition: transform var(--duree) var(--courbe-sortie);
+}
+
+.toggle-checkbox:checked {
+  border-color: var(--couleur-action);
+  background: var(--couleur-action);
+}
+
+.toggle-checkbox:checked::after {
+  transform: translateX(18px);
+}
+
+.toggle-checkbox:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.toggle-label-text {
+  color: var(--couleur-texte);
+  font-size: var(--texte-sm);
+  font-weight: var(--graisse-forte);
+}
+
+/* État écrit en toutes lettres à côté de l'interrupteur. */
+.toggle-etat {
+  min-width: 3.5em;
+  color: var(--couleur-texte-doux);
+  font-size: var(--texte-xs);
+  font-weight: var(--graisse-forte);
+}
+
+.toggle-checkbox:checked + .toggle-etat {
+  color: var(--couleur-succes);
+}
+
+/* ── Familles d'anomalies ───────────────────────────────────────── */
+
+/* La couleur de famille vient du catalogue : on l'assombrit pour
+   l'écrire, on la garde pure pour les pastilles et les filets. */
+.famille-titre,
+.famille-section,
+.anomalie-famille {
+  --famille-encre: color-mix(in srgb, var(--famille-couleur, var(--couleur-texte-doux)) var(--encre-part), var(--encre-cible));
+}
+
+.famille-bloc {
+  margin-bottom: var(--espace-3);
+}
+
+.famille-bloc .screen-table-wrap {
+  margin-top: var(--espace-2);
+}
+
+.famille-titre {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espace-2);
+  margin-bottom: var(--espace-2);
+  color: var(--famille-encre);
+  font-size: var(--texte-xs);
+  font-weight: var(--graisse-titre);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.famille-titre .dot,
+.famille-section .dot,
+.anomalie-famille .dot {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--famille-couleur, var(--couleur-texte-faible));
+}
+
+.famille-bascule {
+  display: flex;
+  width: 100%;
+  min-height: 44px;
+  padding: var(--espace-2) var(--espace-4);
+  border: 1px solid var(--couleur-bord);
+  border-left: 4px solid var(--famille-couleur, var(--couleur-bord));
+  border-radius: var(--rayon-sm);
+  background: var(--couleur-surface);
+  font: inherit;
+  font-size: var(--texte-xs);
+  font-weight: var(--graisse-titre);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition:
+    border-color var(--duree-rapide) var(--courbe),
+    background-color var(--duree-rapide) var(--courbe);
+}
+
+.famille-bascule:hover {
+  border-color: var(--famille-couleur, var(--couleur-bord-fort));
+  background: var(--couleur-surface-survol);
+}
+
+.famille-compte {
+  margin-left: auto;
+  color: var(--couleur-texte-doux);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+}
+
+.famille-chevron {
+  color: var(--couleur-texte-doux);
+  font-size: var(--texte-sm);
+  letter-spacing: 0;
+}
+
+/* Titre de section d'une famille, dans la console. */
+.famille-section {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-3);
+  color: var(--famille-encre);
+  font-size: var(--texte-md);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.famille-section .rule {
+  flex: 1;
+  height: 1px;
+  background: var(--couleur-bord-doux);
+}
+
+.famille-section-compte {
+  flex: none;
+  color: var(--couleur-texte-doux);
+  font-size: var(--texte-sm);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--graisse-forte);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* ── Cartes d'anomalie (console) ────────────────────────────────── */
+
+.console-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--espace-4);
+}
+
+.anomalie-carte {
+  padding: var(--espace-5);
+  border: 1px solid var(--couleur-bord);
+  border-left: 4px solid var(--couleur-bord-fort);
+  border-radius: var(--rayon-md);
+  background: var(--couleur-surface-douce);
+  transition:
+    background-color var(--duree) var(--courbe),
+    border-color var(--duree) var(--courbe),
+    box-shadow var(--duree) var(--courbe);
+}
+
+/* Actif : la carte prend la couleur de sa famille et remonte d'un
+   plan. Coupé : elle reste lisible, mais plate et neutre. */
+.anomalie-carte.active {
+  border-left-color: var(--famille-couleur, var(--couleur-bord-fort));
+  background: var(--couleur-surface);
+  box-shadow: var(--ombre-2);
+}
+
+.anomalie-carte-tete {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espace-3);
+  margin-bottom: var(--espace-1);
+}
+
+.anomalie-famille {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--famille-encre);
+  font-size: var(--texte-2xs);
+  font-weight: var(--graisse-titre);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.anomalie-nom {
+  margin: var(--espace-2) 0 2px;
+  color: var(--couleur-texte);
+  font-size: var(--texte-md);
+  font-weight: var(--graisse-titre);
+}
+
+.anomalie-carte:not(.active) .anomalie-nom {
+  color: var(--couleur-texte-doux);
+}
+
+.anomalie-cible {
+  margin-bottom: var(--espace-3);
+  color: var(--couleur-texte-doux);
+  font-family: var(--police-mono);
+  font-size: var(--texte-xs);
+  word-break: break-all;
+}
+
+.anomalie-ligne {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espace-3);
+  margin-bottom: var(--espace-2);
+  color: var(--couleur-texte-doux);
+  font-size: var(--texte-sm);
+}
+
+.anomalie-ligne strong {
+  color: var(--couleur-texte);
+  font-variant-numeric: tabular-nums;
+}
+
+.anomalie-ligne--espacee {
+  margin-top: var(--espace-3);
+}
+
+.champ-delai {
+  width: 90px;
+}
+
+/* Réglage posé sous le chiffre d'une tuile de la console. */
+.console-tuile-reglage {
+  margin-top: var(--espace-3);
+}
+
+.anomalie-actions {
+  display: flex;
+  gap: var(--espace-2);
+  margin-top: var(--espace-3);
+}
+
+/* ── Écran de lancement ─────────────────────────────────────────── */
+
+.launch-grid {
+  display: grid;
+  grid-template-columns: minmax(300px, 0.85fr) minmax(0, 1.15fr);
+  gap: var(--espace-5);
+  align-items: start;
+}
+
+/* Les réglages et l'estimation restent sous les yeux pendant qu'on
+   parcourt les anomalies. */
+.launch-setup {
+  position: sticky;
+  top: var(--espace-2);
+}
+
+.formulaire-lancement {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--espace-4);
+  margin-top: var(--espace-5);
+}
+
+.formulaire-lancement .champ-groupe:first-child {
+  grid-column: 1 / -1;
+}
+
+.formulaire-lancement .champ-court {
+  flex: none;
+  min-width: 0;
+}
+
+/* ── Estimation en direct ───────────────────────────────────────── */
+
+.estimation {
+  margin-top: var(--espace-4);
+  overflow: hidden;
+  border: 1px solid var(--cnam-green-border);
+  border-radius: var(--rayon-md);
+  background: var(--cnam-green-light);
+  box-shadow: 0 6px 20px rgba(76, 175, 42, 0.12);
+}
+
+.estimation-tete {
+  display: flex;
+  align-items: center;
+  padding: var(--espace-3) var(--espace-5);
+  border-bottom: 1px solid var(--cnam-green-border);
+  color: var(--couleur-succes);
+  font-size: var(--texte-xs);
+  font-weight: var(--graisse-titre);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.estimation-corps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-4);
+  padding: var(--espace-4) var(--espace-5);
+}
+
+.estimation-ligne {
+  display: flex;
+  align-items: baseline;
+  gap: var(--espace-3);
+}
+
+.estimation-valeur {
+  min-width: 4.5ch;
+  color: var(--couleur-succes);
+  font-size: var(--texte-2xl);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--graisse-titre);
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.estimation-valeur--alerte {
+  color: var(--couleur-alerte);
+}
+
+.estimation-quoi {
+  color: var(--couleur-texte);
+  font-size: var(--texte-md);
+  font-weight: var(--graisse-forte);
+}
+
+.estimation-detail {
+  color: var(--couleur-texte-doux);
+  font-size: var(--texte-sm);
+}
+
+.estimation-alerte {
+  margin: 0;
+  padding: var(--espace-3) var(--espace-5);
+  border-top: 1px solid var(--couleur-alerte-bord);
+  background: var(--couleur-alerte-fond);
+  color: var(--couleur-alerte);
+  font-size: var(--texte-sm);
+  line-height: var(--interligne);
+}
+
+.estimation-note {
+  margin: 0;
+  padding: var(--espace-3) var(--espace-5) var(--espace-4);
+  border-top: 1px dashed var(--cnam-green-border);
+  color: var(--couleur-texte-doux);
+  font-size: var(--texte-sm);
+  line-height: var(--interligne);
+}
+
+/* ── Récapitulatif et barre d'action ────────────────────────────── */
+
+.recap-lancement {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--espace-2) var(--espace-4);
+  padding: var(--espace-3) var(--espace-5);
+  border: 1px solid var(--couleur-bord);
+  border-radius: var(--rayon-sm);
+  background: var(--couleur-surface);
+  color: var(--couleur-texte-doux);
+  font-size: var(--texte-md);
+}
+
+.recap-libelle {
+  flex: none;
+  color: var(--couleur-texte-doux);
+  font-size: var(--texte-xs);
+  font-weight: var(--graisse-titre);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.recap-texte b {
+  color: var(--couleur-texte);
+  font-variant-numeric: tabular-nums;
+}
+
+.recap-type {
+  color: color-mix(in srgb, var(--type-couleur, var(--cnam-green)) var(--encre-part), var(--encre-cible));
+}
+
+/* Collée en bas de l'écran : l'action reste à portée, quelle que soit
+   la longueur du formulaire. */
+.barre-lancement {
+  position: sticky;
+  bottom: var(--espace-3);
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--espace-3);
+  padding: var(--espace-3) var(--espace-4);
+  border: 1px solid var(--couleur-bord);
+  border-radius: var(--rayon-pilule);
+  background: var(--couleur-verre);
+  box-shadow: var(--ombre-3);
+  backdrop-filter: blur(12px);
+}
+
+.barre-lancement-etape {
+  margin-right: auto;
+  color: var(--couleur-texte-doux);
+  font-size: var(--texte-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.barre-lancement-erreur + .barre-lancement-etape {
+  margin-right: 0;
+}
+
+.barre-lancement-erreur {
+  flex: 1;
+  min-width: 0;
+  color: var(--couleur-erreur);
+  font-size: var(--texte-sm);
+  font-weight: var(--graisse-forte);
+}
+
+/* Indicateur d'enregistrement, pour les écrans qui sauvent à chaque
+   modification. */
+.enregistrement {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espace-2);
+  color: var(--couleur-texte-doux);
+  font-size: var(--texte-sm);
+}
+
+/* ── Fil d'étapes d'un assistant ────────────────────────────────── */
+
+.fil-etapes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espace-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: none;
+}
+
+.fil-etape {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: var(--espace-3);
+  min-width: 180px;
+  padding: var(--espace-3) var(--espace-4);
+  border: 1px solid var(--couleur-bord);
+  border-radius: var(--rayon-md);
+  background: var(--couleur-surface);
+  color: var(--couleur-texte-doux);
+  transition:
+    border-color var(--duree) var(--courbe),
+    box-shadow var(--duree) var(--courbe),
+    color var(--duree) var(--courbe);
+}
+
+.fil-etape-rang {
+  display: inline-flex;
+  flex: 0 0 28px;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--couleur-bord);
+  border-radius: 50%;
+  background: var(--couleur-surface-douce);
+  font-size: var(--texte-sm);
+  font-weight: var(--graisse-titre);
+  transition: background-color var(--duree) var(--courbe), color var(--duree) var(--courbe);
+}
+
+.fil-etape-libelle {
+  font-size: var(--texte-md);
+  font-weight: var(--graisse-forte);
+}
+
+.fil-etape--active {
+  border-color: var(--couleur-action);
+  box-shadow: 0 0 0 3px var(--couleur-action-douce);
+  color: var(--couleur-texte);
+}
+
+.fil-etape--active .fil-etape-rang {
+  border-color: var(--couleur-action);
+  background: var(--couleur-action);
+  color: var(--couleur-action-texte);
+}
+
+.fil-etape--faite {
+  border-color: var(--couleur-succes-bord);
+  color: var(--couleur-succes);
+}
+
+.fil-etape--faite .fil-etape-rang {
+  border-color: var(--couleur-succes-bord);
+  background: var(--couleur-succes-fond);
+  color: var(--couleur-succes);
+}
+
+/* Case d'activation d'un type : assez grande pour se cliquer sans viser. */
+.case-anomalie {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--couleur-action);
+  cursor: pointer;
+}
+
+.reference-previsionnelle {
+  color: var(--couleur-texte-doux);
+  font-size: var(--texte-sm);
+}
+
+.reference-previsionnelle b {
+  color: var(--couleur-texte);
+  font-family: var(--police-mono);
+}
+
+@media (max-width: 1100px) {
+  .launch-grid,
+  .formulaire-lancement {
+    grid-template-columns: 1fr;
+  }
+
+  .launch-setup {
+    position: static;
+  }
+}
+
+@media (max-width: 600px) {
+  /* Trois étapes côte à côte ne tiennent pas : on garde les numéros,
+     et le libellé de l'étape en cours seulement. */
+  .fil-etape {
+    flex: 0 0 auto;
+    min-width: 0;
+  }
+
+  .fil-etape:not(.fil-etape--active) .fil-etape-libelle {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+  }
+
+  .fil-etape--active {
+    flex: 1;
+  }
+
+  .barre-lancement {
+    border-radius: var(--rayon-md);
+    flex-wrap: wrap;
+  }
+
+  .barre-lancement .btn {
+    flex: 1;
+  }
+}

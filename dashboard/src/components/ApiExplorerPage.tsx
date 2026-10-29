@@ -329,7 +329,7 @@ export function ApiExplorerPage() {
     <div className="screen">
       {erreurChargement && <EtatBloc ton="erreur">{erreurChargement}</EtatBloc>}
 
-      <section>
+      <section className="onglet-panneau">
         <div className="stat-strip ecart-bas-m">
           <div className="stat-tile">
             <span className="stat-tile-label">Routes exposées</span>
@@ -347,7 +347,7 @@ export function ApiExplorerPage() {
         </div>
 
         <input
-          className="champ-console"
+          className="champ-console explorateur-recherche"
           type="search"
           placeholder="Rechercher une route : chemin, méthode, mot dans la description…"
           value={recherche}
@@ -356,7 +356,15 @@ export function ApiExplorerPage() {
         />
       </section>
 
-      {chargement && <EtatBloc ton="chargement">Chargement du schéma de l'API…</EtatBloc>}
+      {chargement && (
+        <div className="endpoint-liste" aria-busy="true" aria-label="Chargement du schéma de l'API">
+          {[0, 1, 2, 3, 4].map((ligne) => (
+            <div key={ligne} className="ligne-squelette">
+              <span className="ui-skeleton ui-skeleton--texte" style={{ width: `${80 - ligne * 9}%` }} />
+            </div>
+          ))}
+        </div>
+      )}
 
       {!chargement && groupes.length === 0 && (
         <EtatBloc ton="vide">Aucune route ne correspond à « {recherche} ».</EtatBloc>
@@ -366,18 +374,21 @@ export function ApiExplorerPage() {
         const ferme = groupesFermes[tag] ?? false;
         return (
           <section key={tag} className="famille-bloc endpoint-bloc">
-            <button className="famille-bascule" onClick={() => basculerGroupe(tag)}>
-              <span className="famille-section" style={{ display: "flex", alignItems: "center", gap: 8, flex: 1 }}>
-                <span className="dot" />
-                {tag}
-                <span className="rule" />
+            <button
+              type="button"
+              className="famille-bascule"
+              onClick={() => basculerGroupe(tag)}
+              aria-expanded={!ferme}
+            >
+              <span className="endpoint-groupe-nom">{tag}</span>
+              <span className="famille-compte">
+                {liste.length}<span className="ui-sr-only"> route(s)</span>
               </span>
-              <span className="famille-compte">{liste.length}</span>
-              <span className="famille-chevron">{ferme ? "▸" : "▾"}</span>
+              <span className="famille-chevron" aria-hidden="true">{ferme ? "▸" : "▾"}</span>
             </button>
 
             {!ferme && (
-              <div className="screen-table-wrap">
+              <div className="endpoint-liste">
                 {liste.map((ep) => {
                   const estOuvert = ouverts[ep.id] ?? false;
                   const reponse = reponses[ep.id];
@@ -395,8 +406,12 @@ export function ApiExplorerPage() {
                         </span>
                         <span className="endpoint-chemin">{ep.path}</span>
                         <span className="endpoint-resume">{ep.summary}</span>
-                        {ep.protegee && <span className="endpoint-auth" title="Nécessite un jeton d'authentification">🔒</span>}
-                        <span className="famille-chevron">{estOuvert ? "▾" : "▸"}</span>
+                        {ep.protegee && (
+                          <span className="endpoint-auth" title="Nécessite un jeton d'authentification">
+                            <span aria-hidden="true">🔒 </span>protégée
+                          </span>
+                        )}
+                        <span className="famille-chevron" aria-hidden="true">{estOuvert ? "▾" : "▸"}</span>
                       </button>
 
                       {estOuvert && (
@@ -415,10 +430,14 @@ export function ApiExplorerPage() {
                                     className="champ-console"
                                     value={valeursParams[ep.id]?.[param.name] ?? ""}
                                     placeholder={param.schema?.type ?? "texte"}
+                                    aria-required={param.required || undefined}
+                                    aria-describedby={param.description ? `${ep.id}-${param.name}-aide` : undefined}
                                     onChange={(evenement) => changerParam(ep.id, param.name, evenement.target.value)}
                                   />
                                   {param.description && (
-                                    <span className="stat-tile-hint">{param.description}</span>
+                                    <span className="champ-aide" id={`${ep.id}-${param.name}-aide`}>
+                                      {param.description}
+                                    </span>
                                   )}
                                 </div>
                               ))}
@@ -433,6 +452,8 @@ export function ApiExplorerPage() {
                               <textarea
                                 id={`${ep.id}-corps`}
                                 className="champ-console"
+                                spellCheck={false}
+                                aria-invalid={erreursCorps[ep.id] ? true : undefined}
                                 value={corpsTexte[ep.id] ?? ""}
                                 onChange={(evenement) =>
                                   setCorpsTexte((etat) => ({ ...etat, [ep.id]: evenement.target.value }))
@@ -443,36 +464,57 @@ export function ApiExplorerPage() {
                           )}
 
                           <div className="endpoint-actions">
+                            {/* Le bouton dit ce que la requête fera : une lecture,
+                                une écriture, ou une suppression bien réelle. */}
                             <button
-                              className="btn btn-outline"
+                              className={`btn ${
+                                ep.method === "DELETE"
+                                  ? "btn-danger"
+                                  : ep.method === "GET"
+                                    ? "btn-outline"
+                                    : "btn-start"
+                              }`}
                               disabled={occupe}
+                              aria-busy={occupe}
                               onClick={() => void tester(ep)}
                             >
-                              {occupe ? "Envoi…" : "Envoyer"}
+                              {occupe && (
+                                <span
+                                  className={`ui-spinner ui-spinner--petit${ep.method === "GET" ? "" : " ui-spinner--inverse"}`}
+                                  aria-hidden="true"
+                                />
+                              )}
+                              {occupe
+                                ? "Envoi…"
+                                : ep.method === "DELETE"
+                                  ? "Envoyer — supprime des données"
+                                  : "Envoyer"}
                             </button>
                             {!token && ep.protegee && (
-                              <span className="stat-tile-hint">
+                              <span className="champ-aide">
                                 Aucune session active : cette route protégée répondra 401.
                               </span>
                             )}
                           </div>
 
+                          <div role="status" aria-live="polite">
                           {reponse && "statut" in reponse && (
                             <div
                               className={`endpoint-reponse ${reponse.ok ? "endpoint-reponse--ok" : "endpoint-reponse--erreur"}`}
                             >
                               <div className="endpoint-reponse-tete">
-                                HTTP {reponse.statut} · {reponse.duree} ms
+                                {reponse.ok ? "Réussie" : "Refusée"} · HTTP {reponse.statut} · {reponse.duree} ms
                               </div>
-                              <div>{reponse.corps}</div>
+                              <pre className="endpoint-reponse-corps">{reponse.corps}</pre>
                             </div>
                           )}
                           {reponse && "message" in reponse && (
                             <div className="endpoint-reponse endpoint-reponse--erreur">
                               <div className="endpoint-reponse-tete">Requête échouée</div>
-                              <div>{reponse.message}</div>
+                              <pre className="endpoint-reponse-corps">{reponse.message}</pre>
                             </div>
                           )}
+                          </div>
                         </div>
                       )}
                     </div>

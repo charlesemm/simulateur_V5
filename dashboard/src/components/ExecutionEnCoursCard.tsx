@@ -57,7 +57,7 @@ export function ExecutionEnCoursCard() {
       <div className="stat-strip">
         <div className="stat-tile">
           <span className="stat-tile-label">Type</span>
-          <span className="stat-tile-value" style={{ fontSize: "1.2rem" }}>
+          <span className="stat-tile-value">
             {enCours ? statut?.type_simulation ?? "—" : "—"}
           </span>
         </div>

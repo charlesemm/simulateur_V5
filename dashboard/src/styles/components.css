@@ -1,0 +1,855 @@
+/* ═══════════════════════════════════════════════════════════════
+   ÉCHO — composants de base
+
+   Toutes les classes sont préfixées « ui- » : aucune ne peut entrer
+   en collision avec une classe existante, et les écrans les adoptent
+   un par un sans que les autres ne bougent.
+
+   Ne s'y trouvent que des jetons (styles/tokens.css) : aucune couleur,
+   aucune durée, aucun rayon écrits en dur.
+═══════════════════════════════════════════════════════════════ */
+
+/* ── Base ──────────────────────────────────────────────────────── */
+
+/* Un anneau unique pour tout ce qui se clique, visible au clavier
+   seulement. Sur fond bleu (barre latérale, bandeaux), il passe au
+   blanc : un anneau bleu sur du bleu ne se voit pas. */
+:where(button, a, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--couleur-focus);
+  outline-offset: 2px;
+}
+
+:where(.app-sidebar, .ui-sur-fond-fonce) :focus-visible {
+  outline-color: var(--gris-0);
+}
+
+/* Texte réservé aux lecteurs d'écran. */
+.ui-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Lien d'évitement : invisible jusqu'à la première tabulation. */
+.ui-skip-link {
+  position: fixed;
+  top: var(--espace-3);
+  left: var(--espace-3);
+  z-index: var(--z-toast);
+  padding: var(--espace-2) var(--espace-4);
+  border-radius: var(--rayon-xs);
+  background: var(--couleur-texte);
+  color: var(--couleur-texte-inverse);
+  font-weight: var(--graisse-forte);
+  text-decoration: none;
+  transform: translateY(-200%);
+  transition: transform var(--duree) var(--courbe-sortie);
+}
+
+.ui-skip-link:focus {
+  transform: none;
+}
+
+/* ── Boutons ───────────────────────────────────────────────────── */
+
+.ui-btn {
+  --btn-fond: var(--couleur-surface);
+  --btn-texte: var(--couleur-texte);
+  --btn-bord: var(--couleur-bord);
+  --btn-fond-survol: var(--couleur-surface-survol);
+  --btn-bord-survol: var(--couleur-bord-fort);
+
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--espace-2);
+  min-height: 40px;
+  padding: 0 var(--espace-4);
+  border: 1px solid var(--btn-bord);
+  border-radius: var(--rayon-xs);
+  background: var(--btn-fond);
+  color: var(--btn-texte);
+  font: inherit;
+  font-size: var(--texte-sm);
+  font-weight: var(--graisse-forte);
+  line-height: 1;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background-color var(--duree-rapide) var(--courbe),
+    border-color var(--duree-rapide) var(--courbe),
+    color var(--duree-rapide) var(--courbe),
+    box-shadow var(--duree-rapide) var(--courbe),
+    transform var(--duree-rapide) var(--courbe);
+}
+
+.ui-btn:hover:not(:disabled, [aria-disabled="true"]) {
+  background: var(--btn-fond-survol);
+  border-color: var(--btn-bord-survol);
+}
+
+.ui-btn:active:not(:disabled, [aria-disabled="true"]) {
+  transform: translateY(1px);
+}
+
+.ui-btn:disabled,
+.ui-btn[aria-disabled="true"] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ui-btn svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.ui-btn--primaire {
+  --btn-fond: var(--couleur-action);
+  --btn-texte: var(--couleur-action-texte);
+  --btn-bord: var(--couleur-action);
+  --btn-fond-survol: var(--couleur-action-survol);
+  --btn-bord-survol: var(--couleur-action-survol);
+  box-shadow: var(--ombre-action);
+}
+
+.ui-btn--secondaire {
+  --btn-fond: var(--couleur-surface);
+  --btn-texte: var(--couleur-lien);
+  --btn-bord: var(--cnam-blue-border);
+  --btn-fond-survol: var(--cnam-blue-light);
+  --btn-bord-survol: var(--cnam-blue);
+}
+
+.ui-btn--fantome {
+  --btn-fond: transparent;
+  --btn-bord: transparent;
+  --btn-texte: var(--couleur-texte-doux);
+  --btn-fond-survol: var(--couleur-surface-survol);
+  --btn-bord-survol: transparent;
+}
+
+.ui-btn--danger {
+  --btn-fond: var(--couleur-erreur);
+  --btn-texte: var(--gris-0);
+  --btn-bord: var(--couleur-erreur);
+  --btn-fond-survol: #991b1b;
+  --btn-bord-survol: #991b1b;
+}
+
+/* L'arrêt et l'injection : orange de la charte, texte encre. */
+.ui-btn--alerte {
+  --btn-fond: var(--couleur-alerte-fond);
+  --btn-texte: var(--couleur-alerte);
+  --btn-bord: var(--couleur-alerte-bord);
+  --btn-fond-survol: color-mix(in srgb, var(--cnam-orange) 20%, var(--couleur-surface));
+  --btn-bord-survol: var(--cnam-orange);
+}
+
+.ui-btn--petit {
+  min-height: 32px;
+  padding: 0 var(--espace-3);
+  font-size: var(--texte-xs);
+}
+
+.ui-btn--grand {
+  min-height: 48px;
+  padding: 0 var(--espace-6);
+  font-size: var(--texte-md);
+}
+
+.ui-btn--icone {
+  width: 40px;
+  padding: 0;
+}
+
+/* Pendant une requête : le libellé reste lu, le bouton ne se
+   redimensionne pas, un anneau tourne à sa place. */
+.ui-btn[aria-busy="true"] {
+  color: transparent;
+  pointer-events: none;
+}
+
+.ui-btn[aria-busy="true"]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--btn-texte);
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: ui-tourne 700ms linear infinite;
+}
+
+/* ── Champs de formulaire ──────────────────────────────────────── */
+
+.ui-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-1);
+  min-width: 0;
+}
+
+.ui-label {
+  font-size: var(--texte-sm);
+  font-weight: var(--graisse-forte);
+  color: var(--couleur-texte);
+}
+
+.ui-label-optionnel {
+  font-weight: var(--graisse-normale);
+  color: var(--couleur-texte-faible);
+}
+
+.ui-input,
+.ui-select,
+.ui-textarea {
+  width: 100%;
+  min-height: 42px;
+  padding: var(--espace-2) var(--espace-3);
+  border: 1px solid var(--couleur-bord);
+  border-radius: var(--rayon-xs);
+  background: var(--couleur-surface);
+  color: var(--couleur-texte);
+  font: inherit;
+  font-size: var(--texte-md);
+  transition:
+    border-color var(--duree-rapide) var(--courbe),
+    box-shadow var(--duree-rapide) var(--courbe);
+}
+
+.ui-textarea {
+  min-height: 96px;
+  resize: vertical;
+}
+
+.ui-input::placeholder,
+.ui-textarea::placeholder {
+  color: var(--couleur-texte-faible);
+}
+
+.ui-input:hover:not(:disabled),
+.ui-select:hover:not(:disabled),
+.ui-textarea:hover:not(:disabled) {
+  border-color: var(--couleur-bord-fort);
+}
+
+.ui-input:focus,
+.ui-select:focus,
+.ui-textarea:focus {
+  outline: none;
+  border-color: var(--couleur-focus);
+  box-shadow: var(--ombre-focus);
+}
+
+.ui-input:disabled,
+.ui-select:disabled,
+.ui-textarea:disabled {
+  background: var(--couleur-surface-douce);
+  color: var(--couleur-texte-faible);
+  cursor: not-allowed;
+}
+
+.ui-input[aria-invalid="true"],
+.ui-select[aria-invalid="true"],
+.ui-textarea[aria-invalid="true"] {
+  border-color: var(--couleur-erreur-vif);
+}
+
+.ui-input[aria-invalid="true"]:focus,
+.ui-select[aria-invalid="true"]:focus,
+.ui-textarea[aria-invalid="true"]:focus {
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.2);
+}
+
+.ui-hint {
+  font-size: var(--texte-xs);
+  color: var(--couleur-texte-doux);
+}
+
+.ui-field-error {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--espace-1);
+  font-size: var(--texte-xs);
+  font-weight: var(--graisse-moyenne);
+  color: var(--couleur-erreur);
+}
+
+.ui-check {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espace-2);
+  font-size: var(--texte-sm);
+  cursor: pointer;
+}
+
+.ui-check input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--couleur-action);
+  cursor: pointer;
+}
+
+/* ── Cartes ────────────────────────────────────────────────────── */
+
+.ui-card {
+  background: var(--couleur-surface);
+  border: 1px solid var(--couleur-bord);
+  border-radius: var(--rayon-md);
+  box-shadow: var(--ombre-2);
+  padding: var(--espace-6);
+}
+
+.ui-card--interactive {
+  cursor: pointer;
+  transition:
+    box-shadow var(--duree) var(--courbe),
+    border-color var(--duree) var(--courbe),
+    transform var(--duree) var(--courbe);
+}
+
+.ui-card--interactive:hover {
+  border-color: var(--cnam-blue-border);
+  box-shadow: var(--ombre-3);
+  transform: translateY(-2px);
+}
+
+.ui-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--espace-4);
+  margin-bottom: var(--espace-4);
+}
+
+.ui-card-title {
+  font-size: var(--texte-lg);
+  font-weight: var(--graisse-titre);
+  line-height: var(--interligne-serre);
+  color: var(--couleur-texte);
+}
+
+.ui-card-subtitle {
+  margin-top: var(--espace-1);
+  font-size: var(--texte-sm);
+  color: var(--couleur-texte-doux);
+}
+
+/* Sur-titre de section : petit, espacé, lisible (AA). */
+.ui-eyebrow {
+  font-size: var(--texte-2xs);
+  font-weight: var(--graisse-titre);
+  letter-spacing: var(--approche-majuscules);
+  text-transform: uppercase;
+  color: var(--couleur-texte-faible);
+}
+
+/* ── Tableaux ──────────────────────────────────────────────────── */
+
+/* Le tableau défile seul, jamais la page entière. */
+.ui-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--couleur-bord);
+  border-radius: var(--rayon-md);
+  background: var(--couleur-surface);
+  -webkit-overflow-scrolling: touch;
+}
+
+.ui-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--texte-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.ui-table th {
+  position: sticky;
+  top: 0;
+  padding: var(--espace-3) var(--espace-4);
+  background: var(--couleur-surface-douce);
+  border-bottom: 1px solid var(--couleur-bord);
+  color: var(--couleur-texte-doux);
+  font-size: var(--texte-2xs);
+  font-weight: var(--graisse-titre);
+  letter-spacing: 0.06em;
+  text-align: left;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.ui-table td {
+  padding: var(--espace-3) var(--espace-4);
+  border-bottom: 1px solid var(--couleur-bord-doux);
+  color: var(--couleur-texte);
+  vertical-align: middle;
+}
+
+.ui-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.ui-table tbody tr {
+  transition: background-color var(--duree-rapide) var(--courbe);
+}
+
+.ui-table tbody tr:hover {
+  background: var(--couleur-surface-douce);
+}
+
+.ui-table tbody tr[aria-selected="true"] {
+  background: var(--cnam-blue-light);
+}
+
+.ui-table .ui-num {
+  text-align: right;
+}
+
+.ui-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espace-3);
+  padding: var(--espace-3) var(--espace-4);
+  font-size: var(--texte-sm);
+  color: var(--couleur-texte-doux);
+}
+
+/* ── Badges ────────────────────────────────────────────────────── */
+
+.ui-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espace-1);
+  padding: 2px var(--espace-2);
+  border: 1px solid var(--couleur-bord);
+  border-radius: var(--rayon-pilule);
+  background: var(--couleur-surface-douce);
+  color: var(--couleur-texte-doux);
+  font-size: var(--texte-2xs);
+  font-weight: var(--graisse-titre);
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.ui-badge--succes {
+  background: var(--couleur-succes-fond);
+  border-color: var(--couleur-succes-bord);
+  color: var(--couleur-succes);
+}
+
+.ui-badge--alerte {
+  background: var(--couleur-alerte-fond);
+  border-color: var(--couleur-alerte-bord);
+  color: var(--couleur-alerte);
+}
+
+.ui-badge--erreur {
+  background: var(--couleur-erreur-fond);
+  border-color: var(--couleur-erreur-bord);
+  color: var(--couleur-erreur);
+}
+
+.ui-badge--info {
+  background: var(--couleur-info-fond);
+  border-color: var(--couleur-info-bord);
+  color: var(--couleur-info);
+}
+
+/* Une pastille devant le libellé : l'état se lit aussi sans couleur,
+   grâce au texte qui la suit. */
+.ui-badge--point::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* ── Alertes (messages dans la page) ───────────────────────────── */
+
+.ui-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--espace-3);
+  padding: var(--espace-3) var(--espace-4);
+  border: 1px solid var(--couleur-info-bord);
+  border-left-width: 4px;
+  border-radius: var(--rayon-xs);
+  background: var(--couleur-info-fond);
+  color: var(--couleur-texte);
+  font-size: var(--texte-sm);
+  line-height: var(--interligne);
+}
+
+.ui-alert-title {
+  display: block;
+  font-weight: var(--graisse-titre);
+}
+
+.ui-alert--succes {
+  border-color: var(--couleur-succes-bord);
+  border-left-color: var(--couleur-succes);
+  background: var(--couleur-succes-fond);
+}
+
+.ui-alert--alerte {
+  border-color: var(--couleur-alerte-bord);
+  border-left-color: var(--cnam-orange);
+  background: var(--couleur-alerte-fond);
+}
+
+.ui-alert--erreur {
+  border-color: var(--couleur-erreur-bord);
+  border-left-color: var(--couleur-erreur-vif);
+  background: var(--couleur-erreur-fond);
+  color: var(--couleur-erreur);
+}
+
+.ui-alert--info {
+  border-left-color: var(--couleur-info);
+}
+
+/* ── Onglets ───────────────────────────────────────────────────── */
+
+.ui-tabs {
+  display: flex;
+  gap: var(--espace-1);
+  border-bottom: 1px solid var(--couleur-bord);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.ui-tab {
+  position: relative;
+  padding: var(--espace-3) var(--espace-4);
+  border: 0;
+  background: transparent;
+  color: var(--couleur-texte-doux);
+  font: inherit;
+  font-size: var(--texte-sm);
+  font-weight: var(--graisse-forte);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color var(--duree-rapide) var(--courbe);
+}
+
+.ui-tab::after {
+  content: "";
+  position: absolute;
+  left: var(--espace-2);
+  right: var(--espace-2);
+  bottom: -1px;
+  height: 3px;
+  border-radius: 3px 3px 0 0;
+  background: var(--couleur-nav);
+  transform: scaleX(0);
+  transition: transform var(--duree) var(--courbe-sortie);
+}
+
+.ui-tab:hover {
+  color: var(--couleur-texte);
+}
+
+.ui-tab[aria-selected="true"] {
+  color: var(--couleur-lien);
+}
+
+.ui-tab[aria-selected="true"]::after {
+  transform: scaleX(1);
+}
+
+/* ── Menus déroulants ──────────────────────────────────────────── */
+
+.ui-menu {
+  min-width: 200px;
+  padding: var(--espace-1);
+  border: 1px solid var(--couleur-bord);
+  border-radius: var(--rayon-sm);
+  background: var(--couleur-surface);
+  box-shadow: var(--ombre-3);
+  animation: ui-apparait var(--duree-rapide) var(--courbe-sortie);
+}
+
+.ui-menu-item {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-2);
+  width: 100%;
+  padding: var(--espace-2) var(--espace-3);
+  border: 0;
+  border-radius: var(--rayon-xs);
+  background: transparent;
+  color: var(--couleur-texte);
+  font: inherit;
+  font-size: var(--texte-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.ui-menu-item:hover,
+.ui-menu-item:focus-visible {
+  background: var(--couleur-surface-survol);
+}
+
+/* ── Modales (élément <dialog>) ────────────────────────────────── */
+
+.ui-modal {
+  width: min(560px, calc(100vw - 32px));
+  max-height: calc(100vh - 64px);
+  margin: auto;
+  padding: 0;
+  border: 0;
+  border-radius: var(--rayon-md);
+  background: var(--couleur-surface);
+  color: var(--couleur-texte);
+  box-shadow: var(--ombre-4);
+}
+
+.ui-modal[open] {
+  animation: ui-modale-entree var(--duree-lente) var(--courbe-sortie);
+}
+
+.ui-modal::backdrop {
+  background: var(--couleur-voile);
+  backdrop-filter: blur(2px);
+}
+
+.ui-modal-head,
+.ui-modal-body,
+.ui-modal-foot {
+  padding: var(--espace-5) var(--espace-6);
+}
+
+.ui-modal-head {
+  border-bottom: 1px solid var(--couleur-bord-doux);
+}
+
+.ui-modal-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--espace-3);
+  border-top: 1px solid var(--couleur-bord-doux);
+  background: var(--couleur-surface-douce);
+}
+
+/* ── Toasts ────────────────────────────────────────────────────── */
+
+.ui-toasts {
+  position: fixed;
+  right: var(--espace-6);
+  bottom: var(--espace-6);
+  z-index: var(--z-toast);
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-2);
+  width: min(380px, calc(100vw - 32px));
+  pointer-events: none;
+}
+
+.ui-toast {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--espace-3);
+  padding: var(--espace-3) var(--espace-4);
+  border: 1px solid var(--couleur-bord);
+  border-left: 4px solid var(--couleur-info);
+  border-radius: var(--rayon-sm);
+  background: var(--couleur-surface);
+  box-shadow: var(--ombre-3);
+  font-size: var(--texte-sm);
+  pointer-events: auto;
+  animation: ui-toast-entree var(--duree-lente) var(--courbe-sortie);
+}
+
+.ui-toasts-pile {
+  display: contents;
+}
+
+.ui-toast-corps {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ui-toast-titre {
+  font-weight: var(--graisse-forte);
+  color: var(--couleur-texte);
+}
+
+.ui-toast-detail {
+  color: var(--couleur-texte-doux);
+  overflow-wrap: anywhere;
+}
+
+.ui-toast-fermer {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin: -4px -6px 0 0;
+  border: 0;
+  border-radius: var(--rayon-xs);
+  background: transparent;
+  color: var(--couleur-texte-faible);
+  cursor: pointer;
+  transition: background-color var(--duree-rapide) var(--courbe), color var(--duree-rapide) var(--courbe);
+}
+
+.ui-toast-fermer:hover {
+  background: var(--couleur-surface-survol);
+  color: var(--couleur-texte);
+}
+
+@media (max-width: 600px) {
+  .ui-toasts {
+    right: var(--espace-4);
+    bottom: var(--espace-4);
+    left: var(--espace-4);
+    width: auto;
+  }
+}
+
+.ui-toast--succes { border-left-color: var(--couleur-succes); }
+.ui-toast--alerte { border-left-color: var(--cnam-orange); }
+.ui-toast--erreur { border-left-color: var(--couleur-erreur-vif); }
+
+/* ── Chargement ────────────────────────────────────────────────── */
+
+.ui-spinner {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--couleur-bord);
+  border-top-color: var(--couleur-nav);
+  border-radius: 50%;
+  animation: ui-tourne 700ms linear infinite;
+}
+
+.ui-spinner--petit {
+  width: 14px;
+  height: 14px;
+}
+
+/* Sur un bouton plein : anneau blanc. */
+.ui-spinner--inverse {
+  border-color: rgba(255, 255, 255, 0.35);
+  border-top-color: var(--gris-0);
+}
+
+.ui-spinner--grand {
+  width: 32px;
+  height: 32px;
+  border-width: 3px;
+}
+
+/* Squelette : la forme de ce qui arrive, pas un écran blanc. */
+.ui-skeleton {
+  display: block;
+  border-radius: var(--rayon-xs);
+  background: linear-gradient(
+    90deg,
+    var(--couleur-bord-doux) 0%,
+    var(--couleur-surface-douce) 50%,
+    var(--couleur-bord-doux) 100%
+  );
+  background-size: 200% 100%;
+  animation: ui-miroite 1.4s ease-in-out infinite;
+}
+
+.ui-skeleton--texte {
+  height: 0.9em;
+  margin: 0.3em 0;
+}
+
+.ui-skeleton--titre {
+  height: 1.4em;
+  width: 40%;
+}
+
+.ui-progress {
+  width: 100%;
+  height: 6px;
+  overflow: hidden;
+  border-radius: var(--rayon-pilule);
+  background: var(--couleur-bord-doux);
+}
+
+.ui-progress-bar {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--couleur-action);
+  transform-origin: left;
+  transition: width var(--duree-lente) var(--courbe);
+}
+
+/* ── États vides ───────────────────────────────────────────────── */
+
+.ui-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--espace-2);
+  padding: var(--espace-10) var(--espace-6);
+  border: 1px dashed var(--couleur-bord);
+  border-radius: var(--rayon-md);
+  background: var(--couleur-surface);
+  color: var(--couleur-texte-doux);
+  text-align: center;
+}
+
+.ui-empty-title {
+  font-size: var(--texte-md);
+  font-weight: var(--graisse-forte);
+  color: var(--couleur-texte);
+}
+
+.ui-empty-text {
+  max-width: 48ch;
+  font-size: var(--texte-sm);
+}
+
+/* ── Animations ────────────────────────────────────────────────── */
+
+@keyframes ui-tourne {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes ui-miroite {
+  from { background-position: 100% 0; }
+  to { background-position: -100% 0; }
+}
+
+@keyframes ui-apparait {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes ui-modale-entree {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes ui-toast-entree {
+  from { opacity: 0; transform: translateX(16px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-skeleton {
+    animation: none;
+  }
+}

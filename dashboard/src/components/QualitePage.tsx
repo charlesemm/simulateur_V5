@@ -97,6 +97,8 @@ export function QualitePage() {
   }, [analyser]);
 
   const doublonsReels = paires.filter((paire) => paire.meme_personne).length;
+  // Première analyse : rien encore à montrer, on dessine la forme qui vient.
+  const premierChargement = chargement && rapport === null;
 
   return (
     <div className="screen">
@@ -108,9 +110,10 @@ export function QualitePage() {
       <section>
         <h2 className="screen-section-title">Périmètre analysé</h2>
         <div className="alea-carte">
+          <label className="champ-groupe">
+          <span className="champ-libelle">Exécution à analyser</span>
           <select
             className="champ-console"
-            style={{ maxWidth: 420 }}
             value={selection}
             onChange={(evenement) => setSelection(evenement.target.value)}
           >
@@ -122,14 +125,34 @@ export function QualitePage() {
               </option>
             ))}
           </select>
-          <button className="btn btn-start" onClick={() => void analyser()} disabled={chargement}>
+          </label>
+          <button
+            className="btn btn-start"
+            onClick={() => void analyser()}
+            disabled={chargement}
+            aria-busy={chargement}
+          >
+            {chargement && (
+              <span className="ui-spinner ui-spinner--petit ui-spinner--inverse" aria-hidden="true" />
+            )}
             {chargement ? "Analyse…" : "Analyser"}
           </button>
         </div>
       </section>
 
+      {premierChargement && (
+        <section aria-busy="true" aria-label="Analyse en cours">
+          <h2 className="screen-section-title">Constats par dimension</h2>
+          <div className="stat-strip">
+            {[0, 1, 2, 3].map((tuile) => (
+              <span key={tuile} className="ui-skeleton" style={{ height: 128 }} />
+            ))}
+          </div>
+        </section>
+      )}
+
       {rapport && (
-        <>
+        <div className={`resultat-qualite${chargement ? " en-recalcul" : ""}`} aria-busy={chargement}>
           <section>
             <h2 className="screen-section-title">Constats par dimension</h2>
             <div className="stat-strip">
@@ -161,11 +184,11 @@ export function QualitePage() {
                   <thead>
                     <tr>
                       <th>Type d'anomalie</th>
-                      <th>Taux demandé</th>
-                      <th>Injectées</th>
-                      <th>Détectées</th>
-                      <th>Écart</th>
-                      <th>Taux de détection</th>
+                      <th className="num">Taux demandé</th>
+                      <th className="num">Injectées</th>
+                      <th className="num">Détectées</th>
+                      <th className="num">Écart</th>
+                      <th className="num">Taux de détection</th>
                       <th>Règles</th>
                     </tr>
                   </thead>
@@ -175,15 +198,15 @@ export function QualitePage() {
                       return (
                       <tr key={ligne.anomalie_code}>
                         <td>{ligne.anomalie_code}</td>
-                        <td>{ligne.taux_demande_pourcent} %</td>
-                        <td>{ligne.injectees}</td>
-                        <td>{ligne.detectees}</td>
-                        <td>
+                        <td className="num">{ligne.taux_demande_pourcent} %</td>
+                        <td className="num">{ligne.injectees}</td>
+                        <td className="num">{ligne.detectees}</td>
+                        <td className="num">
                           <span className={`ecart ecart--${ecart.niveau}`}>
                             {ecart.libelle}
                           </span>
                         </td>
-                        <td>
+                        <td className="num">
                           {ligne.taux_detection_pourcent === null
                             ? "—"
                             : `${ligne.taux_detection_pourcent} %`}
@@ -196,7 +219,7 @@ export function QualitePage() {
                 </table>
               </div>
             )}
-            <p className="stat-tile-hint ecart-haut-s">
+            <p className="fiche-note">
               Un taux de détection inférieur à 100 % n'est pas forcément un défaut :
               une date antidatée de moins d'une semaine échappe à sa règle par
               construction, pour ne pas confondre avec l'aléa d'horloge décalée.
@@ -211,7 +234,7 @@ export function QualitePage() {
                   <tr>
                     <th>Règle</th>
                     <th>Dimension</th>
-                    <th>Constats</th>
+                    <th className="num">Constats</th>
                     <th>Exemple</th>
                   </tr>
                 </thead>
@@ -225,7 +248,7 @@ export function QualitePage() {
                         )}
                       </td>
                       <td>{regle.dimension}</td>
-                      <td>{regle.constats}</td>
+                      <td className="num">{regle.constats}</td>
                       <td>
                         {regle.exemples.length === 0
                           ? "—"
@@ -237,11 +260,18 @@ export function QualitePage() {
               </table>
             </div>
           </section>
-        </>
+        </div>
       )}
 
       <section>
-        <h2 className="screen-section-title">Vérité terrain du rapprochement</h2>
+        <div className="screen-section-head">
+          <h2 className="screen-section-title">Vérité terrain du rapprochement</h2>
+          {paires.length > 25 && (
+            <span className="screen-section-compte">
+              25 premières paires sur {paires.length}
+            </span>
+          )}
+        </div>
         {paires.length === 0 ? (
           <EtatBloc ton="vide">
             Aucune identité jumelle sur ce périmètre. Lancez une simulation de
@@ -264,7 +294,7 @@ export function QualitePage() {
                 <span className="stat-tile-hint">Homonymes à ne pas rapprocher</span>
               </div>
             </div>
-            <div className="screen-table-wrap ecart-haut-m">
+            <div className="screen-table-wrap bloc-suite">
               <table className="screen-table">
                 <thead>
                   <tr>
@@ -278,10 +308,10 @@ export function QualitePage() {
                     <tr key={paire.paire_id}>
                       <td>{paire.type_variation}</td>
                       <td>
+                        {/* « Non » n'est pas une erreur : c'est un leurre voulu,
+                            un homonyme à ne pas rapprocher. Neutre, pas rouge. */}
                         <span
-                          className={`pastille pastille-${
-                            paire.meme_personne ? "en_cours" : "echouee"
-                          }`}
+                          className={`pastille${paire.meme_personne ? " pastille-en_cours" : ""}`}
                         >
                           {paire.meme_personne ? "oui" : "non"}
                         </span>
