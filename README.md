@@ -8,7 +8,7 @@ Plateforme de simulation haute performance du parcours de soins CMU (Caisse Nati
 
 Deux façons de lancer le projet : **sans conteneur** (tout en local) ou avec
 **Podman** pour PostgreSQL + l'API (option recommandée au quotidien — voir le
-détail complet dans [GUIDE_PODMAN.md](GUIDE_PODMAN.md)).
+détail complet dans [GUIDE_PODMAN.md](docs/GUIDE_PODMAN.md)).
 
 ### Option A — Routine du matin avec Podman
 
@@ -27,7 +27,7 @@ npm run dev
 *(sans cette étape, [http://localhost:8000](http://localhost:8000) sert directement la version compilée du dashboard — rien à lancer côté front.)*
 
 Premier lancement seulement : suivre les étapes 2 et 4 de
-[GUIDE_PODMAN.md](GUIDE_PODMAN.md) (`.env` avec `JWT_SECRET_KEY`, puis créer le
+[GUIDE_PODMAN.md](docs/GUIDE_PODMAN.md) (`.env` avec `JWT_SECRET_KEY`, puis créer le
 premier administrateur).
 
 ### Option B — Tout en local, sans conteneur
@@ -40,19 +40,20 @@ copy .env.exemple .env
 ```
 
 Renseigne `DATABASE_URL` avec ton mot de passe PostgreSQL local :
-`postgresql+asyncpg://postgres:VOTRE_MOT_DE_PASSE@localhost:5432/cmu_simulator`
+`postgresql+asyncpg://postgres:VOTRE_MOT_DE_PASSE@localhost:5432/echo_db_v2`
 
 #### 2. Base de données, migrations et données
 ```powershell
 .\.venv\Scripts\Activate.ps1
+$env:PYTHONPATH = "src"   # le code vit sous src/echo/
 python -m alembic upgrade head
-python -m auth.bootstrap
-python -m seed
+python -m echo.web.auth.bootstrap
+python -m echo.moteur.seed
 ```
 
 #### 3. Démarrage de l'API & WebSocket
 ```powershell
-uvicorn api.main:app --reload --host 127.0.0.1 --port 8000
+uvicorn echo.web.api.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
 #### 4. Démarrage du Dashboard Frontend
@@ -100,25 +101,21 @@ systématique.
 ## 🏗️ Architecture du Projet
 
 ```text
-simulateur_v5/
-├── api/                     ← Endpoints REST FastAPI & WebSocket Socket.IO
-│   ├── main.py              ← Point d'entrée ASGI & configuration CORS
-│   └── routes/              ← Routes (auth, simulation, métriques, rapports)
-├── app/                     ← Configuration DB SQLAlchemy asynchrone & modèles
-├── auth/                    ← Authentification JWT, hash bcrypt & bootstrap admin
-├── dashboard/               ← Frontend SPA (React 19 + TypeScript + Vite + Tailwind/CSS)
-│   ├── src/                 ← Composants télémétrie, graphiques Recharts & cockpit
-│   └── nginx.conf           ← Configuration Nginx conservée pour la mise en production
-├── events/                  ← Bus d'événements asynchrone interne
-├── kpi/                     ← Calculateurs d'agrégations et métriques temps réel
-├── metrics/                 ← Registre de métriques système (Prometheus / SRE)
-├── realtime/                ← Gestionnaire des connexions Socket.IO
-├── reports/                 ← Générateur de rapports PDF / Excel
-├── seed/                    ← Scripts d'alimentation des données de santé
-├── simulation/              ← Moteur de simulation (passages de soins, agents, files)
-├── alembic/                 ← Migrations de schéma PostgreSQL
-└── .github/workflows/       ← Pipeline CI/CD GitHub Actions (tests, build, image)
+simulateur_V5/
+├── src/echo/
+│   ├── moteur/        ← simulation (passages, aléas), bus d'événements, temps réel, seed
+│   ├── metier/        ← anomalies, campagnes, qualité, témoin, MDM, entrepôt, gouvernance, KPI
+│   └── web/           ← API FastAPI (routers), base, authentification, métriques, rapports
+├── dashboard/         ← SPA React 19 + TypeScript + Vite + Recharts
+├── alembic/           ← migrations PostgreSQL (socle unique ; anciennes migrations archivées)
+├── schema_mirka/      ← sources du schéma de référence TB_SIM_*
+├── tools/             ← scripts de génération et de vérification
+├── tests/             ← suite pytest
+├── deploiement/       ← compose de production, Caddy, nginx, sauvegarde
+└── docs/              ← documentation complète
 ```
+
+**Documentation complète : [docs/README.md](docs/README.md)** — architecture, référence de l'API, modèle de données, moteur et anomalies, campagnes qualité, dashboard, configuration et sécurité, guide du développeur.
 
 ---
 
@@ -176,16 +173,16 @@ Le tableau de bord est un **cockpit de supervision et d'observabilité 100% tech
 ## 🚀 Conteneurisation, CI/CD et déploiement
 
 **Lancer le projet en conteneurs** (PostgreSQL + API + dashboard, en une
-commande) : voir **[GUIDE_PODMAN.md](GUIDE_PODMAN.md)**. Le `Containerfile` et
+commande) : voir **[GUIDE_PODMAN.md](docs/GUIDE_PODMAN.md)**. Le `Containerfile` et
 le `compose.yaml` sont à la racine.
 
-**Le pipeline** (`.github/workflows/ci.yml`) : voir **[GUIDE_CICD.md](GUIDE_CICD.md)**.
+**Le pipeline** (`.github/workflows/ci.yml`) : voir **[GUIDE_CICD.md](docs/GUIDE_CICD.md)**.
 À chaque poussée, il vérifie que le code compile, que les migrations passent sur
 une base vierge, que les tests sont verts, que l'API démarre et que le dashboard
 se construit. Sur `main` et sur les tags de version, il publie en plus l'image
 sur GHCR (`ghcr.io/charlesemm/simulateur_v5`).
 
-**Déploiement sur un serveur** : voir **[GUIDE_DEPLOIEMENT.md](GUIDE_DEPLOIEMENT.md)**.
+**Déploiement sur un serveur** : voir **[GUIDE_DEPLOIEMENT.md](docs/GUIDE_DEPLOIEMENT.md)**.
 Le pipeline s'arrête à une image publiée ; le serveur la tire. Les fichiers de
 production sont dans `deploiement/` — un compose qui installe l'image au lieu de
 la construire, Caddy pour le TLS, et le script de sauvegarde de la base. La mise

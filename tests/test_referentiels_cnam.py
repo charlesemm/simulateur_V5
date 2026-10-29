@@ -8,9 +8,9 @@ from __future__ import annotations
 import re
 from decimal import Decimal
 
-from seed.constants import HEALTH_CENTER_TYPES
-from seed.donnees import ETABLISSEMENTS, MEDICAMENTS, PHARMACIES, lire
-from seed.runner import (
+from echo.moteur.seed.constants import HEALTH_CENTER_TYPES
+from echo.moteur.seed.donnees import ETABLISSEMENTS, MEDICAMENTS, PHARMACIES, lire
+from echo.moteur.seed.runner import (
     MEDECINS_CONSEILS, build_agents, build_collectivites, build_dci,
     build_health_centers, build_localisation, build_medications,
     build_pharmacies, build_professionals, calculate_ean13,
@@ -97,9 +97,9 @@ def test_les_918_medicaments_gardent_le_prix_publie_quand_il_existe():
     assert len(medicaments) == len(LISTE_CMU) == 918
     assert len({ligne["medicament_code"] for ligne in medicaments}) == 918
     for source, medicament in zip(LISTE_CMU, medicaments):
-        assert medicament["medicament_tarif_default"] > 0
+        assert medicament["medicament_tarif_defaut"] > 0
         if source["prix_fcfa"]:
-            assert medicament["medicament_tarif_default"] == Decimal(source["prix_fcfa"])
+            assert medicament["medicament_tarif_defaut"] == Decimal(source["prix_fcfa"])
         ean = medicament["medicament_ean13"]
         assert len(ean) == 13 and ean.startswith("618")
         assert calculate_ean13(ean[:12]) == ean

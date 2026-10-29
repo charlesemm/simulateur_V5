@@ -11,10 +11,10 @@ from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select
 
-from app.database import async_session_factory
-from app.models import Invoice
-from events.models import EventJournal
-from kpi.service import TAILLE_LOT, KpiService, _lignes_par_lots
+from echo.web.app.database import async_session_factory
+from echo.web.app.models import Invoice
+from echo.moteur.events.models import EventJournal
+from echo.metier.kpi.service import TAILLE_LOT, KpiService, _lignes_par_lots
 
 # Au-delà de la limite d'asyncpg : la requête doit malgré tout aboutir.
 AU_DELA_DE_LA_LIMITE = 40_000

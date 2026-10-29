@@ -6,14 +6,14 @@ import uuid
 import pytest
 from sqlalchemy import func, select
 
-from app.database import async_session_factory
-from app.models import Invoice, InvoiceProvision, InvoiceStatus, PriorAuthorization
-from events import publish_simulation_event
-from events.models import EventJournal
-from simulation.passage import PassageSimulation
-from simulation.purge import compter, purger
-from simulation.runs import ouvrir_execution
-from simulation_config import DEFAULT_CONFIG
+from echo.web.app.database import async_session_factory
+from echo.web.app.models import Invoice, InvoiceProvision, InvoiceStatus, PriorAuthorization
+from echo.moteur.events import publish_simulation_event
+from echo.moteur.events.models import EventJournal
+from echo.moteur.simulation.passage import PassageSimulation
+from echo.moteur.simulation.purge import compter, purger
+from echo.moteur.simulation.runs import ouvrir_execution
+from echo.moteur.simulation_config import DEFAULT_CONFIG
 from tests.conftest import ASSURE_COUVERT
 
 
@@ -77,7 +77,7 @@ async def test_la_fiche_d_un_assure_inconnu_est_introuvable(client_api):
 async def test_le_rapport_expose_le_taux_demande(client_api):
     """L'écran Qualité compare ce qui a été demandé à ce qui a été fait."""
 
-    from anomalies.catalogue import MONTANT_ABERRANT
+    from echo.metier.anomalies.catalogue import MONTANT_ABERRANT
 
     simulation_id = await ouvrir_execution(
         {"vitesse": 60, "anomalies": {MONTANT_ABERRANT: {"taux": 0.4}}}
@@ -176,7 +176,7 @@ async def test_la_purge_conserve_l_execution_elle_meme(base_vierge):
     """Le statut et les compteurs restent l'historique de ce qui a eu lieu."""
 
     del base_vierge
-    from simulation.models import SimulationRun
+    from echo.moteur.simulation.models import SimulationRun
 
     simulation_id = await ouvrir_execution({"vitesse": 60})
     await jouer(simulation_id)

@@ -12,10 +12,10 @@
 #
 # Le pipeline s'arrête à l'image : il ne se connecte à aucun serveur. La mise
 # en production consiste à tirer cette image depuis la machine cible, et reste
-# lancée à la main — voir GUIDE_DEPLOIEMENT.md et le dossier « deploiement/ ».
+# lancée à la main — voir docs/GUIDE_DEPLOIEMENT.md et le dossier « deploiement/ ».
 # L'automatiser depuis ici est le point ouvert du chantier X2.
 #
-# Documentation : GUIDE_CICD.md
+# Documentation : docs/GUIDE_CICD.md
 
 name: CI/CD — Tests, Build & Image
 
@@ -38,11 +38,11 @@ permissions:
 env:
   POSTGRES_USER: postgres
   POSTGRES_PASSWORD: ci_test_password
-  POSTGRES_DB: cmu_simulator
+  POSTGRES_DB: echo_db_v2
   JWT_SECRET_KEY: ci-jwt-secret-not-for-production
-  # Base de travail. La suite de tests en dérive « cmu_simulator_test » et
+  # Base de travail. La suite de tests en dérive « echo_db_v2_test » et
   # refuse de démarrer si les deux coïncident : elle tronque les tables.
-  DATABASE_URL: postgresql+asyncpg://postgres:ci_test_password@localhost:5432/cmu_simulator
+  DATABASE_URL: postgresql+asyncpg://postgres:ci_test_password@localhost:5432/echo_db_v2
   CORS_ORIGINS: http://localhost:5173
 
 jobs:
@@ -57,7 +57,7 @@ jobs:
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: ci_test_password
-          POSTGRES_DB: cmu_simulator
+          POSTGRES_DB: echo_db_v2
         ports:
           - 5432:5432
         options: >-
@@ -83,7 +83,7 @@ jobs:
         run: pip install --require-hashes -r requirements-dev.lock
 
       - name: Vérifier la syntaxe Python
-        run: python -m compileall app api auth events kpi metrics realtime reports seed simulation
+        run: python -m compileall src
 
       - name: Appliquer les migrations Alembic
         run: python -m alembic upgrade head
@@ -95,7 +95,7 @@ jobs:
           PGPASSWORD: ci_test_password
         run: |
           psql -h localhost -U postgres -d postgres \
-            -c "CREATE DATABASE cmu_simulator_test"
+            -c "CREATE DATABASE echo_db_v2_test"
 
       - name: Tests — pytest
         run: python -m pytest
@@ -106,9 +106,7 @@ jobs:
       - name: Audit du code — bandit
         continue-on-error: true
         run: >-
-          python -m bandit -r -q
-          anomalies api app auth campagnes entrepot events gouvernance kpi
-          mdm metrics qualite realtime reports seed simulation temoin
+          python -m bandit -r -q src
 
       - name: Audit des dépendances — pip-audit
         continue-on-error: true
@@ -116,7 +114,7 @@ jobs:
 
       - name: Smoke test — l'API démarre et répond /health
         run: |
-          uvicorn api.main:app --host 127.0.0.1 --port 8765 &
+          uvicorn --app-dir src echo.web.api.main:app --host 127.0.0.1 --port 8765 &
           SERVER_PID=$!
           for i in $(seq 1 30); do
             if curl -sf http://127.0.0.1:8765/health; then

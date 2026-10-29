@@ -10,14 +10,14 @@ import uuid
 
 from sqlalchemy import select
 
-from app.database import async_session_factory
-from app.models import Invoice, InvoiceProvision, InvoiceStatus
-from events.models import EventJournal
-from events import publish_simulation_event
-from simulation.models import STATUT_ARRETEE, STATUT_EN_COURS, SimulationRun
-from simulation.passage import PassageSimulation
-from simulation.runs import cloturer_execution, ouvrir_execution
-from simulation_config import DEFAULT_CONFIG
+from echo.web.app.database import async_session_factory
+from echo.web.app.models import Invoice, InvoiceProvision, InvoiceStatus
+from echo.moteur.events.models import EventJournal
+from echo.moteur.events import publish_simulation_event
+from echo.moteur.simulation.models import STATUT_ARRETEE, STATUT_EN_COURS, SimulationRun
+from echo.moteur.simulation.passage import PassageSimulation
+from echo.moteur.simulation.runs import cloturer_execution, ouvrir_execution
+from echo.moteur.simulation_config import DEFAULT_CONFIG
 from tests.conftest import ASSURE_COUVERT
 
 

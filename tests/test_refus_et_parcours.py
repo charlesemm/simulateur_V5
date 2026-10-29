@@ -6,16 +6,16 @@ from datetime import datetime, timezone
 
 from sqlalchemy import func, select
 
-from app.database import async_session_factory
-from app.models import Invoice
-from events import DomainEvent, EventBus
-from events import publish_simulation_event
-from realtime.parcours_consumer import ParcoursConsumer
-from simulation.models import RefusAccueil
-from simulation.passage import PassageSimulation
-from simulation.purge import purger
-from simulation.runs import ouvrir_execution
-from simulation_config import DEFAULT_CONFIG
+from echo.web.app.database import async_session_factory
+from echo.web.app.models import Invoice
+from echo.moteur.events import DomainEvent, EventBus
+from echo.moteur.events import publish_simulation_event
+from echo.moteur.realtime.parcours_consumer import ParcoursConsumer
+from echo.moteur.simulation.models import RefusAccueil
+from echo.moteur.simulation.passage import PassageSimulation
+from echo.moteur.simulation.purge import purger
+from echo.moteur.simulation.runs import ouvrir_execution
+from echo.moteur.simulation_config import DEFAULT_CONFIG
 from tests.conftest import ASSURE_COUVERT, ASSURE_SANS_DROITS
 
 

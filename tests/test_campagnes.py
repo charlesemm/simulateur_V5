@@ -9,11 +9,11 @@ from __future__ import annotations
 
 import pytest
 
-from campagnes import creer, lire, lister, previsualiser_reference
-from campagnes.models import STATUT_CREEE
-from campagnes.paliers import COURANT, ECHANTILLON, PALIERS
-from campagnes.service import normaliser_graine, normaliser_volume
-from simulation.profils import PARCOURS_CAMPAGNE, PARCOURS_MOTEUR, PROFILS
+from echo.metier.campagnes import creer, lire, lister, previsualiser_reference
+from echo.metier.campagnes.models import STATUT_CREEE
+from echo.metier.campagnes.paliers import COURANT, ECHANTILLON, PALIERS
+from echo.metier.campagnes.service import normaliser_graine, normaliser_volume
+from echo.moteur.simulation.profils import PARCOURS_CAMPAGNE, PARCOURS_MOTEUR, PROFILS
 
 pytestmark = pytest.mark.asyncio
 
@@ -210,7 +210,7 @@ async def test_un_taux_nul_n_est_pas_retenu(base_vierge):
 async def test_les_dimensions_couvertes_se_deduisent_du_reglage():
     """Le périmètre du futur score se lit dans ce qui a été coché."""
 
-    from campagnes import dimensions_couvertes
+    from echo.metier.campagnes import dimensions_couvertes
 
     couvertes = dimensions_couvertes(
         {"MONTANT_ABERRANT": {"taux": 0.1}, "PRESTATION_ORPHELINE": {"taux": 0.1}}
@@ -221,7 +221,7 @@ async def test_les_dimensions_couvertes_se_deduisent_du_reglage():
 async def test_chaque_type_du_catalogue_porte_une_dimension():
     """Aucun type ne doit rester sans dimension : le score l'oublierait."""
 
-    from anomalies.catalogue import CODES, DIMENSIONS, DIMENSION_PAR_CODE
+    from echo.metier.anomalies.catalogue import CODES, DIMENSIONS, DIMENSION_PAR_CODE
 
     assert set(DIMENSION_PAR_CODE) == set(CODES)
     assert set(DIMENSION_PAR_CODE.values()) <= set(DIMENSIONS)
@@ -252,7 +252,7 @@ async def test_api_les_huit_dimensions_ont_un_injecteur(client_api, base_vierge)
 async def test_api_types_anomalies_portent_leur_dimension(client_api, base_vierge):
     """L'écran groupe par dimension : elle doit venir du serveur."""
 
-    from anomalies.catalogue import CODES
+    from echo.metier.anomalies.catalogue import CODES
 
     reponse = await client_api.get("/campagnes/anomalies")
     assert reponse.status_code == 200
@@ -307,7 +307,7 @@ async def test_meme_graine_meme_fichier(tmp_path):
     c'est l'empreinte — calculée sur les seules données — et le corrigé.
     """
 
-    from campagnes.generateur import produire
+    from echo.metier.campagnes.generateur import produire
 
     reglages = {"MONTANT_ABERRANT": {"taux": 0.2}, "DATE_ANTIDATEE": {"taux": 0.1}}
     premiere, constats_a, _ = produire(4242, 300, reglages, tmp_path / "a.csv", "C-TEST-001")
@@ -333,7 +333,7 @@ async def test_meme_graine_et_meme_reference_donnent_le_meme_fichier(tmp_path):
     non une campagne jumelle, doit redonner exactement le même fichier.
     """
 
-    from campagnes.generateur import produire
+    from echo.metier.campagnes.generateur import produire
 
     reglages = {"MONTANT_ABERRANT": {"taux": 0.2}}
     produire(99, 200, reglages, tmp_path / "a.csv", "C-TEST-007")
@@ -345,7 +345,7 @@ async def test_meme_graine_et_meme_reference_donnent_le_meme_fichier(tmp_path):
 async def test_une_autre_graine_donne_un_autre_jeu(tmp_path):
     """Sans quoi la graine ne servirait à rien."""
 
-    from campagnes.generateur import produire
+    from echo.metier.campagnes.generateur import produire
 
     reglages = {"MONTANT_ABERRANT": {"taux": 0.2}}
     premiere, _, _ = produire(1, 300, reglages, tmp_path / "a.csv", "C-TEST-001")
@@ -361,7 +361,7 @@ async def test_l_ordre_de_saisie_ne_change_pas_le_fichier(tmp_path):
     dictionnaire venu de l'écran.
     """
 
-    from campagnes.generateur import produire
+    from echo.metier.campagnes.generateur import produire
 
     premier = {"MONTANT_ABERRANT": {"taux": 0.2}, "DATE_ANTIDATEE": {"taux": 0.1}}
     second = {"DATE_ANTIDATEE": {"taux": 0.1}, "MONTANT_ABERRANT": {"taux": 0.2}}
@@ -379,7 +379,7 @@ async def test_le_fichier_ne_depend_pas_du_jour(tmp_path):
     graine constante, et personne ne s'en apercevrait avant la comparaison.
     """
 
-    from campagnes.generateur import DATE_REFERENCE, produire
+    from echo.metier.campagnes.generateur import DATE_REFERENCE, produire
 
     _, constats, _ = produire(11, 200, {"DATE_ANTIDATEE": {"taux": 1.0}},
                               tmp_path / "a.csv", "C-TEST-001")
@@ -396,7 +396,7 @@ async def test_le_taux_demande_est_a_peu_pres_tenu(tmp_path):
     protège contre une erreur de facteur, pas contre le hasard.
     """
 
-    from campagnes.generateur import produire
+    from echo.metier.campagnes.generateur import produire
 
     _, constats, _ = produire(3, 2_000, {"MONTANT_ABERRANT": {"taux": 0.2}},
                               tmp_path / "a.csv", "C-TEST-001")
@@ -410,8 +410,8 @@ async def test_chaque_type_actif_sait_frapper(tmp_path):
     5 %, posé 0 » sans que rien n'explique pourquoi.
     """
 
-    from anomalies.catalogue import CODES
-    from campagnes.generateur import produire
+    from echo.metier.anomalies.catalogue import CODES
+    from echo.metier.campagnes.generateur import produire
 
     reglages = {code: {"taux": 1.0} for code in CODES}
     _, constats, _ = produire(5, 50, reglages, tmp_path / "a.csv", "C-TEST-001")
@@ -511,8 +511,8 @@ async def test_chaque_ligne_porte_son_marquage(tmp_path):
     pour des données réelles.
     """
 
-    from campagnes.export import verifier_marquage
-    from campagnes.generateur import (
+    from echo.metier.campagnes.export import verifier_marquage
+    from echo.metier.campagnes.generateur import (
         COLONNE_CAMPAGNE, COLONNE_MARQUE, COLONNES_FICHIER, MARQUE, produire,
     )
 
@@ -535,8 +535,8 @@ async def test_les_quatre_formats_sont_reproductibles(tmp_path):
     un ordre que rien ne permettait de fixer. D'où le format écrit à la main.
     """
 
-    from campagnes.export import FORMATS, exporter
-    from campagnes.generateur import produire
+    from echo.metier.campagnes.export import FORMATS, exporter
+    from echo.metier.campagnes.generateur import produire
 
     fichier = tmp_path / "a.csv"
     produire(33, 80, {"DATE_ANTIDATEE": {"taux": 0.2}}, fichier, "C-TEST-050")
@@ -552,8 +552,8 @@ async def test_les_quatre_formats_sont_reproductibles(tmp_path):
 async def test_le_marquage_survit_aux_conversions(tmp_path):
     """Le marquage n'est pas propre au CSV : il suit dans les trois autres."""
 
-    from campagnes.export import exporter
-    from campagnes.generateur import COLONNE_MARQUE, MARQUE, produire
+    from echo.metier.campagnes.export import exporter
+    from echo.metier.campagnes.generateur import COLONNE_MARQUE, MARQUE, produire
 
     fichier = tmp_path / "a.csv"
     produire(44, 40, {}, fichier, "C-TEST-051")
@@ -577,8 +577,8 @@ async def test_le_classeur_est_relisible(tmp_path):
 
     from openpyxl import load_workbook
 
-    from campagnes.export import exporter
-    from campagnes.generateur import COLONNES_FICHIER, MARQUE, produire
+    from echo.metier.campagnes.export import exporter
+    from echo.metier.campagnes.generateur import COLONNES_FICHIER, MARQUE, produire
 
     fichier = tmp_path / "a.csv"
     produire(55, 30, {}, fichier, "C-TEST-052")
@@ -600,7 +600,7 @@ async def test_le_classeur_est_relisible(tmp_path):
 async def test_le_script_sql_echappe_les_apostrophes(tmp_path):
     """Une apostrophe dans un nom couperait le script en deux."""
 
-    from campagnes.export import _echapper_sql
+    from echo.metier.campagnes.export import _echapper_sql
 
     assert _echapper_sql("N'Guessan") == "'N''Guessan'"
     assert _echapper_sql("Kouame") == "'Kouame'"
@@ -609,8 +609,8 @@ async def test_le_script_sql_echappe_les_apostrophes(tmp_path):
 async def test_un_format_inconnu_est_refuse(tmp_path):
     """Un format qu'on ne sait pas produire se dit, il ne se devine pas."""
 
-    from campagnes.export import exporter
-    from campagnes.generateur import produire
+    from echo.metier.campagnes.export import exporter
+    from echo.metier.campagnes.generateur import produire
 
     fichier = tmp_path / "a.csv"
     produire(66, 20, {}, fichier, "C-TEST-053")
@@ -622,7 +622,7 @@ async def test_un_format_inconnu_est_refuse(tmp_path):
 async def test_un_jeu_absent_ne_s_exporte_pas(tmp_path):
     """Le fichier a pu être effacé du disque : le dire, ne pas rendre du vide."""
 
-    from campagnes.export import exporter
+    from echo.metier.campagnes.export import exporter
 
     with pytest.raises(FileNotFoundError):
         exporter(tmp_path / "jamais_produit.csv", "csv", "C-TEST-054")
@@ -633,7 +633,7 @@ async def test_api_exporte_une_campagne_generee(client_api, base_vierge):
 
     import asyncio
 
-    from campagnes.export import FORMATS
+    from echo.metier.campagnes.export import FORMATS
 
     creation = await client_api.post(
         "/campagnes",
@@ -694,8 +694,8 @@ async def test_api_liste_les_formats(client_api, base_vierge):
 async def test_les_huit_dimensions_sont_couvertes():
     """Aucune dimension du cahier ne reste sans injecteur."""
 
-    from anomalies.catalogue import DIMENSIONS, DIMENSION_PAR_CODE
-    from campagnes.generateur import INJECTEURS, INJECTEURS_AVEC_HISTORIQUE
+    from echo.metier.anomalies.catalogue import DIMENSIONS, DIMENSION_PAR_CODE
+    from echo.metier.campagnes.generateur import INJECTEURS, INJECTEURS_AVEC_HISTORIQUE
 
     sachant_frapper = set(INJECTEURS) | set(INJECTEURS_AVEC_HISTORIQUE)
     couvertes = {
@@ -714,7 +714,7 @@ async def test_la_console_n_affiche_que_ce_qu_elle_sait_poser(client_api, base_v
     du texte, ce qu'une colonne `date` en base ne peut pas recevoir.
     """
 
-    from anomalies.catalogue import CODES, CODES_MOTEUR, FORMAT_DATE_INCOHERENT
+    from echo.metier.anomalies.catalogue import CODES, CODES_MOTEUR, FORMAT_DATE_INCOHERENT
 
     console = await client_api.get("/anomalies/catalogue")
     assert console.status_code == 200
@@ -744,7 +744,7 @@ def _relire_csv(fichier):
 async def test_un_doublon_exact_recopie_une_identite_deja_ecrite(tmp_path):
     """Le doublon doit exister *ailleurs* dans le fichier, sinon il n'en est pas un."""
 
-    from campagnes.generateur import produire
+    from echo.metier.campagnes.generateur import produire
 
     fichier = tmp_path / "a.csv"
     _, constats, _ = produire(
@@ -777,7 +777,7 @@ async def test_les_identifiants_commencent_par_cmu_et_sont_uniques(tmp_path):
     le fichier n'en répète jamais deux. Le numéro de sécu, lui, garde le
     format numérique à treize chiffres, préfixe 384."""
 
-    from campagnes.generateur import produire
+    from echo.metier.campagnes.generateur import produire
 
     fichier = tmp_path / "b.csv"
     produire(202, 3_000, {}, fichier, "C-TEST-061")
@@ -805,7 +805,7 @@ async def test_agent_email_vient_de_la_liste_des_agents_accueil(tmp_path):
     """L'e-mail n'est plus dérivé de l'assuré : c'est un agent d'accueil,
     tiré d'une petite liste fixe, pas la personne qui vient se faire soigner."""
 
-    from campagnes.generateur import AGENTS_ACCUEIL, produire
+    from echo.metier.campagnes.generateur import AGENTS_ACCUEIL, produire
 
     fichier = tmp_path / "d.csv"
     produire(404, 200, {}, fichier, "C-TEST-064")
@@ -828,7 +828,7 @@ async def test_facture_numero_est_un_entier_et_centre_suit_le_format_reel(tmp_pa
     (seed/runner.py), pas un entier nu qui n'existe nulle part côté vraie
     base."""
 
-    from campagnes.generateur import FACTURE_NUMERO_BASE, produire
+    from echo.metier.campagnes.generateur import FACTURE_NUMERO_BASE, produire
 
     fichier = tmp_path / "e.csv"
     produire(505, 50, {}, fichier, "C-TEST-065")
@@ -853,7 +853,7 @@ async def test_les_identifiants_sont_stables_a_graine_egale(tmp_path):
     numéros — sinon deux campagnes de même graine n'ont plus la même
     empreinte, ce que le chapitre 3 du cahier exige."""
 
-    from campagnes.generateur import produire
+    from echo.metier.campagnes.generateur import produire
 
     premier = tmp_path / "c1.csv"
     second = tmp_path / "c2.csv"
@@ -875,7 +875,7 @@ async def test_un_doublon_approchant_garde_un_numero_distinct(tmp_path):
     sans valeur pour l'outil examiné.
     """
 
-    from campagnes.generateur import produire
+    from echo.metier.campagnes.generateur import produire
 
     _, constats, _ = produire(
         102, 300, {"DOUBLON_APPROCHANT": {"taux": 0.15}},
@@ -893,7 +893,7 @@ async def test_un_doublon_approchant_garde_un_numero_distinct(tmp_path):
 async def test_un_doublon_ne_se_duplique_pas_lui_meme(tmp_path):
     """La première ligne n'a rien à copier : elle ne doit pas être signalée."""
 
-    from campagnes.generateur import produire
+    from echo.metier.campagnes.generateur import produire
 
     _, constats, _ = produire(
         103, 50, {"DOUBLON_EXACT": {"taux": 1.0}}, tmp_path / "a.csv", "C-TEST-062"
@@ -906,7 +906,7 @@ async def test_un_doublon_ne_se_duplique_pas_lui_meme(tmp_path):
 async def test_un_champ_obligatoire_vide_l_est_vraiment(tmp_path):
     """Vidé dans le fichier, et pas seulement annoncé dans le corrigé."""
 
-    from campagnes.generateur import produire
+    from echo.metier.campagnes.generateur import produire
 
     fichier = tmp_path / "a.csv"
     _, constats, _ = produire(
@@ -923,7 +923,7 @@ async def test_un_champ_obligatoire_vide_l_est_vraiment(tmp_path):
 async def test_l_encodage_casse_produit_un_texte_different(tmp_path):
     """Mojibake ou point d'interrogation, mais jamais le texte d'origine."""
 
-    from campagnes.generateur import produire
+    from echo.metier.campagnes.generateur import produire
 
     _, constats, _ = produire(
         105, 200, {"ENCODAGE_CASSE": {"taux": 0.3}}, tmp_path / "a.csv", "C-TEST-064"
@@ -943,7 +943,7 @@ async def test_une_date_mal_ecrite_reste_une_date_juste(tmp_path):
 
     from datetime import date, datetime
 
-    from campagnes.generateur import FORMATS_DATE_CONCURRENTS, produire
+    from echo.metier.campagnes.generateur import FORMATS_DATE_CONCURRENTS, produire
 
     _, constats, _ = produire(
         106, 200, {"FORMAT_DATE_INCOHERENT": {"taux": 0.3}},
@@ -982,8 +982,8 @@ async def test_une_charge_hostile_ne_casse_ni_le_csv_ni_le_sql(tmp_path):
 
     import json as json_module
 
-    from campagnes.export import exporter
-    from campagnes.generateur import COLONNES_FICHIER, produire
+    from echo.metier.campagnes.export import exporter
+    from echo.metier.campagnes.generateur import COLONNES_FICHIER, produire
 
     fichier = tmp_path / "a.csv"
     _, constats, _ = produire(
@@ -1007,7 +1007,7 @@ async def test_une_charge_hostile_ne_casse_ni_le_csv_ni_le_sql(tmp_path):
 async def test_les_nouveaux_types_restent_reproductibles(tmp_path):
     """Les doublons lisent le passé : la reproductibilité devait être revérifiée."""
 
-    from campagnes.generateur import produire
+    from echo.metier.campagnes.generateur import produire
 
     reglages = {
         "DOUBLON_EXACT": {"taux": 0.1},
@@ -1037,8 +1037,8 @@ async def test_la_migration_inscrit_les_six_types_au_catalogue(base_vierge):
     le journal d'injection les refuserait par clé étrangère.
     """
 
-    from anomalies.catalogue import CODES
-    from anomalies.repository import lire_catalogue
+    from echo.metier.anomalies.catalogue import CODES
+    from echo.metier.anomalies.repository import lire_catalogue
 
     en_base = {type_anomalie.anomalie_code for type_anomalie in await lire_catalogue()}
     assert set(CODES) <= en_base, f"absents de la base : {set(CODES) - en_base}"

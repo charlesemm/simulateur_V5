@@ -1,8 +1,8 @@
 """Vérifie le registre de provenance (X6, X7) et le panorama des tables (X8)."""
 from __future__ import annotations
 
-from gouvernance.panorama import panorama, panorama_markdown
-from seed.provenance import (
+from echo.metier.gouvernance.panorama import panorama, panorama_markdown
+from echo.moteur.seed.provenance import (
     HYPOTHESES, INVENTE, PROFESSIONS, REFERENTIELS, resume,
 )
 
@@ -40,7 +40,7 @@ def test_la_repartition_des_regimes_suit_vraiment_les_professions():
 def test_le_taux_de_couverture_se_regle_par_l_environnement(monkeypatch):
     """Le jour où les vrais volumes seront connus, sans toucher au code."""
 
-    from seed import runner
+    from echo.moteur.seed import runner
 
     monkeypatch.setenv("TAUX_COUVERTURE", "0.05")
     assert runner._taux_couverture() == 0.05

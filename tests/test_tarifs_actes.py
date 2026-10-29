@@ -10,9 +10,9 @@ import random
 import statistics
 from decimal import Decimal
 
-from seed.constants import MEDICAL_ACTS
-from seed.runner import build_medical_acts
-from simulation.passage import (
+from echo.moteur.seed.constants import MEDICAL_ACTS
+from echo.moteur.seed.runner import build_medical_acts
+from echo.moteur.simulation.passage import (
     TARIFS_ACTES, VARIATION_MAX, VARIATION_MIN, montant_autour,
 )
 

@@ -7,15 +7,15 @@ from __future__ import annotations
 
 import pytest
 
-from anomalies.catalogue import MONTANT_ABERRANT, QUANTITE_EXCESSIVE
-from anomalies.config import Reglage, anomalies_config
-from events import publish_simulation_event
-from qualite import analyser
-from qualite.regles import COHERENCE, COMPLETUDE, UNICITE, VALIDITE
-from simulation.aleas import COUPURE_BRUTALE, PassageInterrompu, ScenarioAleas
-from simulation.passage import PassageSimulation
-from simulation.runs import ouvrir_execution
-from simulation_config import DEFAULT_CONFIG
+from echo.metier.anomalies.catalogue import MONTANT_ABERRANT, QUANTITE_EXCESSIVE
+from echo.metier.anomalies.config import Reglage, anomalies_config
+from echo.moteur.events import publish_simulation_event
+from echo.metier.qualite import analyser
+from echo.metier.qualite.regles import COHERENCE, COMPLETUDE, UNICITE, VALIDITE
+from echo.moteur.simulation.aleas import COUPURE_BRUTALE, PassageInterrompu, ScenarioAleas
+from echo.moteur.simulation.passage import PassageSimulation
+from echo.moteur.simulation.runs import ouvrir_execution
+from echo.moteur.simulation_config import DEFAULT_CONFIG
 from tests.conftest import ASSURE_COUVERT
 
 
@@ -117,8 +117,8 @@ async def test_les_regles_referentielles_ignorent_l_execution(base_vierge):
     """Le seed corrompt le référentiel avant qu'aucune exécution n'existe."""
 
     del base_vierge
-    from app.database import async_session_factory
-    from app.models import Agent
+    from echo.web.app.database import async_session_factory
+    from echo.web.app.models import Agent
 
     async with async_session_factory() as session:
         agent = await session.get(Agent, "AG0001")
@@ -141,8 +141,8 @@ async def test_une_identite_en_double_est_relevee(base_vierge):
     """Le numéro de sécurité sociale est protégé par contrainte, pas l'identité."""
 
     del base_vierge
-    from app.database import async_session_factory
-    from app.models import InsuredPerson
+    from echo.web.app.database import async_session_factory
+    from echo.web.app.models import InsuredPerson
     from tests.conftest import ASSURE_SANS_DROITS
 
     async with async_session_factory() as session:

@@ -4,7 +4,7 @@ from __future__ import annotations
 from datetime import date
 from decimal import Decimal
 
-from anomalies.config import AnomaliesConfig
+from echo.metier.anomalies.config import AnomaliesConfig
 
 REFERENCE = Decimal("10000")
 JOUR = date(2026, 8, 21)

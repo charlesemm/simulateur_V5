@@ -66,9 +66,9 @@ gardés.**
 ```bash
 podman compose build api migrations
 podman compose up -d
-podman compose exec api python -m seed.reinitialiser
-podman compose exec api python -m seed.reinitialiser --confirmer
-podman compose exec api python -m seed
+podman compose exec api python -m echo.moteur.seed.reinitialiser
+podman compose exec api python -m echo.moteur.seed.reinitialiser --confirmer
+podman compose exec api python -m echo.moteur.seed
 ```
 
 La troisième commande ne touche à rien : elle liste ce qui sera vidé. Le seed

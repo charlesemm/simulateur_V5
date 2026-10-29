@@ -1,0 +1,105 @@
+"""Modèle SQLAlchemy de la table des exécutions du simulateur."""
+
+from __future__ import annotations
+
+import uuid
+from datetime import date, datetime
+from typing import Any
+
+from sqlalchemy import Date, DateTime, Index, Integer, String
+from sqlalchemy.dialects.postgresql import JSONB, UUID as PostgreSQLUUID
+from sqlalchemy.orm import Mapped, mapped_column
+
+from echo.web.app.models.base import AuditMixin, Base, SimulationScopedMixin
+
+# Statuts possibles d'une exécution, du démarrage à sa fin.
+STATUT_EN_COURS = "en_cours"
+STATUT_TERMINEE = "terminee"
+STATUT_ARRETEE = "arretee"
+STATUT_ECHOUEE = "echouee"
+
+
+class SimulationRun(AuditMixin, Base):
+    """Une exécution du moteur, de son démarrage à sa clôture.
+
+    Chaque ligne produite par le moteur porte le SIMULATION_ID de l'exécution
+    qui l'a créée : c'est ce qui rend possible la volumétrie par exécution, la
+    purge sélective et la vérité terrain du MDM. Ce modèle n'est volontairement
+    pas exporté par app/models/__init__.py, pour la même raison que
+    anomalies/models.py : la migration 0001 appelle Base.metadata.create_all()
+    et créerait sinon la table en double avec la migration 0012.
+    """
+
+    __tablename__ = "TB_SIMULATIONS"
+    __table_args__ = (Index("IX_SIMULATIONS_DATE_DEBUT", "SIMULATION_DATE_DEBUT"),)
+
+    simulation_id: Mapped[uuid.UUID] = mapped_column(
+        "SIMULATION_ID", PostgreSQLUUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    simulation_libelle: Mapped[str] = mapped_column(
+        "SIMULATION_LIBELLE", String(150), nullable=False
+    )
+    # Type de simulation : QUALITE, MDM, ENTREPOT ou GOUVERNANCE. Nul pour les
+    # exécutions ouvertes avant que les profils n'existent.
+    simulation_type: Mapped[str | None] = mapped_column("SIMULATION_TYPE", String(20))
+    simulation_statut: Mapped[str] = mapped_column(
+        "SIMULATION_STATUT", String(20), nullable=False, default=STATUT_EN_COURS
+    )
+    # Tous les paramètres du run (vitesse, concurrence, graine) : le format
+    # bougera à chaque lot, un JSONB évite une migration par paramètre ajouté.
+    simulation_parametres: Mapped[dict[str, Any]] = mapped_column(
+        "SIMULATION_PARAMETRES", JSONB, nullable=False
+    )
+    simulation_date_debut: Mapped[datetime] = mapped_column(
+        "SIMULATION_DATE_DEBUT", DateTime(timezone=True), nullable=False
+    )
+    simulation_date_fin: Mapped[datetime | None] = mapped_column(
+        "SIMULATION_DATE_FIN", DateTime(timezone=True)
+    )
+    # Nul quand le moteur est lancé hors de l'API (tests, script).
+    utilisateur_uuid: Mapped[uuid.UUID | None] = mapped_column(
+        "UTILISATEUR_UUID", PostgreSQLUUID(as_uuid=True)
+    )
+    passages_reussis: Mapped[int] = mapped_column(
+        "PASSAGES_REUSSIS", Integer, nullable=False, default=0
+    )
+    passages_echoues: Mapped[int] = mapped_column(
+        "PASSAGES_ECHOUES", Integer, nullable=False, default=0
+    )
+
+
+class RefusAccueil(SimulationScopedMixin, AuditMixin, Base):
+    """Un assuré présenté à l'accueil, et renvoyé faute de droits ouverts.
+
+    Ces présentations ne laissaient aucune trace : le passage s'arrêtait et
+    tout se perdait. TB_FACTURES_REJETS ne peut pas les accueillir — sa clé
+    primaire exige un numéro de facture, et justement, aucune facture ne
+    s'ouvre. D'où cette table à part.
+
+    Le registre compte : un assuré refusé est un assuré qui s'est déplacé, et
+    la part de refus dit quelque chose du référentiel des droits.
+    """
+
+    __tablename__ = "TB_REFUS_ACCUEIL"
+    __table_args__ = (
+        Index("IX_REFUS_ACCUEIL_SIMULATION", "SIMULATION_ID"),
+        Index("IX_REFUS_ACCUEIL_PERSONNE", "PERSONNE_UUID"),
+    )
+
+    refus_id: Mapped[uuid.UUID] = mapped_column(
+        "REFUS_ID", PostgreSQLUUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    passage_id: Mapped[str] = mapped_column("PASSAGE_ID", String(64), nullable=False)
+    # Mirka stocke ses identifiants de personne en VARCHAR2 et non dans un type
+    # UUID : la colonne suit, pour que la clé étrangère vers TB_SIM_ASSURES
+    # puisse exister. La contrainte elle-même est posée par la migration socle,
+    # TB_SIM_ASSURES vivant sur un MetaData séparé.
+    personne_uuid: Mapped[str] = mapped_column(
+        "PERSONNE_UUID",
+        String(100),
+        nullable=False,
+    )
+    # Date à laquelle l'assuré s'est présenté, sur l'horloge simulée.
+    refus_date: Mapped[date] = mapped_column("REFUS_DATE", Date, nullable=False)
+    refus_motif: Mapped[str] = mapped_column("REFUS_MOTIF", String(40), nullable=False)
+    regime_code: Mapped[str | None] = mapped_column("REGIME_CODE", String(30))

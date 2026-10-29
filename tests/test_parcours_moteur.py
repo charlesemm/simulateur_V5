@@ -9,11 +9,11 @@ from decimal import Decimal
 
 from sqlalchemy import select
 
-from app.database import async_session_factory
-from app.models import Invoice, InvoiceProvision, InvoiceStatus
-from simulation.events import SimulationEvent
-from simulation.passage import PassageSimulation
-from simulation_config import DEFAULT_CONFIG
+from echo.web.app.database import async_session_factory
+from echo.web.app.models import Invoice, InvoiceProvision, InvoiceStatus
+from echo.moteur.simulation.events import SimulationEvent
+from echo.moteur.simulation.passage import PassageSimulation
+from echo.moteur.simulation_config import DEFAULT_CONFIG
 from tests.conftest import ASSURE_COUVERT, ASSURE_SANS_DROITS
 
 pytest_plugins = ()
@@ -109,7 +109,7 @@ async def test_un_regime_a_cent_pour_cent_ne_laisse_rien_a_charge(base_vierge):
     """On bascule l'assuré couvert en RAM et on rejoue le même passage."""
 
     del base_vierge
-    from app.models import InsuredPerson
+    from echo.web.app.models import InsuredPerson
 
     async with async_session_factory() as session:
         assure = await session.get(InsuredPerson, ASSURE_COUVERT)
