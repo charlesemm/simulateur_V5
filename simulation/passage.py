@@ -13,15 +13,19 @@ from sqlalchemy import func, or_, select
 
 from app.database import async_session_factory
 from app.models import (
-    Agent, HealthCenter, HealthProfessional, InsuredPerson, InsuredRight,
-    Invoice, InvoicePathology, InvoicePrescription, InvoiceProvision,
-    InvoiceStatus, MedicalAct, Medication, Pathology, PriorAuthorization,
-    PriorAuthorizationMedicalAct, PriorAuthorizationStatus, Regime,
+    Agent, HealthCenter, HealthProfessional, InsuredEntitlement, InsuredPerson,
+    InsuredRight, Invoice, InvoiceHealthProfessional, InvoicePathology,
+    InvoicePrescription, InvoiceProvision, InvoiceStatus, MedicalAct, Medication,
+    CareNetwork, NetworkMedicalAct, Pathology, PriorAuthorization,
+    PriorAuthorizationMedicalAct,
+    PriorAuthorizationStatus, ProductRegime, Regime,
 )
 from anomalies import anomalies_config
 from anomalies.repository import enregistrer_injections
 from metrics.registry import registry as metrics_registry
-from seed.constants import HEALTH_CENTER_TYPES, INVOICE_TYPES, MEDICAL_ACTS
+from seed.constants import (
+    HEALTH_CENTER_TYPES, INVOICE_TYPES, MEDICAL_ACTS, PREFIXE_MEDECIN_CONSEIL,
+)
 from seed.identifiants import numero
 from simulation.aleas import (
     BASE_RALENTIE, COUPURE_BRUTALE, HORLOGE_DECALEE, PERTE_CONNEXION,
@@ -98,24 +102,42 @@ def montant_autour(tarif: Decimal, tirage: random.Random,
     return max(montant, ARRONDI_FCFA)
 
 
-async def tarif_acte(code: str) -> Decimal:
-    """Tarif en vigueur de l'acte, lu en base ; repli sur seed/constants."""
+async def tarif_acte(code: str, reseau_code: str) -> Decimal:
+    """Tarif de l'acte dans un réseau de soins donné.
+
+    Chez Mirka un tarif n'est pas une propriété de l'acte médical mais du
+    réseau qui le rembourse : le même geste peut se tarifer différemment d'un
+    réseau à l'autre. Le réseau vient donc de la couverture de l'assuré, et
+    non d'une constante.
+    """
 
     async with async_session_factory() as session:
         tarif = (await session.execute(
-            select(MedicalAct.acte_medical_tarif)
-            .where(MedicalAct.acte_medical_code == code)
-            .order_by(MedicalAct.acte_medical_date_debut.desc()).limit(1)
+            select(NetworkMedicalAct.reseau_acte_medical_base_remboursement)
+            .where(NetworkMedicalAct.reseau_code == reseau_code,
+                   NetworkMedicalAct.acte_medical_code == code)
+            .order_by(NetworkMedicalAct.reseau_acte_medical_date_debut.desc()).limit(1)
         )).scalar_one_or_none()
-    return tarif if tarif is not None else TARIFS_ACTES.get(code, Decimal("10000"))
+    if tarif is None:
+        return TARIFS_ACTES.get(code, Decimal("10000"))
+    # Mirka stocke ce tarif en entier — le franc CFA n'a pas de centimes — et
+    # la suite du calcul des montants travaille en Decimal.
+    return Decimal(tarif)
 
 
 class Coverage(NamedTuple):
-    """Ce que le référentiel dit de l'assuré au jour des soins."""
+    """Ce que le référentiel dit de l'assuré au jour des soins.
+
+    Le produit et le réseau viennent avec : chez Mirka, c'est le produit qui
+    donne son régime à un assuré, et le réseau rattaché à ce produit qui
+    fixe le tarif des actes. La facture doit nommer les deux.
+    """
 
     regime_code: str
     taux: Decimal
     droits_ouverts: bool
+    produit_code: str | None = None
+    reseau_code: str | None = None
 
 
 class PassageSimulation:
@@ -305,10 +327,24 @@ class PassageSimulation:
         """
         soins = self.simulated_at.date()
         async with async_session_factory() as session:
-            regime_code = (await session.execute(
-                select(InsuredPerson.regime_code)
-                .where(InsuredPerson.personne_uuid == self.insured_id)
-            )).scalar_one()
+            # Mirka ne porte pas le régime sur l'assuré : il se lit par son
+            # produit, enregistré dans TB_SIM_DROITS, puis par la table qui
+            # associe un produit à son régime. Un assuré sans droits n'a donc
+            # pas de régime — et c'est exactement le cas du refus à l'accueil.
+            couverture = (await session.execute(
+                select(ProductRegime.produit_code, ProductRegime.regime_code,
+                       CareNetwork.reseau_code)
+                .join(InsuredEntitlement,
+                      InsuredEntitlement.produit_code == ProductRegime.produit_code)
+                .join(CareNetwork,
+                      CareNetwork.produit_code == ProductRegime.produit_code)
+                .where(InsuredEntitlement.personne_uuid == self.insured_id,
+                       InsuredEntitlement.droits_date_debut <= self.simulated_at,
+                       or_(InsuredEntitlement.droits_date_fin.is_(None),
+                           InsuredEntitlement.droits_date_fin > self.simulated_at))
+                .order_by(InsuredEntitlement.droits_date_debut.desc()).limit(1)
+            )).first()
+            produit_code, regime_code, reseau_code = couverture or (None, None, None)
 
             taux = (await session.execute(
                 select(Regime.regime_taux).where(
@@ -334,8 +370,9 @@ class PassageSimulation:
             # ferme les droits plutôt que d'inventer un taux de repli.
             logger.warning("[%s] Régime %s sans ligne en vigueur au %s.",
                            self.passage_id, regime_code, soins)
-            return Coverage(regime_code or "INCONNU", Decimal("0"), False)
-        return Coverage(regime_code, taux, statut == 1)
+            return Coverage(regime_code or "INCONNU", Decimal("0"), False,
+                            produit_code, reseau_code)
+        return Coverage(regime_code, taux, statut == 1, produit_code, reseau_code)
 
     async def run(self) -> None:
         """Exécute la state machine jusqu'à la clôture de la facture.
@@ -386,7 +423,9 @@ class PassageSimulation:
 
         async with async_session_factory() as session:
             session.add(Invoice(
-                facture_numero=invoice_number, produit_code="CMU",
+                facture_numero=invoice_number,
+                produit_code=coverage.produit_code,
+                reseau_code=coverage.reseau_code,
                 regime_code=coverage.regime_code,
                 regime_taux=coverage.taux, organisme_code="CNAM-CI",
                 assurance_code="CMU", personne_uuid=self.insured_id,
@@ -439,8 +478,8 @@ class PassageSimulation:
         # variation d'un centre à l'autre ; les anomalies de montant partent
         # de lui. Le tarif se lit sur base_code, avant qu'une prestation
         # orpheline ne remplace le code par un code inconnu.
-        base = montant_autour(await tarif_acte(base_code), self.random,
-                              hospitalisation=invoice_type == "HOS")
+        base = montant_autour(await tarif_acte(base_code, coverage.reseau_code),
+                              self.random, hospitalisation=invoice_type == "HOS")
         montant_depense = self.anomalies.injecter_montant(base, invoice_number)
         quantite_servie = self.anomalies.injecter_quantite(1, 1, invoice_number)
         quantite_servie = self.anomalies.injecter_quantite_nulle(quantite_servie, invoice_number)
@@ -455,15 +494,24 @@ class PassageSimulation:
         async with async_session_factory() as session:
             session.add(InvoiceProvision(
                 facture_numero=invoice_number, prestation_code=code_prestation,
-                professionnel_sante_code=professional.professionnel_sante_code,
                 statut_remboursement="couvert",
                 prestation_base_remboursement=base,
                 prestation_taux_remboursement=taux, prestation_quantite_prescrite=1,
                 prestation_quantite_servie=quantite_servie, prestation_prix_unitaire=base,
                 prestation_montant_depense=montant_depense,
-                prestation_montant_rq=montant_rq,
+                prestation_montant_rgb=montant_rq,
                 prestation_montant_assure=part_assure,
                 statut_code="servie", simulation_id=self.simulation_id,
+                utilisateur_id_creation="simulation",
+            ))
+            # Mirka rattache le praticien à la facture et non à la ligne : une
+            # facture a un exécutant, ses prestations n'en portent pas chacune
+            # un différent.
+            session.add(InvoiceHealthProfessional(
+                facture_numero=invoice_number,
+                professionnel_sante_code=professional.professionnel_sante_code,
+                professionnel_sante_date_debut=self.simulated_at,
+                simulation_id=self.simulation_id,
                 utilisateur_id_creation="simulation",
             ))
             await session.commit()
@@ -498,7 +546,7 @@ class PassageSimulation:
             await self.process_prior_authorization(
                 invoice_number, center.centre_sante_code,
                 professional.professionnel_sante_code, needs_hospital,
-                coverage.taux, invoice_type,
+                coverage.taux, coverage.reseau_code, invoice_type,
             )
 
         if medications:
@@ -515,14 +563,16 @@ class PassageSimulation:
 
     async def process_prior_authorization(self, invoice_number: str, center_code: str,
                                           professional_code: str, hospital: bool,
-                                          taux: Decimal, invoice_type: str = "BIO") -> None:
+                                          taux: Decimal, reseau_code: str | None,
+                                          invoice_type: str = "BIO") -> None:
         """Crée, attend et décide une entente préalable acte par acte.
 
         « hospitalisation » vaut pour un séjour, « acte » pour toute autre
         demande d'accord préalable sur un acte (biologie, imagerie, soins...).
 
         Le taux reçu est celui du régime de l'assuré : un bénéficiaire du
-        régime d'assistance médicale voit son acte pris en charge à 100 %.
+        régime d'assistance médicale voit son acte pris en charge à 100 %. Le
+        réseau, lui, fixe le tarif de l'acte.
         """
         if hospital:
             criterion = MedicalAct.acte_medical_code.like("HOS-%")
@@ -558,12 +608,12 @@ class PassageSimulation:
         await self.sleep(response_delay)
         automatic = response_delay >= self.config.automatic_approval_limit_seconds
         accepted = automatic or self.random.random() < self.config.prior_authorization_acceptance_probability
-        advisor = None if automatic else await self.choose(Agent, Agent.agent_type_code == "medecin_conseil")
+        advisor = None if automatic else await self.choose(
+            Agent, Agent.agent_code.startswith(PREFIXE_MEDECIN_CONSEIL))
         status = "validee_office" if automatic else ("acceptee" if accepted else "refusee")
         # Le tarif de l'acte tiré, pas un forfait : un scanner n'a pas le prix
         # d'une glycémie. Même variation que pour la prestation.
-        tarif = act.acte_medical_tarif or TARIFS_ACTES.get(
-            act.acte_medical_code, Decimal("50000") if hospital else Decimal("15000"))
+        tarif = await tarif_acte(act.acte_medical_code, reseau_code)
         amount = self.anomalies.injecter_montant(
             montant_autour(tarif, self.random, hospitalisation=hospital),
             self.entente_prealable_numero,
@@ -579,7 +629,6 @@ class PassageSimulation:
             agreement.entente_prealable_date_fin = decision_at
             session.add(PriorAuthorizationMedicalAct(
                 entente_prealable_id=agreement_id, acte_medical_code=act.acte_medical_code,
-                professionnel_sante_code=professional_code,
                 acte_medical_motif="Prescription issue du parcours simulé.",
                 acte_medical_base_remboursement=amount,
                 acte_medical_taux_remboursement=taux if accepted else Decimal("0"),
@@ -593,9 +642,11 @@ class PassageSimulation:
             session.add(PriorAuthorizationStatus(
                 entente_prealable_id=agreement_id, statut_code=status,
                 statut_date_debut=decision_at,
-                agent_code=None if advisor is None else advisor.agent_code,
                 simulation_id=self.simulation_id,
-                utilisateur_id_creation="simulation",
+                # Mirka n'a pas de colonne d'agent sur un statut d'entente :
+                # c'est l'auteur de la ligne qui porte l'information.
+                utilisateur_id_creation=(
+                    "simulation" if advisor is None else advisor.agent_code),
             ))
             await session.commit()
         await self.journaliser_anomalies()

@@ -1,4 +1,3 @@
-```bash
 #!/usr/bin/env bash
 # Crée la base PostgreSQL puis applique toutes les migrations Alembic.
 
@@ -7,12 +6,15 @@ set -euo pipefail
 # Les valeurs restent configurables sans modifier le fichier.
 DB_HOST="${POSTGRES_HOST:-localhost}"
 DB_PORT="${POSTGRES_PORT:-5432}"
-DB_NAME="${POSTGRES_DB:-cmu_simulator}"
-DB_USER="${POSTGRES_USER:-postgres}"
+DB_NAME="${POSTGRES_DB:-echo_db_v2}"
+DB_USER="${POSTGRES_USER:-echo}"
 DB_PASSWORD="${POSTGRES_PASSWORD:?POSTGRES_PASSWORD est obligatoire}"
 export PGPASSWORD="${DB_PASSWORD}"
 
-# La vérification rend le script rejouable sans écraser une base existante.
+# La création explicite est indispensable : POSTGRES_DB ne cree la base qu'a la
+# toute premiere initialisation du volume PostgreSQL. Sur un volume deja en
+# place, changer POSTGRES_DB ne suffit pas, la base doit etre creee a la main —
+# ce que fait ce script, sans ecraser une base existante.
 if ! psql --host="${DB_HOST}" --port="${DB_PORT}" --username="${DB_USER}" \
   --dbname="postgres" --tuples-only --no-align \
   --command="SELECT 1 FROM pg_database WHERE datname = '${DB_NAME}'" | grep -q 1; then
@@ -27,6 +29,3 @@ fi
 export DATABASE_URL="postgresql+asyncpg://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}"
 python -m alembic upgrade head
 echo "Schéma CMU installé avec succès."
-```
-
----

@@ -97,9 +97,9 @@ def test_les_918_medicaments_gardent_le_prix_publie_quand_il_existe():
     assert len(medicaments) == len(LISTE_CMU) == 918
     assert len({ligne["medicament_code"] for ligne in medicaments}) == 918
     for source, medicament in zip(LISTE_CMU, medicaments):
-        assert medicament["medicament_tarif_default"] > 0
+        assert medicament["medicament_tarif_defaut"] > 0
         if source["prix_fcfa"]:
-            assert medicament["medicament_tarif_default"] == Decimal(source["prix_fcfa"])
+            assert medicament["medicament_tarif_defaut"] == Decimal(source["prix_fcfa"])
         ean = medicament["medicament_ean13"]
         assert len(ean) == 13 and ean.startswith("618")
         assert calculate_ean13(ean[:12]) == ean

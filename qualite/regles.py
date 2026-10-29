@@ -146,14 +146,14 @@ def _repartition_incoherente(simulation_id, _debut):
 
     ecart = func.abs(
         InvoiceProvision.prestation_base_remboursement
-        - InvoiceProvision.prestation_montant_rq
+        - InvoiceProvision.prestation_montant_rgb
         - InvoiceProvision.prestation_montant_assure
     )
     return _portee(
         select(InvoiceProvision.facture_numero, ecart)
         .where(and_(
             InvoiceProvision.prestation_base_remboursement.is_not(None),
-            InvoiceProvision.prestation_montant_rq.is_not(None),
+            InvoiceProvision.prestation_montant_rgb.is_not(None),
             InvoiceProvision.prestation_montant_assure.is_not(None),
             ecart > TOLERANCE_MONTANT,
         )),

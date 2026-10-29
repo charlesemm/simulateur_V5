@@ -96,7 +96,7 @@ async def build_csv_export(
                 p.facture_numero, p.prestation_code, p.professionnel_sante_code or "",
                 p.statut_remboursement or "",
                 str(p.prestation_montant_depense or 0),
-                str(p.prestation_montant_rq or 0),
+                str(p.prestation_montant_rgb or 0),
                 str(p.prestation_montant_complementaire or 0),
                 str(p.prestation_montant_remise or 0),
                 str(p.prestation_montant_assure or 0),

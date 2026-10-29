@@ -30,7 +30,17 @@ HEALTH_CENTER_TYPES = [
     ("FSU", "Formation sanitaire urbaine"),
     ("HOP", "Hôpital confessionnel ou municipal"),
     ("AUT", "Autre établissement sanitaire"),
+    # Les pharmacies rejoignent les centres de santé : Mirka n'a pas de table
+    # des officines, une pharmacie y est un établissement sanitaire que son
+    # type désigne.
+    ("PHA", "Pharmacie d'officine"),
 ]
+
+# Le type d'établissement qui désigne une officine, là où l'ancien schéma avait
+# une table TB_REF_PHARMACIES. Le semis l'applique, et tout code qui cherche
+# une pharmacie filtre là-dessus. Trois caractères : c'est la largeur de
+# TYPE_ETABLISSEMENT_SANITAIRE_CODE chez Mirka.
+TYPE_PHARMACIE = "PHA"
 
 # Ces noms complètent Faker avec une représentation ivoirienne identifiable.
 IVORIAN_LAST_NAMES = [
@@ -216,3 +226,10 @@ IVORIAN_DISTRICTS = [
     ("Woroba", 8.45, -6.60),
     ("Zanzan", 8.05, -3.20),
 ]
+
+
+# Mirka ne porte aucun rôle sur ses agents : un rôle y est un profil
+# utilisateur. Distinguer le médecin conseil est un besoin propre au
+# simulateur, satisfait par ce préfixe de code — le semis l'applique, le moteur
+# sélectionne dessus. Les deux doivent donc lire la même constante.
+PREFIXE_MEDECIN_CONSEIL = "MC"

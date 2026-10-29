@@ -209,27 +209,53 @@ class SimulationEngine:
         # L'horloge des moments d'injection part avec le moteur : c'est d'elle
         # que se comptent les déclenchements différés et de démarrage.
         anomalies_config.demarrer_execution()
-        while self._running and (number_of_passages is None or sequence < number_of_passages):
-            self._traiter_commandes()
-            if self.scenario.frappe(RAFALE, self._random):
-                # La salve remplace le passage unique de ce tour, mais le
-                # rythme d'arrivée reprend ensuite : sans cela, une rafale à
-                # forte probabilité tournerait sans jamais souffler.
-                sequence = await self._lancer_rafale(sequence)
-            else:
-                insured_id = await self._reserve_or_inscrire()
-                sequence += 1
-                task = asyncio.create_task(self._run_one(insured_id, sequence))
-                self._tasks.add(task)
-                task.add_done_callback(self._tasks.discard)
-            # Pas de pause après le dernier passage d'un flux fini : elle ne
-            # ferait qu'ajouter un délai avant de rendre la main.
-            reste_des_passages = number_of_passages is None or sequence < number_of_passages
-            if reste_des_passages and not await self._attendre_prochaine_arrivee():
-                break
-        if self._tasks:
-            await asyncio.gather(*tuple(self._tasks))
-        self._running = False
+        try:
+            while self._running and (number_of_passages is None or sequence < number_of_passages):
+                self._traiter_commandes()
+                if self.scenario.frappe(RAFALE, self._random):
+                    # La salve remplace le passage unique de ce tour, mais le
+                    # rythme d'arrivée reprend ensuite : sans cela, une rafale à
+                    # forte probabilité tournerait sans jamais souffler.
+                    sequence = await self._lancer_rafale(sequence)
+                else:
+                    # Contre-pression : à grande vitesse, les arrivées vont plus
+                    # vite que les passages. Sans cette attente, les tâches
+                    # s'empilent devant le sémaphore, chacune avec un assuré
+                    # réservé, jusqu'à vider le vivier en quelques secondes.
+                    if not await self._attendre_une_place():
+                        break
+                    try:
+                        insured_id = await self._reserve_or_inscrire()
+                    except RuntimeError:
+                        # Vivier momentanément vide : on saute ce tour au lieu
+                        # de tuer le moteur, un passage finira par rendre le sien.
+                        logger.warning("Aucun assuré libre : arrivée ignorée.")
+                    else:
+                        sequence += 1
+                        task = asyncio.create_task(self._run_one(insured_id, sequence))
+                        self._tasks.add(task)
+                        task.add_done_callback(self._tasks.discard)
+                # Pas de pause après le dernier passage d'un flux fini : elle ne
+                # ferait qu'ajouter un délai avant de rendre la main.
+                reste_des_passages = number_of_passages is None or sequence < number_of_passages
+                if reste_des_passages and not await self._attendre_prochaine_arrivee():
+                    break
+            if self._tasks:
+                await asyncio.gather(*tuple(self._tasks))
+        finally:
+            # Même sur une exception, l'état doit dire que le moteur ne tourne
+            # plus : sinon l'écran affiche « en cours » un moteur mort.
+            self._running = False
+
+    async def _attendre_une_place(self) -> bool:
+        """Attend qu'il y ait moins de passages en vol que le maximum permis.
+
+        Retourne False si le moteur a été arrêté pendant l'attente.
+        """
+
+        while self._running and len(self._tasks) >= self.config.max_concurrent_passages:
+            await asyncio.wait(tuple(self._tasks), return_when=asyncio.FIRST_COMPLETED)
+        return self._running
 
     async def stop(self) -> None:
         """Arrête la création et annule proprement les tâches restantes."""

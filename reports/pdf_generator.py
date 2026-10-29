@@ -396,7 +396,7 @@ async def build_execution_pdf_report(simulation_id: UUID) -> Path:
         montants = (await session.execute(
             select(
                 func.sum(InvoiceProvision.prestation_montant_depense),
-                func.sum(InvoiceProvision.prestation_montant_rq),
+                func.sum(InvoiceProvision.prestation_montant_rgb),
                 func.sum(InvoiceProvision.prestation_montant_assure),
                 func.avg(InvoiceProvision.prestation_montant_depense),
             )

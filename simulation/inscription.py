@@ -29,7 +29,7 @@ from anomalies.catalogue import (
 from anomalies.config import AnomaliesConfig, Injection
 from anomalies.repository import enregistrer_injections
 from app.database import async_session_factory
-from app.models import InsuredPerson, InsuredRight, Regime
+from app.models import InsuredEntitlement, InsuredPerson, InsuredRight, ProductRegime
 from seed.constants import IVORIAN_FIRST_NAMES, IVORIAN_LAST_NAMES
 from seed.identifiants import numero_libre, numero_securite_sociale_libre
 
@@ -144,8 +144,11 @@ async def inscrire_assure(code: str, rng: random.Random,
             elif code == TENTATIVE_INJECTION:
                 nom = CHARGES_INJECTION[rng.randrange(len(CHARGES_INJECTION))]
 
-        regime_code = (await session.execute(
-            select(Regime.regime_code).order_by(func.random()).limit(1)
+        # Mirka ne porte pas le régime sur l'assuré : elle lui attribue un
+        # produit, dont le régime découle. On tire donc un produit parmi ceux
+        # qu'un régime couvre, et c'est la ligne de droits qui le porte.
+        produit_code = (await session.execute(
+            select(ProductRegime.produit_code).order_by(func.random()).limit(1)
         )).scalar_one()
 
         session.add(InsuredPerson(
@@ -156,7 +159,19 @@ async def inscrire_assure(code: str, rng: random.Random,
             assure_nom=nom,
             assure_prenoms=prenoms,
             assure_date_naissance=naissance,
-            regime_code=regime_code,
+            utilisateur_id_creation="simulation",
+        ))
+        # Deux lignes de droits, et non une : TB_SIM_DROITS porte le produit de
+        # l'assuré — donc son régime — tandis que TB_SIM_ASSURES_DROITS dit
+        # mois par mois si la couverture est ouverte.
+        session.add(InsuredEntitlement(
+            personne_uuid=personne_uuid,
+            droits_id=numero_libre("droits", rng),
+            produit_code=produit_code,
+            droits_statut=1,
+            droits_delai_carence=0,
+            droits_motif="Inscription issue du parcours simulé.",
+            droits_date_debut=aujourdhui,
             utilisateur_id_creation="simulation",
         ))
         session.add(InsuredRight(
@@ -166,7 +181,6 @@ async def inscrire_assure(code: str, rng: random.Random,
             droits_id=numero_libre("droits", rng),
             droits_statut=1,
             droits_date_debut=aujourdhui,
-            utilisateur_id_creation="simulation",
         ))
         await session.commit()
 

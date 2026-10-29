@@ -186,8 +186,10 @@ async def _installer_referentiel() -> None:
                          centre_sante_numero_immatriculation="IMM001",
                          centre_sante_denomination="Centre de santé de test",
                          type_etablissement_sanitaire_code="CSU", **audit),
-            HealthProfessional(professionnel_sante_code="PS0001", nom="Koné",
-                               prenoms="Awa", type_code="medecin", statut="actif", **audit),
+            HealthProfessional(professionnel_sante_code="PS0001",
+                               professionnel_sante_nom="Koné",
+                               professionnel_sante_prenoms="Awa",
+                               professionnel_sante_statut="actif", **audit),
             Agent(agent_code="AG0001", agent_prenoms="Yao", agent_nom="Brou",
                   agent_email="yao.brou@cnam.ci", agent_type_code="medecin_conseil", **audit),
 
@@ -200,7 +202,7 @@ async def _installer_referentiel() -> None:
 
             Medication(medicament_code="MED0001", medicament_date_debut=date(2026, 1, 1),
                        medicament_denomination="Paracétamol 500 mg",
-                       medicament_tarif_default=Decimal("500"),
+                       medicament_tarif_defaut=Decimal("500"),
                        medicament_statut="actif", **audit),
 
             # Le catalogue complet, pas quelques codes choisis : le moteur

@@ -17,16 +17,19 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import async_session_factory
 from app.models import (
-    Agent, CenterHealthAgent, Collectivite, Country, Dci, Department,
+    Agent, CareBasket, CareNetwork, CenterHealthAgent, Collectivite,
+    CollectiviteAddress, Country,
+    Dci, Department, InsuredEntitlement, NetworkMedicalAct, Product, ProductRegime,
     HealthCenter, HealthProfessional, HealthProfessionalCenter,
     HealthProfessionalMedicalSpecialty, InsuredBirthInfo, InsuredIdentifier,
     InsuredPerson, InsuredProfession, InsuredRight, Locality, MedicalAct,
-    MedicalSpecialty, Medication, Pathology, Pharmacie, Regime, Region,
+    MedicalSpecialty, Medication, Pathology, Regime, Region,
     TypeInvoice,
 )
 
 from seed.constants import (
     COUNTRIES, HEALTH_CENTER_TYPES, INVOICE_TYPES, IVORIAN_CITIES,
+    PREFIXE_MEDECIN_CONSEIL, TYPE_PHARMACIE,
     IVORIAN_DISTRICTS, IVORIAN_FIRST_NAMES, IVORIAN_LAST_NAMES, MEDECINS_CONSEILS,
     MEDICAL_ACTS, MEDICAL_SPECIALTIES, PATHOLOGY_LABELS, PROFESSIONS,
 )
@@ -187,10 +190,31 @@ def build_collectivites(etablissements: list[dict[str, str]],
     return [
         {"collectivite_code": numero("collectivite", rang),
          "collectivite_denomination": nom,
-         "collectivite_latitude": coordonnees[nom]["latitude"] or None,
-         "collectivite_longitude": coordonnees[nom]["longitude"] or None,
          **audit_values()}
         for rang, nom in enumerate(noms)
+    ]
+
+
+def build_collectivites_adresses(collectivites: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """L'adresse de chaque collectivité, qui porte sa position.
+
+    Mirka ne met pas de coordonnées sur la collectivité : une latitude est un
+    attribut d'adresse. Les positions géocodées rejoignent donc
+    TB_SIM_REF_COLLECTIVITES_ADRESSES, où elles sont stockées en texte — c'est
+    le type que Mirka donne à ces colonnes.
+    """
+
+    coordonnees = {ligne["localite"]: ligne for ligne in lire_donnees(COORDONNEES_LOCALITES)}
+    return [
+        {"collectivite_code": ligne["collectivite_code"],
+         "adresse_date_debut": VALID_FROM_TS,
+         "pays_code": "CIV",
+         "adresse_geographique": ligne["collectivite_denomination"],
+         "adresse_latitude": coordonnees[ligne["collectivite_denomination"]]["latitude"] or None,
+         "adresse_longitude": coordonnees[ligne["collectivite_denomination"]]["longitude"] or None,
+         "adresse_date_fin": None,
+         **audit_values()}
+        for ligne in collectivites
     ]
 
 
@@ -216,12 +240,21 @@ def build_health_centers(etablissements: list[dict[str, str]],
 
 def build_pharmacies(pharmacies: list[dict[str, str]],
                      codes_collectivite: dict[str, str]) -> list[dict[str, Any]]:
-    """Les pharmacies de la liste CNAM où un assuré CMU retire ses médicaments."""
+    """Les pharmacies de la liste CNAM, en centres de santé de type « PHA ».
+
+    Mirka n'a pas de table des pharmacies : une pharmacie y est un
+    établissement sanitaire comme un autre, que son type désigne. Elles
+    rejoignent donc TB_SIM_REF_CENTRES_SANTE, avec leur propre série de
+    numéros pour qu'aucun code ne puisse désigner à la fois un hôpital et une
+    officine.
+    """
 
     return [
-        {"pharmacie_code": numero("pharmacie", rang),
-         "pharmacie_denomination": ligne["denomination"],
+        {"centre_sante_code": numero("pharmacie", rang),
          "collectivite_code": codes_collectivite[ligne["localite"]],
+         "type_etablissement_sanitaire_code": TYPE_PHARMACIE,
+         "centre_sante_numero_immatriculation": numero("immatriculation_pharmacie", rang),
+         "centre_sante_denomination": ligne["denomination"],
          **audit_values()}
         for rang, ligne in enumerate(pharmacies)
     ]
@@ -238,8 +271,13 @@ def synthetic_identity(index: int) -> tuple[str, str]:
     return last_name, first_name
 
 
-def _agent(rang_gestion: int, identite: int, code: str, type_agent: str) -> dict[str, Any]:
-    """Une fiche agent, anomalies du seed appliquées."""
+def _agent(rang_gestion: int, identite: int, code: str) -> dict[str, Any]:
+    """Une fiche agent, anomalies du seed appliquées.
+
+    Mirka ne porte aucun rôle sur ses agents : c'est le préfixe du code qui
+    distingue un médecin conseil d'un agent d'accueil (voir
+    `simulation.passage.PREFIXE_MEDECIN_CONSEIL`).
+    """
 
     last_name, first_name = synthetic_identity(identite)
     email_root = (normalize_text(f"{first_name}.{last_name}").lower()
@@ -250,7 +288,6 @@ def _agent(rang_gestion: int, identite: int, code: str, type_agent: str) -> dict
         "agent_prenoms": first_name,
         "agent_nom": last_name,
         "agent_email": f"{email_root}.{code}@cmu.demo.ci",
-        "agent_type_code": type_agent,
         **audit_values(),
     }
     return apply_anomalies_to_row(row, anomalies_seed, "agent")
@@ -259,16 +296,15 @@ def _agent(rang_gestion: int, identite: int, code: str, type_agent: str) -> dict
 def build_agents(centres: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """Un agent d'accueil par centre, et vingt médecins conseils centraux.
 
-    Les deux populations restent dans TB_REF_AGENTS mais n'ont pas la même
-    longueur de code — cinq chiffres pour l'accueil, quatre pour les médecins
-    conseils : un numéro ne peut jamais désigner l'un et l'autre, et sa
-    longueur suffit à dire lequel.
+    Les deux populations partagent TB_SIM_AGENTS, où Mirka ne prévoit aucune
+    colonne de rôle. Le code du médecin conseil porte donc le préfixe « MC »,
+    seul moyen de le reconnaître, et le moteur sélectionne là-dessus.
     """
 
     agents, assignments = [], []
     for rang, centre in enumerate(centres):
         code = numero("agent_accueil", rang)
-        agents.append(_agent(rang, rang, code, "accueil"))
+        agents.append(_agent(rang, rang, code))
         assignments.append({
             "centre_sante_code": centre["centre_sante_code"],
             "agent_code": code,
@@ -280,8 +316,8 @@ def build_agents(centres: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], l
     # Les médecins conseils appartiennent au niveau central et ne reçoivent
     # donc volontairement aucune affectation géographique.
     for rang in range(MEDECINS_CONSEILS):
-        code = numero("medecin_conseil", rang)
-        agents.append(_agent(len(centres) + rang, 5_000 + rang, code, "medecin_conseil"))
+        code = PREFIXE_MEDECIN_CONSEIL + numero("medecin_conseil", rang)
+        agents.append(_agent(len(centres) + rang, 5_000 + rang, code))
     return agents, assignments
 
 
@@ -372,7 +408,6 @@ def build_insured_people() -> list[dict[str, Any]]:
             "assure_prenoms": first_name,
             "assure_nom_patronymique": last_name if index % 5 else f"{last_name}-{first_name}",
             "assure_date_naissance": date_naissance,
-            "regime_code": regime,
             **audit_values(),
         }
 
@@ -475,7 +510,7 @@ def build_medications(medicaments: list[dict[str, str]],
             "medicament_age_minimum": 0,
             "medicament_age_maximum": 120,
             "medicament_hapax_statut": False,
-            "medicament_tarif_default": tarif_medicament(rang, ligne["prix_fcfa"], forme),
+            "medicament_tarif_defaut": tarif_medicament(rang, ligne["prix_fcfa"], forme),
             "medicament_statut": "actif",
             "medicament_date_fin": None,
             **audit_values(),
@@ -492,7 +527,6 @@ def build_medical_acts() -> list[dict[str, Any]]:
             "article_code": numero("article_acte", index),
             "acte_medical_type": act_type,
             "acte_medical_denomination": label,
-            "acte_medical_tarif": Decimal(tariff),
             "liste_types_factures": invoice_types,
             "liste_genres": "M,F",
             "acte_medical_age_minimum": 0,
@@ -522,6 +556,131 @@ def build_regimes() -> list[dict[str, Any]]:
             ("RGB", "RÉGIME GÉNÉRAL DE BASE", 70),
         )
     ]
+
+# Un produit par régime, et sa chaîne complète. Chez Mirka un tarif
+# appartient au réseau de soins, lequel appartient à un panier, lequel
+# appartient à un produit : semer les tarifs seuls laisserait des lignes
+# rattachées à un réseau inexistant.
+PRODUITS_PAR_REGIME = {"RAM": "CMU-RAM", "RGB": "CMU-RGB"}
+
+
+def code_panier(regime: str) -> str:
+    return f"PAN-{regime}"
+
+
+def code_reseau(regime: str) -> str:
+    return f"RES-{regime}"
+
+
+def build_products() -> list[dict[str, Any]]:
+    """Un produit d'assurance par régime."""
+
+    return [
+        {
+            "produit_code": produit, "produit_date_debut": VALID_FROM_TS,
+            "produit_denomination": f"COUVERTURE MALADIE UNIVERSELLE — {regime}",
+            "pays_code": "CIV", **audit_values(),
+        }
+        for regime, produit in PRODUITS_PAR_REGIME.items()
+    ]
+
+
+def build_products_regimes() -> list[dict[str, Any]]:
+    """Rattache chaque produit à son régime : c'est par là que le moteur
+    retrouve le taux de remboursement d'un assuré."""
+
+    return [
+        {
+            "produit_code": produit, "regime_code": regime,
+            "produit_regime_date_debut": VALID_FROM_TS,
+            "produit_regime_statut": 1, "produit_regime_date_fin": None,
+            **audit_values(),
+        }
+        for regime, produit in PRODUITS_PAR_REGIME.items()
+    ]
+
+
+def build_care_baskets() -> list[dict[str, Any]]:
+    """Le panier de soins d'un produit : ce qu'il couvre."""
+
+    return [
+        {
+            "panier_code": code_panier(regime), "panier_date_debut": VALID_FROM_TS,
+            "produit_code": produit,
+            "panier_denomination": f"PANIER DE SOINS {regime}",
+            "panier_statut": 1, **audit_values(),
+        }
+        for regime, produit in PRODUITS_PAR_REGIME.items()
+    ]
+
+
+def build_care_networks() -> list[dict[str, Any]]:
+    """Le réseau de soins qui applique un panier."""
+
+    return [
+        {
+            "reseau_code": code_reseau(regime), "reseau_date_debut": VALID_FROM_TS,
+            "produit_code": produit, "panier_code": code_panier(regime),
+            "reseau_denomination": f"RÉSEAU DE SOINS {regime}",
+            "reseau_statut": 1, **audit_values(),
+        }
+        for regime, produit in PRODUITS_PAR_REGIME.items()
+    ]
+
+
+def build_network_medical_acts() -> list[dict[str, Any]]:
+    """Le tarif de chaque acte, par réseau.
+
+    Mirka tarife l'acte au niveau du réseau et non de l'acte lui-même : le
+    même geste peut se rembourser différemment d'un réseau à l'autre. Le
+    simulateur applique pour l'instant le même tarif partout — la structure
+    permet d'en faire varier un sans rien changer au moteur.
+    """
+
+    return [
+        {
+            "reseau_code": code_reseau(regime),
+            "acte_medical_code": code,
+            "reseau_acte_medical_date_debut": VALID_FROM_TS,
+            # Mirka stocke ce montant en entier : le franc CFA n'a pas de
+            # subdivision.
+            "reseau_acte_medical_base_remboursement": int(tarif),
+            "reseau_acte_medical_statut_entente_prealable": 0,
+            "reseau_acte_medical_statut": 1,
+            "reseau_acte_medical_quantite_maximum": 5,
+            "reseau_acte_medical_date_fin": None,
+            **audit_values(),
+        }
+        for regime in PRODUITS_PAR_REGIME
+        for code, _libelle, _type, _factures, tarif in MEDICAL_ACTS
+    ]
+
+
+def build_insured_entitlements(assures: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Attribue son produit à chaque assuré.
+
+    C'est cette ligne qui donne son régime à un assuré : Mirka ne porte pas
+    de régime sur la personne. Un assuré sans produit n'a donc aucune
+    couverture, et c'est exactement ce que le registre des refus enregistre.
+    """
+
+    rows = []
+    for index, assure in enumerate(assures):
+        _naissance, regime = insured_profile(index)
+        rows.append({
+            "personne_uuid": assure["personne_uuid"],
+            "droits_id": numero("droits_produit", index),
+            "produit_code": PRODUITS_PAR_REGIME[regime],
+            "droits_statut": 1,
+            # Aucune carence : le simulateur ouvre les droits le jour même.
+            "droits_delai_carence": 0,
+            "droits_motif": "Affiliation initiale semée.",
+            "droits_date_debut": VALID_FROM_TS,
+            "droits_date_fin": None,
+            **audit_values(),
+        })
+    return rows
+
 
 def build_countries() -> list[dict[str, Any]]:
     """Crée les pays de naissance plausibles pour une population ivoirienne."""
@@ -727,7 +886,9 @@ def build_insured_rights(assures: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "droits_statut": 0 if mois in mois_fermes else 1,
                 "droits_date_debut": debut,
                 "droits_date_fin": fin - timedelta(seconds=1),
-                **audit_values(),
+                # Pas d'audit_values() : TB_SIM_ASSURES_DROITS ne porte que
+                # DATE_CREATION, sans l'utilisateur ni les colonnes de
+                # modification.
             })
     return rows
 
@@ -785,14 +946,27 @@ async def seed_database() -> None:
             # s'y rattachent par leurs codes.
             await upsert_rows(session, Regime, build_regimes())
             await upsert_rows(session, Country, build_countries())
+            # La chaîne de couverture, avant les assurés qui s'y rattachent :
+            # produit, son régime, son panier, son réseau, puis les tarifs que
+            # ce réseau applique à chaque acte.
+            await upsert_rows(session, Product, build_products())
+            await upsert_rows(session, ProductRegime, build_products_regimes())
+            await upsert_rows(session, CareBasket, build_care_baskets())
+            await upsert_rows(session, CareNetwork, build_care_networks())
+            await upsert_rows(session, NetworkMedicalAct, build_network_medical_acts())
             await upsert_rows(session, Region, regions)
             await upsert_rows(session, Department, departments)
             await upsert_rows(session, Locality, localities)
 
             await upsert_rows(session, InsuredPerson, datasets["assures"])
             await upsert_rows(session, Collectivite, collectivites)
+            await upsert_rows(session, CollectiviteAddress,
+                              build_collectivites_adresses(collectivites))
             await upsert_rows(session, HealthCenter, datasets["centres"])
-            await upsert_rows(session, Pharmacie, datasets["pharmacies"])
+            # Mirka n'a pas de table des pharmacies : une pharmacie y est un
+            # centre de sante dont le type d'etablissement la designe comme
+            # telle. Les deux jeux alimentent donc la meme table.
+            await upsert_rows(session, HealthCenter, datasets["pharmacies"])
             await upsert_rows(session, Agent, datasets["agents"])
             await upsert_rows(session, MedicalSpecialty, specialties)
             await upsert_rows(session, HealthProfessional, datasets["professionnels"])
@@ -811,6 +985,9 @@ async def seed_database() -> None:
             await upsert_rows(session, InsuredIdentifier, build_insured_identifiers(assures))
             await upsert_rows(session, InsuredProfession, build_insured_professions(assures))
             await upsert_rows(session, InsuredBirthInfo, build_insured_birth_infos(assures, localities))
+            # Les droits au produit — donc au régime — avant les droits
+            # mensuels, qui disent seulement si la couverture est ouverte.
+            await upsert_rows(session, InsuredEntitlement, build_insured_entitlements(assures))
             await upsert_rows(session, InsuredRight, build_insured_rights(assures))
 
             # Le journal part dans la même transaction que les lignes qu'il

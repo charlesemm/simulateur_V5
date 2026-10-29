@@ -6,7 +6,7 @@ import uuid
 from datetime import date, datetime
 from typing import Any
 
-from sqlalchemy import Date, DateTime, ForeignKey, Index, Integer, String
+from sqlalchemy import Date, DateTime, Index, Integer, String
 from sqlalchemy.dialects.postgresql import JSONB, UUID as PostgreSQLUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -90,9 +90,13 @@ class RefusAccueil(SimulationScopedMixin, AuditMixin, Base):
         "REFUS_ID", PostgreSQLUUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
     passage_id: Mapped[str] = mapped_column("PASSAGE_ID", String(64), nullable=False)
-    personne_uuid: Mapped[uuid.UUID] = mapped_column(
+    # Mirka stocke ses identifiants de personne en VARCHAR2 et non dans un type
+    # UUID : la colonne suit, pour que la clé étrangère vers TB_SIM_ASSURES
+    # puisse exister. La contrainte elle-même est posée par la migration socle,
+    # TB_SIM_ASSURES vivant sur un MetaData séparé.
+    personne_uuid: Mapped[str] = mapped_column(
         "PERSONNE_UUID",
-        ForeignKey("TB_REF_ASSURES.PERSONNE_UUID"),
+        String(100),
         nullable=False,
     )
     # Date à laquelle l'assuré s'est présenté, sur l'horloge simulée.

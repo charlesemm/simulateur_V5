@@ -119,7 +119,7 @@ async def build_excel_export(debut: datetime | None = None, fin: datetime | None
             feuille.append([
                 p.facture_numero, p.prestation_code, p.professionnel_sante_code,
                 p.statut_remboursement, float(p.prestation_montant_depense or 0),
-                float(p.prestation_montant_rq or 0), float(p.prestation_montant_assure or 0),
+                float(p.prestation_montant_rgb or 0), float(p.prestation_montant_assure or 0),
             ])
 
         ententes = list((await session.execute(

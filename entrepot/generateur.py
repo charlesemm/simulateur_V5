@@ -87,7 +87,6 @@ async def approfondir_historique(mois: int = 12, assures: int = 50,
                     # historique uniformément ouvert n'éprouverait rien.
                     droits_statut=1 if tirage.random() < 0.75 else 0,
                     droits_date_debut=debut,
-                    utilisateur_id_creation="entrepot",
                 ))
                 droits_ecrits += 1
 

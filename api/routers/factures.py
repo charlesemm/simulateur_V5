@@ -140,7 +140,7 @@ async def _charger_montants(session, numeros: list[str]) -> dict[str, dict[str, 
         select(
             InvoiceProvision.facture_numero,
             func.coalesce(func.sum(InvoiceProvision.prestation_montant_depense), 0),
-            func.coalesce(func.sum(InvoiceProvision.prestation_montant_rq), 0),
+            func.coalesce(func.sum(InvoiceProvision.prestation_montant_rgb), 0),
             func.coalesce(func.sum(InvoiceProvision.prestation_montant_assure), 0),
         )
         .where(InvoiceProvision.facture_numero.in_(numeros))
@@ -297,7 +297,7 @@ async def get_invoice(facture_numero: str) -> InvoiceDetailResponse:
         ),
         totaux=InvoiceTotalsSchema(
             montant_depense=sum((row.prestation_montant_depense or ZERO for row in invoice.provisions), ZERO),
-            montant_rembourse=sum((row.prestation_montant_rq or ZERO for row in invoice.provisions), ZERO),
+            montant_rembourse=sum((row.prestation_montant_rgb or ZERO for row in invoice.provisions), ZERO),
             montant_assure=sum((row.prestation_montant_assure or ZERO for row in invoice.provisions), ZERO),
             montant_cmu_ententes=montant_cmu,
         ),
@@ -323,7 +323,7 @@ async def get_invoice(facture_numero: str) -> InvoiceDetailResponse:
                 quantite_servie=row.prestation_quantite_servie,
                 prix_unitaire=row.prestation_prix_unitaire,
                 montant_depense=row.prestation_montant_depense,
-                montant_rembourse=row.prestation_montant_rq,
+                montant_rembourse=row.prestation_montant_rgb,
                 montant_assure=row.prestation_montant_assure,
             )
             for row in invoice.provisions

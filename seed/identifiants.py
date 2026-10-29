@@ -30,6 +30,7 @@ CHIFFRES: dict[str, int] = {
     "immatriculation_centre": 8,
     "collectivite": 6,
     "pharmacie": 6,
+    "immatriculation_pharmacie": 8,
     "medecin_conseil": 4,
     "agent_accueil": 5,
     "agent_gestion": 6,
@@ -39,6 +40,7 @@ CHIFFRES: dict[str, int] = {
     "assure_identifiant": 10,
     "recepisse": 10,
     "droits": 12,
+    "droits_produit": 12,
     "piece_identite": 9,
     # Nomenclatures
     "medicament": 6,

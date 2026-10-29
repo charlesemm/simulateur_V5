@@ -15,7 +15,7 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
     raise RuntimeError(
         "La variable d'environnement DATABASE_URL est obligatoire. "
-        "Exemple : postgresql+asyncpg://postgres:<mot_de_passe>@localhost:5432/cmu_simulator"
+        "Exemple : postgresql+asyncpg://postgres:<mot_de_passe>@localhost:5432/echo_db_v2"
     )
 
 # Le pré-ping empêche la réutilisation d'une connexion PostgreSQL périmée.
