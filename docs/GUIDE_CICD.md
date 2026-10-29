@@ -168,20 +168,82 @@ de voir si les tests passent.
 
 ---
 
-## 7. Ce que ce pipeline ne fait pas encore
+## 7. Le déploiement (`deploy.yml`)
 
-**Il ne déploie sur aucun serveur.** Le projet n'a pas de cible de production —
-c'est le chantier X2, toujours ouvert. Le pipeline s'arrête donc à une image
-prête à être tirée, ce qui suffit déjà à installer la bonne version n'importe
-où, sans rien recompiler.
+Un quatrième chantier existe, dans un fichier séparé :
+[`.github/workflows/deploy.yml`](.github/workflows/deploy.yml). Il pose sur
+`srv-gouv` l'image que `ci.yml` a publiée — la même routine que
+GUIDE_EXPLOITATION.md §2.1 (sauvegarde, migrations, puis API), en SSH.
 
-Le jour où un serveur existera, il restera à ajouter un quatrième chantier qui,
-après `image` : se connecte en SSH, tire la nouvelle image, applique les
-migrations, redémarre les conteneurs. Il faudra alors **trois secrets** dans
-`Settings` → `Secrets and variables` → `Actions` : l'adresse du serveur, la clé
-SSH, et le `JWT_SECRET_KEY` de production. Rien de tout cela n'est nécessaire
-aujourd'hui — le jeton qui publie sur GHCR est fourni automatiquement par
-GitHub à chaque exécution.
+**Déclenchement volontairement manuel.** Contrairement à `ci.yml`, ce
+chantier ne part jamais tout seul sur une poussée : `srv-gouv` est une
+machine partagée avec Socle, et lancer une migration sans personne pour
+surveiller le résultat est justement ce que le guide d'exploitation met en
+garde d'éviter. Pour le déclencher : onglet **Actions** du dépôt →
+*Déploiement — srv-gouv* → **Run workflow**. Un champ optionnel permet de
+choisir un repère d'image précis (`sha-a1b2c3d`) ; laissé vide, c'est le
+commit sélectionné pour ce lancement qui est utilisé.
+
+### Mise en service — à faire une fois, avant le premier déploiement
+
+**a. Un compte SSH dédié sur `srv-gouv`**, plutôt que de prêter un compte
+personnel au pipeline :
+
+```bash
+sudo useradd -m -s /bin/bash echo-deploy
+sudo -u echo-deploy ssh-keygen -t ed25519 -f /home/echo-deploy/.ssh/id_ed25519 -N ""
+sudo -u echo-deploy sh -c 'cat /home/echo-deploy/.ssh/id_ed25519.pub >> /home/echo-deploy/.ssh/authorized_keys'
+sudo cat /home/echo-deploy/.ssh/id_ed25519          # à copier dans le secret GitHub, puis à effacer de l'écran
+```
+
+**b. Un `sudo` limité aux commandes utilisées par le workflow** — jamais un
+`sudo` général sur une machine qui héberge aussi Socle :
+
+```bash
+sudo visudo -f /etc/sudoers.d/echo-deploy
+```
+
+```
+echo-deploy ALL=(root) NOPASSWD: /opt/echo/sauvegarde.sh, \
+  /usr/bin/podman-compose -f /opt/echo/compose.prod.yaml *, \
+  /usr/bin/podman inspect echo_migrations_1 *, \
+  /usr/bin/podman logs --tail 60 echo_migrations_1
+```
+
+> Le motif exact des chemins (`podman-compose`, `podman`) dépend de
+> l'installation — vérifier avec `which podman-compose podman` avant de
+> l'écrire. `visudo` valide la syntaxe avant d'enregistrer ; une erreur ici
+> casserait `sudo` pour tout le monde sur la machine.
+
+**c. Donner à `echo-deploy` le droit de modifier `/opt/echo/.env`** (le
+workflow y écrit le nouveau repère d'image sans `sudo`, volontairement — un
+secret ne doit transiter par `sudo` que si rien d'autre ne marche) :
+
+```bash
+sudo chgrp echo-deploy /opt/echo/.env /opt/echo
+sudo chmod 660 /opt/echo/.env
+```
+
+**d. Trois secrets** dans `Settings` → `Secrets and variables` → `Actions` :
+
+| Secret | Valeur |
+|---|---|
+| `SRV_GOUV_HOST` | `srv-gouv.ipscnam.ci` (ou son adresse IP) |
+| `SRV_GOUV_USER` | `echo-deploy` |
+| `SRV_GOUV_SSH_KEY` | La clé **privée** générée à l'étape a, entière, en-têtes `-----BEGIN...-----`/`-----END...-----` compris |
+
+**e. (Optionnel mais recommandé) Une approbation humaine** avant chaque
+déploiement : `Settings` → `Environments` → `New environment` → nommer
+`production` → activer *Required reviewers* et s'y ajouter. Le workflow
+déclare déjà `environment: production` ; sans cette configuration, la ligne
+ne fait rien et le déploiement part dès le clic sur *Run workflow*.
+
+### Ce que ce chantier ne fait toujours pas
+
+Il touche `.env`, les migrations et le conteneur `api` — jamais nginx ni le
+certificat, volontairement : ce sont les points où une erreur couperait
+aussi Socle (GUIDE_EXPLOITATION.md §2.3), et ils changent rarement. Ces
+gestes restent manuels.
 
 **Autre écart connu, sans gravité mais bon à savoir** : la CI teste sur Python
 3.12, alors que le `Containerfile` et ton poste utilisent 3.14. Les tests

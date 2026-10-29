@@ -41,6 +41,7 @@ def _jeton_de(user: User) -> TokenResponse:
         ),
         role=user.role,
         nom_complet=user.nom_complet,
+        email=user.email,
         nom_utilisateur=user.nom_utilisateur,
         doit_changer_mot_de_passe=user.doit_changer_mot_de_passe,
     )

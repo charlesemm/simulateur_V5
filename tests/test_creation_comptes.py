@@ -1,5 +1,7 @@
 """Création de comptes — les deux pièges rencontrés le 2026-08-25."""
 
+import uuid
+
 
 async def test_un_email_invalide_est_refuse_proprement(client_api):
     """Le navigateur accepte `admin@cnam` ; Pydantic non.
@@ -108,3 +110,65 @@ async def test_un_administrateur_s_efface_si_un_autre_prend_le_relais(
     extinction = await client_api.patch(
         f"/users/{administrateur.utilisateur_uuid}", json={"statut_actif": False})
     assert extinction.status_code == 200
+
+
+async def test_supprimer_un_compte_le_retire_de_la_liste(client_api):
+    """La suppression, contrairement à la désactivation, efface la ligne."""
+
+    cree = await client_api.post("/users", json={
+        "email": "e@cnam.ci", "nom_utilisateur": "epsilon",
+        "nom_complet": "E", "role": "operateur",
+    })
+    uuid_cible = cree.json()["utilisateur"]["utilisateur_uuid"]
+
+    suppression = await client_api.delete(f"/users/{uuid_cible}")
+    assert suppression.status_code == 204
+
+    liste = await client_api.get("/users")
+    assert all(u["utilisateur_uuid"] != uuid_cible for u in liste.json())
+
+
+async def test_supprimer_un_compte_inconnu_est_un_404(client_api):
+    reponse = await client_api.delete(f"/users/{uuid.uuid4()}")
+    assert reponse.status_code == 404
+
+
+async def test_un_administrateur_ne_peut_pas_se_supprimer_lui_meme(
+    client_api, administrateur
+):
+    """Se couper l'accès en plein milieu de l'action serait irréversible."""
+
+    reponse = await client_api.delete(f"/users/{administrateur.utilisateur_uuid}")
+    assert reponse.status_code == 409
+
+    liste = await client_api.get("/users")
+    assert any(
+        u["utilisateur_uuid"] == str(administrateur.utilisateur_uuid)
+        for u in liste.json()
+    )
+
+
+async def test_supprimer_un_autre_administrateur_reste_possible_si_on_en_reste_un(
+    client_api, administrateur
+):
+    """Le garde-fou du dernier admin protège la fonction, pas un compte précis.
+
+    `client_api` reste actif tout du long : supprimer un *autre* administrateur
+    ne ferme donc jamais la porte, contrairement à se supprimer soi-même
+    (couvert par test_un_administrateur_ne_peut_pas_se_supprimer_lui_meme).
+    """
+
+    releve = await client_api.post("/users", json={
+        "email": "g@cnam.ci", "nom_utilisateur": "golf",
+        "nom_complet": "Relève", "role": "administrateur",
+    })
+    uuid_releve = releve.json()["utilisateur"]["utilisateur_uuid"]
+
+    suppression = await client_api.delete(f"/users/{uuid_releve}")
+    assert suppression.status_code == 204
+
+    # Il ne reste plus que `administrateur` : impossible de le supprimer
+    # depuis un autre compte administrateur (ici, simulé via le rôle du
+    # compte de relève déjà supprimé) -- le garde-fou est déjà couvert par
+    # test_un_administrateur_ne_peut_pas_se_supprimer_lui_meme pour le cas
+    # où c'est *soi-même* le dernier admin restant.

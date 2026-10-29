@@ -1,0 +1,108 @@
+# .github/workflows/deploy.yml
+#
+# Le quatrième chantier annoncé par GUIDE_CICD.md (section 7) : après que
+# « image » (dans ci.yml) a publié un paquet sur GHCR, celui-ci le pose sur
+# srv-gouv. Il reproduit exactement la routine manuelle de
+# GUIDE_EXPLOITATION.md §2.1 — sauvegarde, migrations, puis API — en SSH.
+#
+# Déclenchement VOLONTAIREMENT manuel (workflow_dispatch) et non automatique
+# à chaque fusion sur main : srv-gouv est une machine partagée avec Socle, et
+# une migration lancée sans personne pour surveiller le résultat est
+# précisément le scénario que GUIDE_EXPLOITATION.md met en garde d'éviter.
+#
+# Prérequis côté dépôt, à créer une fois dans Settings → Secrets and
+# variables → Actions (voir la section « Mise en service » de
+# GUIDE_CICD.md) :
+#   SRV_GOUV_HOST      Adresse du serveur (ex. srv-gouv.ipscnam.ci)
+#   SRV_GOUV_USER       Compte SSH dédié au déploiement
+#   SRV_GOUV_SSH_KEY    Clé privée correspondante (OpenSSH, sans phrase de passe)
+#
+# Prérequis côté serveur : le compte SRV_GOUV_USER doit pouvoir exécuter,
+# SANS mot de passe (sudoers NOPASSWD), uniquement les commandes utilisées
+# ci-dessous — pas un sudo général. Voir la note en bas de ce fichier.
+
+name: Déploiement — srv-gouv
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: >-
+          Repère de l'image à déployer (ex. sha-a1b2c3d, ou un numéro de
+          version). Laissé vide, c'est le sha du commit sélectionné pour ce
+          lancement qui est utilisé.
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Sauvegarder, migrer, redémarrer
+    runs-on: ubuntu-latest
+    # Un « environment » GitHub permet, si on l'active dans Settings →
+    # Environments → production, d'exiger l'approbation d'une personne avant
+    # que ce job ne parte — une seconde paire d'yeux sur une machine
+    # partagée. Sans configuration côté dépôt, cette ligne ne change rien.
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Déterminer le repère de l'image
+        id: image
+        run: |
+          if [ -n "${{ inputs.image_tag }}" ]; then
+            echo "tag=${{ inputs.image_tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=sha-$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Sauvegarder, pointer l'image, migrer, redémarrer l'API
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SRV_GOUV_HOST }}
+          username: ${{ secrets.SRV_GOUV_USER }}
+          key: ${{ secrets.SRV_GOUV_SSH_KEY }}
+          script_stop: true
+          script: |
+            set -euo pipefail
+            cd /opt/echo
+
+            echo "→ Sauvegarde avant mise à jour"
+            sudo /opt/echo/sauvegarde.sh
+
+            echo "→ Pointage de l'image ghcr.io/charlesemm/simulateur_v5:${{ steps.image.outputs.tag }}"
+            sed -i "s|^ECHO_IMAGE=.*|ECHO_IMAGE=ghcr.io/charlesemm/simulateur_v5:${{ steps.image.outputs.tag }}|" .env
+
+            echo "→ Téléchargement de l'image"
+            sudo podman-compose -f compose.prod.yaml pull
+
+            # Migrations d'abord, seules : podman-compose 1.0.6 ignore les
+            # conditions « depends_on » (voir GUIDE_EXPLOITATION.md §5), un
+            # « up -d » global partirait avant que la base soit prête.
+            echo "→ Migrations"
+            sudo podman-compose -f compose.prod.yaml up -d migrations
+            sleep 25
+            CODE_SORTIE=$(sudo podman inspect echo_migrations_1 --format '{{.State.ExitCode}}')
+            if [ "$CODE_SORTIE" != "0" ]; then
+              echo "❌ Les migrations ont échoué (code de sortie $CODE_SORTIE)."
+              echo "   La base a été sauvegardée avant cette étape : voir /var/sauvegardes/echo/"
+              sudo podman logs --tail 60 echo_migrations_1
+              exit 1
+            fi
+
+            echo "→ Redémarrage de l'API"
+            sudo podman-compose -f compose.prod.yaml up -d api
+            sleep 30
+
+            echo "→ Vérification locale"
+            curl -sf http://127.0.0.1:8000/health
+
+      - name: Vérifier depuis l'extérieur
+        # Un succès en local (dans le job SSH ci-dessus) ne dit rien de la
+        # chaîne complète : c'est nginx qui reçoit les vrais utilisateurs.
+        run: |
+          sleep 5
+          curl -sf https://echo.ipscnam.ci/health
